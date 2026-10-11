@@ -25,7 +25,6 @@ import com.android.purebilibili.data.repository.DanmakuRepository
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppOutlinedButton
 import com.android.purebilibili.core.ui.components.AppOutlinedTextField
@@ -420,6 +419,7 @@ fun DanmakuSettingsPanel(
             dismissOnClickOutside = false
         )
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = when (layoutPolicy.anchor) {
@@ -566,7 +566,7 @@ fun DanmakuSettingsPanel(
                     if (isFullscreenStyle) {
                         // 横屏分区 Tab：基础 / 高级 / 屏蔽，避免窄侧栏长滚动。
                         AppThemeAdaptiveTabRow(
-indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                            role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                             options = listOf("基础", "高级", "屏蔽").mapIndexed { index, label ->
                                 AppSegmentOption(index, label)
                             },
@@ -1449,6 +1449,7 @@ private fun DanmakuBlockManagerDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         AppSurface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1498,7 +1499,7 @@ private fun DanmakuBlockManagerDialog(
                 }
 
                 AppThemeAdaptiveTabRow(
-indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                     options = listOf("关键词", "正则", "UID(hash)").mapIndexed { index, label ->
                         AppSegmentOption(
                             index,

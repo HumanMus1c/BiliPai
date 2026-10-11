@@ -45,7 +45,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.PagerState
@@ -366,6 +366,7 @@ internal fun VideoDetailPlaybackEndedDialog(
             usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
         ),
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         AppSurface(
             modifier = Modifier.appContentDialogWidth(policy = dialogLayout),
             shape = AppShapes.container(ContainerLevel.Dialog),

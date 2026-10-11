@@ -6,7 +6,7 @@ import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,6 +74,7 @@ fun DirectorySelectionDialog(
             usePlatformDefaultWidth = dialogLayout.usePlatformDefaultWidth,
         ),
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         AppPopupSurface(
             type = AppPopupSurfaceType.DIALOG,
             modifier = Modifier

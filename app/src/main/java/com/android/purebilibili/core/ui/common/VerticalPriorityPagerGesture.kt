@@ -6,6 +6,11 @@ import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.pager.PagerDefaults
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import top.yukonga.miuix.kmp.utils.PagerNavigationSpringSpec
+import top.yukonga.miuix.kmp.utils.pagerGestureOverride
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -141,6 +146,13 @@ internal fun Modifier.verticalPriorityHorizontalPagerSwipe(
     shouldYield: () -> Boolean = { false },
 ): Modifier = composed {
     if (!enabled) return@composed this
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+        return@composed pagerGestureOverride(
+            pagerState = state,
+            flingBehavior = PagerDefaults.flingBehavior(state, snapAnimationSpec = PagerNavigationSpringSpec),
+            enabled = !shouldYield(),
+        )
+    }
 
     val latestShouldYield = rememberUpdatedState(shouldYield)
     val layoutDirection = LocalLayoutDirection.current

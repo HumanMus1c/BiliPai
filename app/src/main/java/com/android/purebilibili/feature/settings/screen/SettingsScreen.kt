@@ -15,7 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable // [New]
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -1225,6 +1225,7 @@ fun DonateDialog(onDismiss: () -> Unit) {
             decorFitsSystemWindows = false
         )
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         Box(
             modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.9f)),
             contentAlignment = Alignment.Center

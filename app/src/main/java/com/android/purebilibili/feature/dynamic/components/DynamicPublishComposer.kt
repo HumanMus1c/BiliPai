@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -134,13 +133,10 @@ fun DynamicPublishComposer(
         )
     }
 
-    // PiliPlus uses a sheet expanded to the full window. The shared adaptive sheet centers on
-    // tablets, so this page uses the Material sheet container with theme-aware app controls.
-    ModalBottomSheet(
+    // Keep each theme's native modal host and the shared window backdrop policy.
+    com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        sheetMaxWidth = Dp.Unspecified,
-        shape = RectangleShape,
         containerColor = AppSurfaceTokens.background(),
         dragHandle = null,
     ) {

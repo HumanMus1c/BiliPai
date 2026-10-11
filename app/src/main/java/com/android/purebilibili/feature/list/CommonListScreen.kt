@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.list
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.clipRect
 import com.android.purebilibili.navigation.animatePagerSelection
@@ -77,16 +78,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.DisposableEffect // [Fix] Missing import
 import kotlinx.coroutines.launch // [Fix] Import
@@ -102,6 +103,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Search
+import com.android.purebilibili.core.ui.components.AppFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -598,7 +600,7 @@ fun CommonListScreen(
     val favoriteCategoryGridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     val liveCommonListBottomPadding = LocalBottomBarContentPadding.current
     val isBottomBarVisibleForPadding = com.android.purebilibili.core.ui.LocalBottomBarVisible.current
-    val commonListBottomPadding = com.android.purebilibili.core.ui.rememberStickyBottomBarContentPadding(
+    val bottomOverlayPadding = com.android.purebilibili.core.ui.rememberStickyBottomBarContentPadding(
         autoHideEnabled = shouldAutoHideBottomBar,
         liveBottomPadding = liveCommonListBottomPadding,
         isBottomBarVisible = isBottomBarVisibleForPadding,
@@ -608,6 +610,8 @@ fun CommonListScreen(
     } else {
         0.dp
     }
+    val commonListBottomPadding = bottomOverlayPadding +
+        if (isFavoriteBatchMode || isHistoryBatchMode || isFavoriteDetailBatchMode) 80.dp else 0.dp
     val activeCommonListScrollState = remember(
         favoriteViewModel,
         favoriteSection,
@@ -1510,6 +1514,120 @@ fun CommonListScreen(
                     else -> exitFavoriteDetailBatchMode()
                 }
             }
+            val batchActions: @Composable () -> Unit = {
+                if (isFavoriteBatchMode) {
+                    val selectableIds = activeFavoriteItems
+                        .filterNot { it.isCollectionResource }
+                        .map { it.id }
+                        .filter { it > 0L }
+                        .toSet()
+                    val allSelected = selectableIds.isNotEmpty() &&
+                        selectedFavoriteResourceIds.containsAll(selectableIds)
+                    AppTextButton(
+                        onClick = {
+                            selectedFavoriteResourceIds = if (allSelected) emptySet() else selectableIds
+                        }
+                    ) {
+                        AppText(if (allSelected) "取消全选" else "全选")
+                    }
+                    // PiliPlus 批量操作以文字按钮平铺，删除类动作红色
+                    AppTextButton(
+                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
+                        onClick = { pendingFavoriteTransferCopy = true },
+                    ) {
+                        AppText("复制")
+                    }
+                    AppTextButton(
+                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
+                        onClick = { pendingFavoriteTransferCopy = false },
+                    ) {
+                        AppText("移动")
+                    }
+                    AppTextButton(
+                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
+                        onClick = { showFavoriteBatchDeleteConfirm = true },
+                    ) {
+                        AppText(
+                            "删除",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                if (historyViewModel != null && isHistoryBatchMode && visibleHistoryItems.isNotEmpty()) {
+                    val visibleHistoryKeys = visibleHistoryItems
+                        .map(historyViewModel::resolveHistoryRenderKey)
+                        .toSet()
+                    val allSelected = visibleHistoryKeys.isNotEmpty() &&
+                        selectedHistoryKeys.containsAll(visibleHistoryKeys)
+                    AppTextButton(
+                        onClick = {
+                            selectedHistoryKeys = if (allSelected) {
+                                emptySet()
+                            } else {
+                                visibleHistoryKeys
+                            }
+                        }
+                    ) {
+                        AppText(if (allSelected) "取消全选" else "全选")
+                    }
+                    // PiliPlus：批量删除直接以红色文字按钮呈现
+                    AppTextButton(
+                        enabled = selectedHistoryKeys.isNotEmpty(),
+                        onClick = { showHistoryBatchDeleteConfirm = true }
+                    ) {
+                        AppText(
+                            "移除",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                if (isFavoriteDetailPage && isFavoriteDetailBatchMode) {
+                    val detailVm = requireNotNull(seasonSeriesDetailViewModel)
+                    val detailKeys = state.items
+                        .map(favoriteDetailRenderKey)
+                        .filter { it.isNotBlank() }
+                        .toSet()
+                    val detailAllSelected = detailKeys.isNotEmpty() &&
+                        selectedFavoriteDetailKeys.containsAll(detailKeys)
+                    AppTextButton(
+                        onClick = {
+                            selectedFavoriteDetailKeys =
+                                if (detailAllSelected) emptySet() else detailKeys
+                        }
+                    ) {
+                        AppText(if (detailAllSelected) "取消全选" else "全选")
+                    }
+                    AppTextButton(
+                        enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
+                        onClick = {
+                            pendingFavoriteDetailTransferCopy = true
+                            selectedFavoriteDetailTransferFolderId = null
+                            detailVm.loadTransferFolders()
+                        },
+                    ) {
+                        AppText("复制")
+                    }
+                    AppTextButton(
+                        enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
+                        onClick = {
+                            pendingFavoriteDetailTransferCopy = false
+                            selectedFavoriteDetailTransferFolderId = null
+                            detailVm.loadTransferFolders()
+                        },
+                    ) {
+                        AppText("移动")
+                    }
+                    AppTextButton(
+                        enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
+                        onClick = { showFavoriteDetailRemoveConfirm = true },
+                    ) {
+                        AppText(
+                            "移除",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
             BiliPaiImmersiveTopBar(
                 backdrop = commonListChromeBackdrop,
                 enabled = useProgressiveHeaderBlur,
@@ -1588,44 +1706,7 @@ fun CommonListScreen(
                                 }
                             }
                             if (favoriteViewModel != null && favoriteSection == FavoriteSection.VIDEO) {
-                                if (isFavoriteBatchMode) {
-                                    val selectableIds = activeFavoriteItems
-                                        .filterNot { it.isCollectionResource }
-                                        .map { it.id }
-                                        .filter { it > 0L }
-                                        .toSet()
-                                    val allSelected = selectableIds.isNotEmpty() &&
-                                        selectedFavoriteResourceIds.containsAll(selectableIds)
-                                    AppTextButton(
-                                        onClick = {
-                                            selectedFavoriteResourceIds = if (allSelected) emptySet() else selectableIds
-                                        }
-                                    ) {
-                                        AppText(if (allSelected) "取消全选" else "全选")
-                                    }
-                                    // PiliPlus 批量操作以文字按钮平铺，删除类动作红色
-                                    AppTextButton(
-                                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
-                                        onClick = { pendingFavoriteTransferCopy = true },
-                                    ) {
-                                        AppText("复制")
-                                    }
-                                    AppTextButton(
-                                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
-                                        onClick = { pendingFavoriteTransferCopy = false },
-                                    ) {
-                                        AppText("移动")
-                                    }
-                                    AppTextButton(
-                                        enabled = selectedFavoriteResourceIds.isNotEmpty() && !isFavoriteManaging,
-                                        onClick = { showFavoriteBatchDeleteConfirm = true },
-                                    ) {
-                                        AppText(
-                                            "删除",
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                } else {
+                                if (!isFavoriteBatchMode) {
                                 AppIconButton(
                                     enabled = activeFavoriteItems.any { it.bvid.isNotBlank() } && !isSubscribedBrowse,
                                     onClick = {
@@ -1702,18 +1783,20 @@ fun CommonListScreen(
                                                     onClick = { showFavoriteFolderDeleteConfirm = true },
                                                 ),
                                             ),
-                                            FavoriteResourceOrder.entries.map { order ->
+                                            listOf(
                                                 AppWindowAction(
-                                                    label = if (order == favoriteOrder) {
-                                                        "排序：${order.label}"
-                                                    } else {
-                                                        order.label
-                                                    },
+                                                    label = "排序：${favoriteOrder.label}",
                                                     enabled = !isFavoriteManaging,
-                                                    selected = order == favoriteOrder,
-                                                    onClick = { favoriteViewModel.changeFavoriteOrder(order) },
-                                                )
-                                            },
+                                                    children = FavoriteResourceOrder.entries.map { order ->
+                                                        AppWindowAction(
+                                                            label = order.label,
+                                                            enabled = !isFavoriteManaging,
+                                                            selected = order == favoriteOrder,
+                                                            onClick = { favoriteViewModel.changeFavoriteOrder(order) },
+                                                        )
+                                                    },
+                                                ),
+                                            ),
                                             listOf(
                                                 AppWindowAction(
                                                     label = "分享收藏夹",
@@ -1752,34 +1835,7 @@ fun CommonListScreen(
                             }
 
                             if (historyViewModel != null) {
-                                if (isHistoryBatchMode && visibleHistoryItems.isNotEmpty()) {
-                                    val visibleHistoryKeys = visibleHistoryItems
-                                        .map(historyViewModel::resolveHistoryRenderKey)
-                                        .toSet()
-                                    val allSelected = visibleHistoryKeys.isNotEmpty() &&
-                                        selectedHistoryKeys.containsAll(visibleHistoryKeys)
-                                    AppTextButton(
-                                        onClick = {
-                                            selectedHistoryKeys = if (allSelected) {
-                                                emptySet()
-                                            } else {
-                                                visibleHistoryKeys
-                                            }
-                                        }
-                                    ) {
-                                        AppText(if (allSelected) "取消全选" else "全选")
-                                    }
-                                    // PiliPlus：批量删除直接以红色文字按钮呈现
-                                    AppTextButton(
-                                        enabled = selectedHistoryKeys.isNotEmpty(),
-                                        onClick = { showHistoryBatchDeleteConfirm = true }
-                                    ) {
-                                        AppText(
-                                            "移除",
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    }
-                                } else {
+                                if (!isHistoryBatchMode) {
                                     AppWindowActionMenu(
                                         enabled = !isHistoryManagementBusy,
                                         groups = listOf(
@@ -1809,52 +1865,7 @@ fun CommonListScreen(
                                     }
                                 }
                             }
-                            if (isFavoriteDetailPage && isFavoriteDetailBatchMode) {
-                                val detailVm = requireNotNull(seasonSeriesDetailViewModel)
-                                val detailKeys = state.items
-                                    .map(favoriteDetailRenderKey)
-                                    .filter { it.isNotBlank() }
-                                    .toSet()
-                                val detailAllSelected = detailKeys.isNotEmpty() &&
-                                    selectedFavoriteDetailKeys.containsAll(detailKeys)
-                                AppTextButton(
-                                    onClick = {
-                                        selectedFavoriteDetailKeys =
-                                            if (detailAllSelected) emptySet() else detailKeys
-                                    }
-                                ) {
-                                    AppText(if (detailAllSelected) "取消全选" else "全选")
-                                }
-                                AppTextButton(
-                                    enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
-                                    onClick = {
-                                        pendingFavoriteDetailTransferCopy = true
-                                        selectedFavoriteDetailTransferFolderId = null
-                                        detailVm.loadTransferFolders()
-                                    },
-                                ) {
-                                    AppText("复制")
-                                }
-                                AppTextButton(
-                                    enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
-                                    onClick = {
-                                        pendingFavoriteDetailTransferCopy = false
-                                        selectedFavoriteDetailTransferFolderId = null
-                                        detailVm.loadTransferFolders()
-                                    },
-                                ) {
-                                    AppText("移动")
-                                }
-                                AppTextButton(
-                                    enabled = selectedFavoriteDetailKeys.isNotEmpty() && !detailVm.isManagingState.value,
-                                    onClick = { showFavoriteDetailRemoveConfirm = true },
-                                ) {
-                                    AppText(
-                                        "移除",
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
+
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
@@ -1936,6 +1947,7 @@ fun CommonListScreen(
                             exit = shrinkVertically() + fadeOut(),
                         ) {
                             AppLiquidAwareTabRow(
+                                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                                 options = favoriteSectionOptions,
                                 selectedValue = favoriteSection,
                                 onSelectionChange = { section ->
@@ -2029,6 +2041,7 @@ fun CommonListScreen(
                             exit = shrinkVertically() + fadeOut(),
                         ) {
                             AppThemeAdaptiveTabRow(
+                                role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                                 options = historyFilterOptions,
                                 selectedValue = historyContentFilter,
                                 onSelectionChange = onHistoryFilterSelected,
@@ -2099,8 +2112,17 @@ fun CommonListScreen(
                 }
             }
 
+            if (isBatchActionMode) {
+                AppFloatingToolbar(
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(start = 12.dp, end = 12.dp, bottom = bottomOverlayPadding + 12.dp),
+                ) {
+                    Row(Modifier.horizontalScroll(rememberScrollState())) { batchActions() }
+                }
+            }
+
             AppLiquidGlassBackToTopButton(
-                visible = rememberBackToTopButtonEnabled() && shouldShowBackToTop,
+                visible = !isBatchActionMode && rememberBackToTopButtonEnabled() && shouldShowBackToTop,
                 onClick = {
                     coroutineScope.launch {
                         scrollCommonListToTop()

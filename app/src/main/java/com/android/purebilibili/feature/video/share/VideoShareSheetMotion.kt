@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import com.android.purebilibili.core.theme.AppUiStyle
+import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.ui.AppModalPresentation
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
@@ -33,7 +35,7 @@ internal fun rememberVideoShareSheetBounce(
     isLandscape: Boolean,
 ): Modifier {
     val reduceMotion = rememberSystemReduceMotion()
-    val bounceEnabled = isLandscape && !reduceMotion
+    val bounceEnabled = LocalAppUiStyle.current == AppUiStyle.MATERIAL3 && isLandscape && !reduceMotion
     val scale = remember(sheetState, bounceEnabled) { Animatable(if (bounceEnabled) 0.94f else 1f) }
     LaunchedEffect(sheetState, bounceEnabled) {
         if (bounceEnabled) {

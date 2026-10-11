@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RelatedResponse(
-    val data: List<RelatedVideo>? = null
+    val data: List<RelatedVideo>? = null,
+    val code: Int = 0,
+    val message: String = "",
 )
 
 @Serializable

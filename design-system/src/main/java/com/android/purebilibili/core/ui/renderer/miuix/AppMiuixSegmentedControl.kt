@@ -218,6 +218,7 @@ internal fun <T> AppMiuixTabRow(
     modifier: Modifier,
     indicatorPositionProvider: (() -> Float)? = null,
     equalizeScrollableItemWidths: Boolean = false,
+    centerContent: Boolean = false,
     contentSizedNonGlassItems: Boolean = false,
     contentSizedNonGlassMaxItemWidth: Dp = 320.dp,
     drawNonGlassTrack: Boolean = false,
@@ -235,6 +236,7 @@ internal fun <T> AppMiuixTabRow(
             height = height,
             modifier = modifier,
             equalizeScrollableItemWidths = equalizeScrollableItemWidths,
+            centerContent = centerContent,
             contentSizedItems = true,
             contentSizedMaxItemWidth = contentSizedNonGlassMaxItemWidth,
             drawTrack = drawNonGlassTrack,
@@ -268,6 +270,7 @@ internal fun <T> AppMiuixTabRow(
             height = height,
             modifier = modifier,
             equalizeScrollableItemWidths = equalizeScrollableItemWidths,
+            centerContent = centerContent,
             contentSizedItems = contentSizedNonGlassItems,
             contentSizedMaxItemWidth = contentSizedNonGlassMaxItemWidth,
             drawTrack = drawNonGlassTrack,
@@ -323,6 +326,7 @@ private fun <T> AppMiuixNonGlassTabs(
     height: Dp? = null,
     modifier: Modifier,
     equalizeScrollableItemWidths: Boolean = false,
+    centerContent: Boolean = false,
     contentSizedItems: Boolean = false,
     contentSizedMaxItemWidth: Dp = 320.dp,
     drawTrack: Boolean = true,
@@ -356,6 +360,7 @@ private fun <T> AppMiuixNonGlassTabs(
             colors = colors,
             height = height ?: geometry.height,
             modifier = modifier,
+            centerContent = centerContent,
             drawTrack = drawTrack,
             onSelectionChange = onSelectionChange,
         )
@@ -425,6 +430,7 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
     colors: AppSegmentedControlColors,
     height: Dp,
     modifier: Modifier,
+    centerContent: Boolean,
     drawTrack: Boolean,
     onSelectionChange: (T) -> Unit,
 ) {
@@ -435,21 +441,38 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
     } else Color.Transparent
     val listState = rememberLazyListState()
     val motionEnabled = com.android.purebilibili.core.ui.LocalComponentMotionEnabled.current
-    LaunchedEffect(selectedIndex, itemWidths, motionEnabled) {
+    val density = LocalDensity.current
+    LaunchedEffect(selectedIndex, itemWidths, motionEnabled, density) {
         // Observe resize/measurement, not scroll offsets, so manual scrolling stays free.
         snapshotFlow { listState.layoutInfo.viewportSize.width to listState.layoutInfo.totalItemsCount }
             .filter { (width, count) -> width > 0 && count > 0 }
             .collectLatest {
                 val target = selectedIndex.coerceIn(0, options.lastIndex)
                 val info = listState.layoutInfo
+                val viewportWidth = info.viewportEndOffset - info.viewportStartOffset
+                val itemWidthPx = with(density) {
+                    itemWidths.getOrElse(target) { 48.dp }.roundToPx()
+                }
+                // Center the selected category so adjacent categories retain usable
+                // hit targets even when the selected button was already fully visible.
+                // LazyRow clamps the movement at either end of the rail.
+                val leadingSpace = ((viewportWidth - itemWidthPx) / 2).coerceAtLeast(0)
                 val item = info.visibleItemsInfo.firstOrNull { it.index == target }
                 if (item == null) {
-                    if (motionEnabled) listState.animateScrollToItem(target) else listState.scrollToItem(target)
+                    if (motionEnabled) {
+                        listState.animateScrollToItem(target, scrollOffset = -leadingSpace)
+                    } else {
+                        listState.scrollToItem(target, scrollOffset = -leadingSpace)
+                    }
                 } else {
-                    val delta = resolveMeasuredTabVisibilityDelta(
-                        item.offset, item.offset + item.size,
-                        info.viewportStartOffset, info.viewportEndOffset,
-                    ).toFloat()
+                    val delta = if (item.size <= viewportWidth) {
+                        (item.offset - info.viewportStartOffset - leadingSpace).toFloat()
+                    } else {
+                        resolveMeasuredTabVisibilityDelta(
+                            item.offset, item.offset + item.size,
+                            info.viewportStartOffset, info.viewportEndOffset,
+                        ).toFloat()
+                    }
                     if (delta != 0f) {
                         if (motionEnabled) listState.animateScrollBy(delta) else listState.scrollBy(delta)
                     }
@@ -469,7 +492,10 @@ private fun <T> AppMiuixContentSizedNonGlassTabs(
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { collectionInfo = CollectionInfo(rowCount = 1, columnCount = options.size) },
-            horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+            horizontalArrangement = Arrangement.spacedBy(
+                AppSpacingTokens.Small,
+                if (centerContent) Alignment.CenterHorizontally else Alignment.Start,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             itemsIndexed(options) { index, option ->

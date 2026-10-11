@@ -57,7 +57,7 @@ class SettingsRootCategoryContentStructureTest {
         assertTrue(source.contains("SettingsSearchFocusIds.PLAYBACK_DECODER"))
         assertTrue(source.contains("SettingsSearchFocusIds.BOTTOM_BAR_START"))
         assertTrue(source.contains("SettingsSearchFocusIds.ANIMATION_START"))
-        assertTrue(source.contains("SettingsSearchFocusIds.PLAYBACK_INTERACTION"))
+        assertTrue(source.contains("SettingsSearchFocusIds.PLAYBACK_COMMENTS"))
         assertTrue(source.contains("SettingsSearchFocusIds.PLAYBACK_FULLSCREEN"))
         assertTrue(source.contains("SettingsSearchFocusIds.PLAYBACK_DEBUG"))
     }

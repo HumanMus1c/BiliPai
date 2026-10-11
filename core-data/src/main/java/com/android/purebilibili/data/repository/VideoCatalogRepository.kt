@@ -232,8 +232,22 @@ object VideoCatalogRepository {
         }
     }
 
-    suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> = withContext(Dispatchers.IO) {
-        try { api.getRelatedVideos(bvid).data ?: emptyList() } catch (e: Exception) { emptyList() }
+    suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> =
+        getRelatedVideosResult(bvid).getOrDefault(emptyList())
+
+    suspend fun getRelatedVideosResult(bvid: String): Result<List<RelatedVideo>> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getRelatedVideos(bvid)
+            if (response.code != 0 || response.data == null) {
+                Result.failure(IllegalStateException("相关推荐加载失败 (${response.code})"))
+            } else {
+                Result.success(requireNotNull(response.data))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()

@@ -1,6 +1,9 @@
 // 文件路径: feature/watchlater/WatchLaterScreen.kt
 package com.android.purebilibili.feature.watchlater
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import com.android.purebilibili.core.ui.components.AppFloatingToolbar
 import android.os.Build
 import com.android.purebilibili.core.ui.components.videoListItemModifier
 import com.android.purebilibili.feature.home.GridPinchColumnHudPill
@@ -24,10 +27,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -919,6 +922,47 @@ fun WatchLaterScreen(
         selectedBvids = emptySet()
     }
 
+    val batchActions: @Composable () -> Unit = {
+        val allSelected = selectedBvids.size == state.items.size
+        AppTextButton(
+            onClick = {
+                selectedBvids = if (allSelected) emptySet() else state.items.map { it.bvid }.toSet()
+            }
+        ) {
+            AppText(if (allSelected) "取消全选" else "全选")
+        }
+        // PiliPlus：批量操作平铺为文字按钮，移除为红色
+        AppTextButton(
+            enabled = selectedBvids.isNotEmpty() && !state.isTransferLoading,
+            onClick = {
+                pendingTransferCopy = true
+                selectedTransferFolderId = null
+                viewModel.loadFavoriteFolders()
+            },
+        ) {
+            AppText("复制")
+        }
+        AppTextButton(
+            enabled = selectedBvids.isNotEmpty() && !state.isTransferLoading,
+            onClick = {
+                pendingTransferCopy = false
+                selectedTransferFolderId = null
+                viewModel.loadFavoriteFolders()
+            },
+        ) {
+            AppText("移动")
+        }
+        AppTextButton(
+            enabled = selectedBvids.isNotEmpty() && !state.isManaging,
+            onClick = { showBatchDeleteConfirm = true },
+        ) {
+            AppText(
+                "移除",
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+
     AppScaffold(
         modifier = Modifier
             .nestedScroll(bottomBarScrollHideConnection)
@@ -977,46 +1021,7 @@ fun WatchLaterScreen(
                             }
                         }
                         if (state.items.isNotEmpty()) {
-                            if (isBatchMode) {
-                                val allSelected = selectedBvids.size == state.items.size
-                                AppTextButton(
-                                    onClick = {
-                                        selectedBvids = if (allSelected) emptySet() else state.items.map { it.bvid }.toSet()
-                                    }
-                                ) {
-                                    AppText(if (allSelected) "取消全选" else "全选")
-                                }
-                                // PiliPlus：批量操作平铺为文字按钮，移除为红色
-                                AppTextButton(
-                                    enabled = selectedBvids.isNotEmpty() && !state.isTransferLoading,
-                                    onClick = {
-                                        pendingTransferCopy = true
-                                        selectedTransferFolderId = null
-                                        viewModel.loadFavoriteFolders()
-                                    },
-                                ) {
-                                    AppText("复制")
-                                }
-                                AppTextButton(
-                                    enabled = selectedBvids.isNotEmpty() && !state.isTransferLoading,
-                                    onClick = {
-                                        pendingTransferCopy = false
-                                        selectedTransferFolderId = null
-                                        viewModel.loadFavoriteFolders()
-                                    },
-                                ) {
-                                    AppText("移动")
-                                }
-                                AppTextButton(
-                                    enabled = selectedBvids.isNotEmpty() && !state.isManaging,
-                                    onClick = { showBatchDeleteConfirm = true },
-                                ) {
-                                    AppText(
-                                        "移除",
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            } else {
+                            if (!isBatchMode) {
                                 AppTextButton(
                                     onClick = {
                                         viewModel.updateSortOrder(state.sortOrder.toggled())
@@ -1157,6 +1162,7 @@ fun WatchLaterScreen(
                     exit = shrinkVertically() + fadeOut(),
                 ) {
                     AppThemeAdaptiveTabRow(
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                         options = watchLaterFilterOptions,
                         selectedValue = state.filter,
                         onSelectionChange = viewModel::selectFilter,
@@ -1183,12 +1189,13 @@ fun WatchLaterScreen(
         // 听视频小横条悬浮在内容上方时，列表与“播放全部”FAB 上浮避让（与首页 76dp 预留一致）
         val nowPlayingBarOverlayVisible = com.android.purebilibili.core.ui
             .rememberNowPlayingBarOverlayVisible()
-        val bottomContentPadding = watchLaterBottomPadding +
+        val bottomOverlayPadding = watchLaterBottomPadding +
             if (nowPlayingBarOverlayVisible) {
                 com.android.purebilibili.core.ui.NowPlayingBarOverlayAvoidancePadding
             } else {
                 0.dp
             }
+        val bottomContentPadding = bottomOverlayPadding + if (isBatchMode) 80.dp else 0.dp
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1363,6 +1370,15 @@ fun WatchLaterScreen(
                 columns = pinchListColumns,
                 modifier = Modifier.align(Alignment.Center),
             )
+
+            if (isBatchMode) {
+                AppFloatingToolbar(
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .padding(start = 12.dp, end = 12.dp, bottom = bottomOverlayPadding + 12.dp),
+                ) {
+                    Row(Modifier.horizontalScroll(rememberScrollState())) { batchActions() }
+                }
+            }
 
             // PiliPlus：播放全部以 extended FAB 常驻列表右下角
             if (state.items.isNotEmpty() && !isBatchMode) {

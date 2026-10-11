@@ -61,6 +61,7 @@ class BiliPaiReturnSessionStateTest {
     ) = VideoCardTransitionSession.create(
         bvid = bvid,
         source = BiliPaiVideoSource(route = sourceRoute, key = sourceKey),
+        recordedSourceKey = sourceKey,
         cardBounds = Rect(left, 20f, left + 100f, 180f),
         sourceCornerDp = 12,
         cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
@@ -200,6 +201,7 @@ class BiliPaiReturnSessionStateTest {
         val session = VideoCardTransitionSession.create(
             bvid = "BV_A",
             source = BiliPaiVideoSource(route = "home", key = "home:BV_A"),
+            recordedSourceKey = "home:BV_A",
             cardBounds = Rect(120f, 80f, 420f, 360f),
             sourceCornerDp = 12,
             cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
@@ -217,6 +219,7 @@ class BiliPaiReturnSessionStateTest {
         val session = VideoCardTransitionSession.create(
             bvid = "BV_TARGET",
             source = BiliPaiVideoSource(route = "home", key = "home:BV_ADJACENT"),
+            recordedSourceKey = "home:BV_ADJACENT",
             cardBounds = Rect(0f, 0f, 100f, 100f),
             sourceCornerDp = 12,
             cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_RIGHT,
@@ -229,6 +232,50 @@ class BiliPaiReturnSessionStateTest {
         assertEquals(null, session.sourceCornerDp)
         assertEquals(BiliPaiNavCardSourceDirection.NONE, session.cardSourceDirection)
         assertFalse(session.hasUsableSourceGeometry)
+    }
+
+    @Test
+    fun commentLinkRejectsPreviousCardPixelsAndRestoresParentSession() {
+        val parent = transitionSession("BV_A", "home", "home:BV_A")
+        val child = VideoCardTransitionSession.create(
+            bvid = "BV_B",
+            source = BiliPaiVideoSource("video/BV_A", "video/BV_A:BV_B"),
+            recordedSourceKey = "home:BV_A",
+            cardBounds = parent.cardBounds,
+            coverBounds = parent.cardBounds,
+            sourceCornerDp = 12,
+            cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+            coverIdentity = "cover-BV_B",
+            cardFullyVisible = true,
+            isSingleColumnCard = false,
+            sourceChromeSnapshot = parent.sourceChromeSnapshot,
+        )
+        assertEquals(null, child.cardBounds)
+        assertEquals(null, child.coverBounds)
+        assertEquals(null, child.sourceChromeSnapshot)
+        assertFalse(child.hasUsableSourceGeometry)
+        val restored = BiliPaiReturnSessionState()
+            .recordTransitionSession(parent)
+            .recordTransitionSession(child, preserveCurrentSession = true)
+            .restorePreviousVideoSourceAfterRelatedReturn()
+        assertEquals(parent, restored.transitionSession)
+    }
+
+    @Test
+    fun textLinkRejectsEvenMatchingStaleCardGeometry() {
+        val child = VideoCardTransitionSession.create(
+            bvid = "BV_B",
+            source = BiliPaiVideoSource("video/BV_A", "video/BV_A:BV_B"),
+            recordedSourceKey = null,
+            cardBounds = Rect(0f, 0f, 100f, 100f),
+            sourceCornerDp = 12,
+            cardSourceDirection = BiliPaiNavCardSourceDirection.SOURCE_LEFT,
+            coverIdentity = null,
+            cardFullyVisible = true,
+            isSingleColumnCard = false,
+        )
+        assertFalse(child.hasUsableSourceGeometry)
+        assertEquals(BiliPaiNavCardSourceDirection.NONE, child.cardSourceDirection)
     }
 
     @Test

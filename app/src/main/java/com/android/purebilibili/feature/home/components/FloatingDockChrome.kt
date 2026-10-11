@@ -159,6 +159,9 @@ internal fun Modifier.biliPaiFloatingDockShell(
     drawLens: Boolean = true,
     lensIntensity: Float = 1f,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
+    interactionLayerBlock: (GraphicsLayerScope.() -> Unit)? = null,
+    interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
+    tint: Color = Color.Unspecified,
 ): Modifier {
     val isDark = isSystemInDarkTheme()
     val density = LocalDensity.current
@@ -221,12 +224,17 @@ internal fun Modifier.biliPaiFloatingDockShell(
             }
             block
         }
-        val onDrawSurface = remember(surfaceColor, readabilityScrimColor, scrimAlpha) {
+        val onDrawSurface = remember(surfaceColor, readabilityScrimColor, scrimAlpha, interactionState, tint) {
             val block: DrawScope.() -> Unit = {
+                if (tint != Color.Unspecified) {
+                    drawRect(tint, blendMode = androidx.compose.ui.graphics.BlendMode.Hue)
+                    drawRect(tint.copy(alpha = 0.75f))
+                }
                 drawRect(surfaceColor)
                 if (scrimAlpha > 0f) {
                     drawRect(readabilityScrimColor.copy(alpha = scrimAlpha))
                 }
+                interactionState?.drawHighlight(this)
             }
             block
         }
@@ -238,7 +246,7 @@ internal fun Modifier.biliPaiFloatingDockShell(
                 // Inline capsules (search/input) disable the shell lens and its rim highlight
                 // together; keeping the highlight alone leaves a one-pixel "shrimp line".
                 highlight = highlightBlock,
-                layerBlock = layerBlock,
+                layerBlock = interactionLayerBlock ?: layerBlock,
                 onDrawSurface = onDrawSurface,
             )
     }

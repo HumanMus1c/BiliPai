@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.video.screen
 
+import androidx.compose.foundation.verticalScroll
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
@@ -28,6 +29,7 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
+import com.android.purebilibili.core.ui.components.AppDurationPicker
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -368,7 +370,10 @@ internal fun AudioModeSleepTimerDialog(
         onDismissRequest = onDismiss,
         title = { AppText("定时关闭") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 AppText(
                     text = "选择常用时长，或输入分钟数 / 小时:分钟，例如 90、1:30。",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -406,6 +411,11 @@ internal fun AudioModeSleepTimerDialog(
                         }
                     }
                 }
+                AppDurationPicker(
+                    minutes = parsedCustomMinutes ?: 0,
+                    onMinutesChange = { customInput = it.toString() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 AppOutlinedTextField(
                     value = customInput,
                     onValueChange = { customInput = it.take(8) },

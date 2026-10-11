@@ -1445,7 +1445,7 @@ internal data class ManualStartPlayButtonLayoutSpec(
 internal fun resolveManualStartPlayButtonLayoutSpec(): ManualStartPlayButtonLayoutSpec {
     return ManualStartPlayButtonLayoutSpec(
         anchor = ManualStartPlayButtonAnchor.BottomEnd,
-        endPaddingDp = 24,
+        endPaddingDp = 12,
         iconWidthDp = 72,
         iconHeightDp = 60,
         showCoverScrim = false,

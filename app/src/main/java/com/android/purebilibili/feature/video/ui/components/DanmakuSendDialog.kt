@@ -1,6 +1,8 @@
 // 文件路径: feature/video/ui/components/DanmakuSendDialog.kt
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.components.AppColorPicker
+import androidx.compose.ui.graphics.toArgb
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.HingeSafeInputOverlayHost
 import com.android.purebilibili.core.ui.components.AppSlider
@@ -224,6 +226,7 @@ fun DanmakuSendDialog(
                 decorFitsSystemWindows = false
             )
         ) {
+            com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
             // 统一输入弹层宿主：半开折叠时弹层整体收进铰链安全区，避免输入控件跨缝；
             // 平铺窗口时点击空白处关闭、底部对齐，宽窗口由 widthIn 限宽并水平居中。
             HingeSafeInputOverlayHost(
@@ -594,7 +597,7 @@ fun DanmakuSendDialog(
 }
 
 /**
- * 自定义弹幕颜色取色器（RGB 滑杆），对齐 PiliPlus 的自定义颜色入口。
+ * 自定义弹幕颜色：Miuix HSV 取色器 / Material 原生滑杆，确认时保存 RGB。
  */
 @Composable
 internal fun DanmakuCustomColorPickerDialog(
@@ -602,46 +605,19 @@ internal fun DanmakuCustomColorPickerDialog(
     onConfirm: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var pickerRed by remember { mutableIntStateOf((initialColor shr 16) and 0xFF) }
-    var pickerGreen by remember { mutableIntStateOf((initialColor shr 8) and 0xFF) }
-    var pickerBlue by remember { mutableIntStateOf(initialColor and 0xFF) }
-    val pickerRgb = (pickerRed shl 16) or (pickerGreen shl 8) or pickerBlue
+    var pendingColor by remember(initialColor) { mutableStateOf(Color(initialColor or 0xFF000000.toInt())) }
+    val pickerRgb = pendingColor.toArgb() and 0xFFFFFF
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { AppText("自定义弹幕颜色") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(pickerRgb or 0xFF000000.toInt()))
+                AppColorPicker(
+                    color = pendingColor,
+                    onColorChanged = { pendingColor = it },
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                listOf(
-                    Triple("红", pickerRed) { value: Int -> pickerRed = value },
-                    Triple("绿", pickerGreen) { value: Int -> pickerGreen = value },
-                    Triple("蓝", pickerBlue) { value: Int -> pickerBlue = value }
-                ).forEach { (label, channel, onChange) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AppText(
-                            text = label,
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.width(20.dp)
-                        )
-                        AppSlider(
-                            value = channel.toFloat(),
-                            onValueChange = { onChange(it.roundToInt()) },
-                            valueRange = 0f..255f
-                        )
-                        AppText(
-                            text = channel.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.width(32.dp)
-                        )
-                    }
-                }
                 AppText(
                     text = "#%06X".format(pickerRgb),
                     style = MaterialTheme.typography.labelMedium,

@@ -12,6 +12,25 @@ import org.junit.Test
 import java.io.File
 
 class VideoDetailReturnCoverPolicyTest {
+    @Test
+    fun horizontalInfoIsClippedBehindTheExpandingMediaEdge() {
+        // 800px viewport, 300px source cover + 500px info, compensated by 2x.
+        fun clip(progress: Float, localScale: Float = 1f) =
+            resolveVideoDetailHorizontalInfoClipLeftPx(
+                viewportWidthPx = 800f,
+                coverRightPx = 150f,
+                infoLeftPx = 150f,
+                inverseScaleX = 2f,
+                handoffProgress = progress,
+                localScaleX = localScale,
+            )
+        assertEquals(500f, clip(0f), 0.001f)
+        assertEquals(250f, clip(0.5f), 0.001f)
+        assertEquals(0f, clip(1f), 0.001f)
+        // Reconstructed content is drawn in source coordinates rather than entry coordinates.
+        assertEquals(125f, clip(0.5f, localScale = 2f), 0.001f)
+    }
+
 
     @Test
     fun loadingDetailRevealsFrozenCardEarlyOnlyOnReturn() {

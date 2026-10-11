@@ -148,7 +148,9 @@ internal fun BottomBarFloatingSegmentedControl(
     val horizontalPadding = containerHorizontalPadding.coerceAtLeast(0.dp)
     val verticalPadding = containerVerticalPadding.coerceIn(0.dp, effectiveHeight / 2)
     val contentWidth = effectiveItemWidth?.let { it * itemCount + horizontalPadding * 2 }
-    val rootModifier = if (scrollState == null && contentWidth != null) {
+    // A scroll state enables overflow; it must not stretch a short glass shell to
+    // the whole available viewport. width() still respects the parent's maximum.
+    val rootModifier = if (contentWidth != null) {
         modifier.width(contentWidth)
     } else {
         modifier
@@ -177,11 +179,17 @@ internal fun BottomBarFloatingSegmentedControl(
                 resolveFloatingDockSlotWidthPx(maxWidth.value, horizontalPadding.value, itemCount)
             else -> indicatorHeight.value * FLOATING_DOCK_MIN_INDICATOR_ASPECT
         }
-        val fittedSegmentedIndicatorWidth = resolveSegmentedControlIndicatorWidthDp(
-            slotWidthDp = indicatorWidthDp,
-            indicatorHeightDp = indicatorHeight.value,
-            itemCount = itemCount,
-        ).dp
+        val fittedSegmentedIndicatorWidth = if (geometryMode == FloatingBottomBarGeometryMode.TopNavigation) {
+            // Even a one-category top dock follows the shell inset, without the
+            // compact segmented control's independent width/aspect cap.
+            indicatorWidthDp.dp
+        } else {
+            resolveSegmentedControlIndicatorWidthDp(
+                slotWidthDp = indicatorWidthDp,
+                indicatorHeightDp = indicatorHeight.value,
+                itemCount = itemCount,
+            ).dp
+        }
         val captureInsets = resolveFloatingDockCaptureInsets(
             shellHeightDp = effectiveHeight.value,
             requestedIndicatorHeightDp = indicatorHeight.value,

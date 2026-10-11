@@ -9,15 +9,14 @@ import com.android.purebilibili.core.ui.AppSurfaceTokens
 import com.android.purebilibili.core.ui.components.AppSingleChoiceRow
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.components.AppSegmentOption
@@ -144,6 +143,7 @@ fun BangumiPlayerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                 options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
                 selectedValue = pagerState.currentPage,
                 onSelectionChange = { index ->
@@ -165,12 +165,9 @@ fun BangumiPlayerContent(
 
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
+            userScrollEnabled = true,
             modifier = Modifier.weight(1f)
-                .verticalPriorityHorizontalPagerSwipe(
-                    state = pagerState,
-                    enabled = true,
-                )
+
         ) { page ->
             when (page) {
                 0 -> LazyColumn(

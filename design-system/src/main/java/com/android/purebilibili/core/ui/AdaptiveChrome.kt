@@ -2,7 +2,10 @@ package com.android.purebilibili.core.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import com.android.purebilibili.core.ui.components.AppChromeOverflowHost
+import com.android.purebilibili.core.ui.components.AppChromeOverflowSlot
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
@@ -26,6 +29,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -231,6 +235,39 @@ fun AdaptiveScaffold(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdaptiveTopAppBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    largeTitle: String = title,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+    colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(),
+    style: AdaptiveTopAppBarStyle = AdaptiveTopAppBarStyle.SMALL,
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    collapseBehavior: AppTopBarCollapseBehavior? = null,
+) {
+    AppChromeOverflowHost(modifier = modifier) {
+        NativeAdaptiveTopAppBar(
+            title = title,
+            subtitle = subtitle,
+            largeTitle = largeTitle,
+            navigationIcon = { AppChromeOverflowSlot(content = navigationIcon) },
+            actions = {
+                AppChromeOverflowSlot {
+                    Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+                }
+            },
+            colors = colors,
+            style = style,
+            scrollBehavior = scrollBehavior,
+            collapseBehavior = collapseBehavior,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NativeAdaptiveTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,

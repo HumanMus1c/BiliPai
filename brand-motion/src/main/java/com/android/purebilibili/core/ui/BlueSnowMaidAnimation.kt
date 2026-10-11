@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -41,6 +42,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+
+val LocalMaidLottieAnimationEnabled = staticCompositionLocalOf { true }
 
 enum class MaidAnimation(
     @RawRes val resource: Int,
@@ -92,8 +95,13 @@ private fun MaidAnimationPlayer(
     staticDisplayDurationMs: Long,
     completionHoldDurationMs: Long
 ) {
+    val lottieAnimationEnabled = LocalMaidLottieAnimationEnabled.current
     val resources = LocalContext.current.resources
-    val result = rememberLottieComposition(LottieCompositionSpec.RawRes(animation.resource))
+    val result = if (lottieAnimationEnabled) {
+        rememberLottieComposition(LottieCompositionSpec.RawRes(animation.resource))
+    } else {
+        null
+    }
     val player = rememberLottieAnimatable()
     val reduceMotion = rememberSystemReduceMotion() || reducedMotion
     val latestOnFinished by rememberUpdatedState(onFinished)
@@ -116,74 +124,79 @@ private fun MaidAnimationPlayer(
     // Only active playback consumes the deadline. Time in the background does not.
     var remainingPlaybackMs by remember { mutableStateOf(animation.durationMs + 400L) }
     val active = foreground && isVisible && inViewport
-    LaunchedEffect(active, reduceMotion, staticDisplayDurationMs, completionHoldDurationMs) {
+    LaunchedEffect(active, lottieAnimationEnabled, reduceMotion, staticDisplayDurationMs, completionHoldDurationMs) {
         if (!active || finished) return@LaunchedEffect
         if (!playbackComplete) {
-            val composition = try {
-                withTimeoutOrNull(500L) {
-                    result.await().also { composition ->
-                        // The timeline and static fallback share one packaged PNG.
-                        // Prepare before publishing to the player so no frame has missing art.
-                        withContext(Dispatchers.IO) {
-                            val asset = requireNotNull(composition.images["maid_bitmap"])
-                            require(asset.fileName == resources.getResourceEntryName(animation.staticResource) + ".png")
-                            if (asset.bitmap == null) {
-                                val bitmap = requireNotNull(BitmapFactory.decodeResource(
-                                    resources,
-                                    animation.staticResource,
-                                    BitmapFactory.Options().apply { inScaled = false }
-                                ))
-                                require(bitmap.width == asset.width && bitmap.height == asset.height)
-                                asset.bitmap = bitmap
+            if (!lottieAnimationEnabled) {
+                if (animation.loopsWhileVisible) return@LaunchedEffect
+                delay(staticDisplayDurationMs.coerceIn(200L, 1_000L))
+            } else {
+                val composition = try {
+                    withTimeoutOrNull(500L) {
+                        requireNotNull(result).await().also { composition ->
+                            // The timeline and static fallback share one packaged PNG.
+                            // Prepare before publishing to the player so no frame has missing art.
+                            withContext(Dispatchers.IO) {
+                                val asset = requireNotNull(composition.images["maid_bitmap"])
+                                require(asset.fileName == resources.getResourceEntryName(animation.staticResource) + ".png")
+                                if (asset.bitmap == null) {
+                                    val bitmap = requireNotNull(BitmapFactory.decodeResource(
+                                        resources,
+                                        animation.staticResource,
+                                        BitmapFactory.Options().apply { inScaled = false }
+                                    ))
+                                    require(bitmap.width == asset.width && bitmap.height == asset.height)
+                                    asset.bitmap = bitmap
+                                }
                             }
                         }
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
                 }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                null
-            }
-            if (composition == null) {
-                failed = true
-                delay(staticDisplayDurationMs.coerceIn(200L, 1_000L))
-            } else if (reduceMotion) {
-                failed = false
-                player.snapTo(composition = composition, progress = 1f)
-                delay(staticDisplayDurationMs.coerceIn(200L, 1_000L))
-            } else {
-                failed = false
-                do {
-                    val startedAt = SystemClock.elapsedRealtime()
-                    try {
-                        val completed = withTimeoutOrNull(remainingPlaybackMs.coerceAtLeast(1L)) {
-                            player.animate(
-                                composition = composition,
-                                iteration = 1,
-                                iterations = 1,
-                                initialProgress = if (player.composition == composition) player.progress else 0f,
-                                // Reset the frame clock so resuming cannot include time spent hidden.
-                                continueFromPreviousAnimate = false
-                            )
-                            true
-                        } ?: false
-                        if (!completed && animation.loopsWhileVisible) failed = true
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        failed = true
-                    } finally {
-                        remainingPlaybackMs = (remainingPlaybackMs -
-                            (SystemClock.elapsedRealtime() - startedAt)).coerceAtLeast(0L)
-                    }
-                    if (failed) break
-                    if (animation.loopsWhileVisible) {
-                        player.snapTo(composition = composition, progress = 0f)
-                        remainingPlaybackMs = animation.durationMs + 400L
-                    } else {
-                        player.snapTo(composition = composition, progress = 1f)
-                    }
-                } while (animation.loopsWhileVisible)
+                if (composition == null) {
+                    failed = true
+                    delay(staticDisplayDurationMs.coerceIn(200L, 1_000L))
+                } else if (reduceMotion) {
+                    failed = false
+                    player.snapTo(composition = composition, progress = 1f)
+                    delay(staticDisplayDurationMs.coerceIn(200L, 1_000L))
+                } else {
+                    failed = false
+                    do {
+                        val startedAt = SystemClock.elapsedRealtime()
+                        try {
+                            val completed = withTimeoutOrNull(remainingPlaybackMs.coerceAtLeast(1L)) {
+                                player.animate(
+                                    composition = composition,
+                                    iteration = 1,
+                                    iterations = 1,
+                                    initialProgress = if (player.composition == composition) player.progress else 0f,
+                                    // Reset the frame clock so resuming cannot include time spent hidden.
+                                    continueFromPreviousAnimate = false
+                                )
+                                true
+                            } ?: false
+                            if (!completed && animation.loopsWhileVisible) failed = true
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            failed = true
+                        } finally {
+                            remainingPlaybackMs = (remainingPlaybackMs -
+                                (SystemClock.elapsedRealtime() - startedAt)).coerceAtLeast(0L)
+                        }
+                        if (failed) break
+                        if (animation.loopsWhileVisible) {
+                            player.snapTo(composition = composition, progress = 0f)
+                            remainingPlaybackMs = animation.durationMs + 400L
+                        } else {
+                            player.snapTo(composition = composition, progress = 1f)
+                        }
+                    } while (animation.loopsWhileVisible)
+                }
             }
             // A waiting animation never emits success or holds up the real operation.
             // Reduced motion and resource errors keep the matching working pose still.
@@ -210,7 +223,9 @@ private fun MaidAnimationPlayer(
         },
         contentAlignment = Alignment.Center
     ) {
-        if (failed || player.composition == null) {
+        if (!lottieAnimationEnabled) {
+            // Keep the reserved layout and completion timing while hiding both Lottie and poster.
+        } else if (failed || player.composition == null) {
             Image(
                 painter = painterResource(animation.staticResource),
                 contentDescription = "蓝雪女仆",

@@ -156,6 +156,7 @@ fun HomeBangumiTabPage(
             exit = shrinkVertically() + fadeOut(),
         ) {
             AppLiquidAwareTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                 options = channelOptions,
                 selectedValue = state.channel,
                 onSelectionChange = viewModel::selectChannel,

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.search
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import coil3.request.crossfade
 
@@ -20,7 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -430,7 +432,7 @@ private fun TopicParticipateButton(
 
         TopicParticipateChrome.MIUIX_COMPACT_BUTTON -> MiuixButton(
             onClick = onClick,
-            modifier = buttonModifier,
+            modifier = buttonModifier.appElasticPress(),
             insideMargin = PaddingValues(horizontal = AppSpacingTokens.Medium),
         ) {
             AppIcon(

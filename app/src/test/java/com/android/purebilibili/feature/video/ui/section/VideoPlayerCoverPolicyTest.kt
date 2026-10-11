@@ -604,7 +604,7 @@ class VideoPlayerCoverPolicyTest {
     }
 
     @Test
-    fun manualStartPlaybackButton_usesThemeNativeTvIcon() {
+    fun manualStartPlaybackButton_usesPiliTvAssetWithThemeColor() {
         val source = listOf(
             File("app/src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"),
             File("src/main/java/com/android/purebilibili/feature/video/ui/section/VideoPlayerSection.kt"),
@@ -615,10 +615,10 @@ class VideoPlayerCoverPolicyTest {
 
         assertTrue(buttonSource.contains("AppIconButton("))
         assertFalse(buttonSource.contains("AppFilledIconButton("))
-        assertTrue(buttonSource.contains("imageVector = manualStartPlayIcon"))
-        assertTrue(source.contains("val manualStartPlayIcon = resolveAppTvIcon()"))
-        assertTrue(buttonSource.contains("tint = MaterialTheme.colorScheme.onPrimaryContainer"))
-        assertTrue(buttonSource.contains("Modifier.size(32.dp)"))
+        assertTrue(buttonSource.contains("painter = manualStartPlayIcon"))
+        assertTrue(source.contains("val manualStartPlayIcon = painterResource(R.drawable.ic_pili_tv_play)"))
+        assertTrue(buttonSource.contains("tint = MaterialTheme.colorScheme.primary"))
+        assertTrue(buttonSource.contains("Modifier.size(60.dp)"))
         assertFalse(buttonSource.contains("Color(0xFF4D5160)"))
         assertFalse(buttonSource.contains("Color.White.copy(alpha = 0.96f)"))
     }

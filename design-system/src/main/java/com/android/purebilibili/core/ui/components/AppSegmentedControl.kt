@@ -123,6 +123,30 @@ internal fun resolveMeasuredTabMinWidth(
     horizontalPadding: Dp = 12.dp,
 ): Dp = maxOf(requestedMinWidth, (labelWidths.maxOrNull() ?: 0.dp) + horizontalPadding * 2)
 
+/** Keeps the established liquid-glass sizing contract; measured widths are for Miuix non-glass. */
+fun resolveLiquidGlassTabMinWidth(
+    requestedMinWidth: Dp,
+    labels: List<String>,
+    allowLabelOverflow: Boolean,
+): Dp {
+    if (!allowLabelOverflow || labels.isEmpty()) return requestedMinWidth
+    val estimatedWidth = labels.maxOfOrNull { label ->
+        val textWidth = label.sumOf { char -> if (char.code in 0..127) 8 else 16 }
+        textWidth + if (textWidth > 64) 28 else 24
+    } ?: 0
+    return maxOf(requestedMinWidth, estimatedWidth.coerceAtMost(320).dp)
+}
+
+/** Legacy liquid-glass compact sizing retained independently of non-glass measurement. */
+private fun resolveLiquidGlassLabelContentMinWidth(labels: List<String>): Dp {
+    if (labels.isEmpty()) return 0.dp
+    val estimatedWidth = labels.maxOfOrNull { label ->
+        val textWidth = label.sumOf { char -> if (char.code in 0..127) 8 else 16 }
+        textWidth + if (textWidth > 64) 28 else 24
+    } ?: 0
+    return estimatedWidth.coerceIn(48, 320).dp
+}
+
 @Composable
 fun rememberMeasuredTabMinWidth(
     requestedMinWidth: Dp,
@@ -351,6 +375,7 @@ fun <T> AppNativeTabRow(
     selectedValue: T,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    centerContent: Boolean = false,
     scrollable: Boolean = false,
     forceEqualWidth: Boolean = false,
     minTabWidth: Dp = 72.dp,
@@ -384,8 +409,18 @@ fun <T> AppNativeTabRow(
         labels = options.map { it.label },
         textStyle = labelStyle,
     )
-    val readableMinTabWidth = maxOf(minTabWidth, labelContentMinWidth)
-    val compactItemWidth = maxOf(minTabWidth, readableMinTabWidth, labelContentMinWidth)
+    val nonGlassMiuix = isMiuixNonGlassEnabled()
+    val resolvedLabelContentMinWidth = if (nonGlassMiuix) {
+        labelContentMinWidth
+    } else {
+        resolveLiquidGlassLabelContentMinWidth(options.map { it.label })
+    }
+    val readableMinTabWidth = if (nonGlassMiuix) {
+        maxOf(minTabWidth, labelContentMinWidth)
+    } else {
+        resolveLiquidGlassTabMinWidth(minTabWidth, options.map { it.label }, allowLabelOverflow)
+    }
+    val compactItemWidth = maxOf(minTabWidth, readableMinTabWidth, resolvedLabelContentMinWidth)
     val equalizeMiuixNonGlassItems = shouldEqualizeMiuixNonGlassTabItems(
         widthMode = miuixNonGlassItemWidthMode,
         isMiuixNonGlass = com.android.purebilibili.core.ui.isMiuixNonGlassEnabled(),
@@ -396,7 +431,7 @@ fun <T> AppNativeTabRow(
             (readableMinTabWidth > minTabWidth && options.size > 2))
     // Ordinary Miuix rails own each item's surface and hit target. Upstream TabRow
     // uses one moving background with cached equal-width geometry instead.
-    val useContentSizedMiuixItems = (isMiuixNonGlassEnabled() || contentSizedMiuixNonGlassItems) &&
+    val useContentSizedMiuixItems = nonGlassMiuix &&
         miuixNonGlassItemWidthMode == MiuixNonGlassTabItemWidthMode.CONTENT &&
         effectiveScrollable
     val policy = rememberAppSegmentedControlPolicy()
@@ -437,6 +472,7 @@ fun <T> AppNativeTabRow(
             selectedValue = selectedValue,
             enabled = enabled,
             scrollable = effectiveScrollable,
+            centerContent = centerContent,
             // MD3 underlines follow PiliPlus: each tab is as wide as its label.
             // Miuix keeps the touch/content floor above.
             minTabWidth = resolvePiliPlusScrollableUnderlineMinWidth(),
@@ -468,6 +504,7 @@ fun <T> AppNativeTabRow(
             },
             indicatorPositionProvider = indicatorPositionProvider,
             equalizeScrollableItemWidths = equalizeMiuixNonGlassItems,
+            centerContent = centerContent,
             contentSizedNonGlassItems = useContentSizedMiuixItems,
             contentSizedNonGlassMaxItemWidth = contentSizedMiuixNonGlassMaxItemWidth,
             drawNonGlassTrack = drawMiuixNonGlassTrack,

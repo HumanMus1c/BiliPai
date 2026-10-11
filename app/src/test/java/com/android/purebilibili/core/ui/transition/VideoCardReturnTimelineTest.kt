@@ -492,6 +492,37 @@ class VideoCardReturnTimelineTest {
     }
 
     @Test
+    fun horizontalMediaAndInfoShareTheOpeningAndReturnHandoff() {
+        for (phase in listOf(
+            VideoCardTransitionBackgroundPhase.OPENING,
+            VideoCardTransitionBackgroundPhase.RETURNING,
+        )) {
+            for (depth in listOf(0f, 0.02f, 0.1f, 0.18f, 0.45f, 0.72f, 1f)) {
+                val infoAlpha = 1f - resolveVideoCardDetailChromeAlpha(depth, phase, false)
+                val mediaLayout = resolveVideoDetailReturnMediaLayoutHandoffProgress(
+                    morphDepthProgress = depth,
+                    phase = phase,
+                    isReturnGestureInProgress = false,
+                    sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                )
+                assertEquals(infoAlpha, mediaLayout, 0.001f)
+                // A fully contracted cover must never leave the adjacent info slot empty.
+                if (mediaLayout == 1f) assertEquals(1f, infoAlpha)
+            }
+        }
+        // Loading and disabled content-follow use their actual visible chrome progress.
+        for (alpha in listOf(0f, 0.5f, 1f)) {
+            assertEquals(alpha, resolveVideoDetailReturnMediaLayoutHandoffProgress(
+                morphDepthProgress = 0.5f,
+                phase = VideoCardTransitionBackgroundPhase.RETURNING,
+                isReturnGestureInProgress = false,
+                sourceLayout = VideoCardSourceLayout.SIDE_BY_SIDE,
+                sourceChromeAlpha = alpha,
+            ))
+        }
+    }
+
+    @Test
     fun sourceChromeHandsOffWithTheLiveCover() {
         val midDepth = 1f - (
             VideoCardTransitionVisualTimeline.MEDIA_RETURN_START +

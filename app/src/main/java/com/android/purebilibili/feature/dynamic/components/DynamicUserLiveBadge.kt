@@ -40,7 +40,7 @@ fun DynamicUserLiveBadge(
         AppText(
             text = resolveDynamicUserLiveBadgeLabel(),
             color = color,
-            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false,

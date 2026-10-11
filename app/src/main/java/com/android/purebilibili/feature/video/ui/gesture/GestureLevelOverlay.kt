@@ -1,6 +1,9 @@
 package com.android.purebilibili.feature.video.ui.gesture
 
 import android.os.SystemClock
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,7 +15,15 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,18 +40,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppIcon
-import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppText
+import androidx.compose.runtime.key
+import com.android.purebilibili.core.ui.motion.rememberSystemReduceMotion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -60,7 +78,6 @@ import com.android.purebilibili.core.ui.rememberAppPlayerChromeProfile
 import com.android.purebilibili.core.util.HapticType
 import com.android.purebilibili.core.util.rememberHapticFeedback
 import com.android.purebilibili.feature.video.ui.components.AnimatedGesturePercentText
-import com.android.purebilibili.feature.video.ui.components.CircularGesturePercentText
 import com.android.purebilibili.feature.video.ui.components.shouldTriggerGesturePercentHaptic
 import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
 import com.android.purebilibili.feature.video.ui.section.resolveVideoGestureMotionSpec
@@ -71,7 +88,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Theme-native volume / brightness feedback:
- * - MD3: centered, theme-colored circular indicator
+ * - MD3: compact horizontal feedback at the top of the player
  * - iOS: centered frosted capsule
  * - MIUIX: native animated horizontal slider at the top of the player
  */
@@ -118,13 +135,15 @@ fun BoxScope.GestureLevelOverlayHost(
             .align(spec.alignment)
             .then(
                 when (style) {
-                    GestureLevelOverlayStyle.Md3 -> Modifier
+                    GestureLevelOverlayStyle.Md3 -> Modifier.fillMaxSize()
                     GestureLevelOverlayStyle.Miuix -> Modifier
                     GestureLevelOverlayStyle.Ios -> Modifier.padding(horizontal = 22.dp)
                 }
             )
             .zIndex(40f),
-        enter = fadeIn(animationSpec = tween(motionSpec.levelOverlayEnterFadeDurationMillis)) +
+        enter = if (style == GestureLevelOverlayStyle.Md3) {
+            fadeIn(animationSpec = tween(motionSpec.levelOverlayEnterFadeDurationMillis))
+        } else fadeIn(animationSpec = tween(motionSpec.levelOverlayEnterFadeDurationMillis)) +
             scaleIn(
                 initialScale = if (style == GestureLevelOverlayStyle.Miuix) 0.92f else 0.84f,
                 animationSpec = tween(motionSpec.levelOverlayEnterTransformDurationMillis)
@@ -133,7 +152,9 @@ fun BoxScope.GestureLevelOverlayHost(
                 initialOffsetY = { if (style == GestureLevelOverlayStyle.Ios) it / 8 else 0 },
                 animationSpec = tween(motionSpec.levelOverlayEnterTransformDurationMillis)
             ),
-        exit = fadeOut(animationSpec = tween(motionSpec.levelOverlayExitDurationMillis)) +
+        exit = if (style == GestureLevelOverlayStyle.Md3) {
+            fadeOut(animationSpec = tween(motionSpec.levelOverlayExitDurationMillis))
+        } else fadeOut(animationSpec = tween(motionSpec.levelOverlayExitDurationMillis)) +
             scaleOut(
                 targetScale = 0.92f,
                 animationSpec = tween(motionSpec.levelOverlayExitDurationMillis)
@@ -147,8 +168,9 @@ fun BoxScope.GestureLevelOverlayHost(
             GestureLevelOverlayStyle.Md3 -> Md3GestureLevelIndicator(
                 spec = spec,
                 icon = icon,
-                progress = { progress },
-                percent = percentInt
+                progress = { percent.coerceIn(0f, 1f) },
+                percent = percentInt,
+                modifier = Modifier.fillMaxSize()
             )
             GestureLevelOverlayStyle.Ios -> IosGestureLevelCapsule(
                 spec = spec,
@@ -159,7 +181,12 @@ fun BoxScope.GestureLevelOverlayHost(
             GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelSlider(
                 spec = spec,
                 icon = icon,
-                progress = progress
+                progress = percent.coerceIn(0f, 1f),
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+                    .padding(horizontal = 16.dp)
+                    .padding(top = spec.topInsetDp.dp)
+                    .width(200.dp)
             )
         }
     }
@@ -173,46 +200,106 @@ private fun Md3GestureLevelIndicator(
     percent: Int,
     modifier: Modifier = Modifier
 ) {
-    // Use player bounds, not device orientation: embedded and split-screen players
-    // can have much less height than the window in either orientation.
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-        val diameter = resolveMd3GestureLevelDiameterDp(maxWidth.value, maxHeight.value)
-        val compact = diameter < 112f
-        Box(
-            modifier = Modifier.size(diameter.dp),
-            contentAlignment = Alignment.Center
+    BoxWithConstraints(
+        modifier = modifier.windowInsetsPadding(
+            WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top)
+        )
+    ) {
+        val panelWidth = (maxWidth.value - 24f).coerceIn(0f, 200f).dp
+        val panelModifier = Modifier
+            .align(Alignment.TopCenter)
+            .padding(top = (maxHeight.value * 0.08f).coerceIn(16f, 48f).dp)
+            .width(panelWidth)
+            .clip(RoundedCornerShape(20.dp))
+            .background(spec.containerColor)
+            .semantics(mergeDescendants = true) {
+                contentDescription = resolveGestureLevelLabel(spec.kind)
+                stateDescription = "$percent%"
+            }
+        Row(
+            modifier = panelModifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            CircularWavyProgressIndicator(
-                progress = progress,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
-                color = spec.fillColor,
-                trackColor = spec.trackColor
-            )
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                GestureLevelIconSlot(
-                    icon = icon,
-                    tint = spec.iconTint,
-                    sizeDp = if (compact) 18 else spec.iconSizeDp,
-                    glowColor = spec.accentColor.copy(alpha = 0.12f)
+            AppIcon(imageVector = icon, contentDescription = null, tint = spec.iconTint, modifier = Modifier.size(20.dp))
+            Md3GestureLevelRail(spec, progress, vertical = false, modifier = Modifier.weight(1f).height(4.dp))
+            key(spec.kind) {
+                Md3GesturePercentText(
+                    percent = percent,
+                    color = spec.textColor,
+                    modifier = Modifier.width(28.dp)
                 )
-                key(spec.kind) {
-                    CircularGesturePercentText(
-                        percent = percent,
-                        color = spec.textColor,
-                        textStyle = if (compact) {
-                            MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                        } else {
-                            MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                        }
-                    )
-                }
             }
         }
+    }
+}
+
+/** Roll the level value in a fixed slot without shifting the progress rail. */
+@Composable
+private fun Md3GesturePercentText(
+    percent: Int,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    // Gesture feedback remains animated independently of card/navigation animation settings.
+    val motionEnabled = !rememberSystemReduceMotion()
+    val textStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        if (motionEnabled) {
+            AnimatedContent(
+                targetState = percent,
+                contentAlignment = Alignment.CenterStart,
+                transitionSpec = {
+                    val direction = if (targetState > initialState) -1 else 1
+                    ((fadeIn(tween(120)) + slideInVertically(AppMotionTokens.spatialSpec()) { it / 2 * direction })
+                        togetherWith (fadeOut(tween(120)) + slideOutVertically(AppMotionTokens.spatialSpec()) { -it / 2 * direction }))
+                        .using(SizeTransform(clip = false))
+                },
+                label = "md3-gesture-percent-roll"
+            ) { value ->
+                val blur by transition.animateFloat(
+                    transitionSpec = { tween(120) },
+                    label = "md3-gesture-percent-blur"
+                ) { state -> if (state == EnterExitState.Visible) 0f else 1.5f }
+                AppText(
+                    text = value.toString(),
+                    color = color,
+                    style = textStyle,
+                    modifier = Modifier.blur(blur.dp, BlurredEdgeTreatment.Unbounded),
+                    maxLines = 1,
+                    tapToCopyEnabled = false
+                )
+            }
+        } else {
+            AppText(
+                text = percent.toString(), color = color, style = textStyle,
+                textAlign = TextAlign.Start,
+                maxLines = 1, tapToCopyEnabled = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun Md3GestureLevelRail(
+    spec: GestureLevelOverlaySpec,
+    progress: () -> Float,
+    vertical: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val stroke = if (vertical) size.width else size.height
+        val start = if (vertical) Offset(size.width / 2f, size.height - stroke / 2f)
+            else Offset(stroke / 2f, size.height / 2f)
+        val end = if (vertical) Offset(size.width / 2f, stroke / 2f)
+            else Offset(size.width - stroke / 2f, size.height / 2f)
+        drawLine(spec.trackColor, start, end, stroke, StrokeCap.Round)
+        val level = progress().coerceIn(0f, 1f)
+        if (level > 0f) drawLine(spec.fillColor, start, start + (end - start) * level, stroke, StrokeCap.Round)
     }
 }
 
@@ -289,64 +376,51 @@ private fun IosGestureLevelCapsule(
 private fun MiuixGestureLevelSlider(
     spec: GestureLevelOverlaySpec,
     icon: ImageVector,
-    progress: Float
+    progress: Float,
+    modifier: Modifier = Modifier
 ) {
-    val standardMotion = AppMotionTokens.standardSpec<Float>()
-    val emphasizedMotion = AppMotionTokens.emphasizedSpec<Float>()
-    val expressiveMotion = AppMotionTokens.expressiveSpec<Float>()
+    val colors = MiuixTheme.colorScheme
+    // This is feedback for the player's gesture, so disable slider input while
+    // retaining a readable active appearance over video.
     val sliderColors = SliderDefaults.sliderColors(
-        foregroundColor = spec.fillColor,
-        disabledForegroundColor = spec.fillColor,
-        backgroundColor = spec.containerColor,
-        disabledBackgroundColor = spec.containerColor,
-        thumbColor = spec.iconTint,
-        disabledThumbColor = spec.iconTint
+        disabledForegroundColor = androidx.compose.ui.graphics.lerp(colors.primary, Color.White, 0.30f),
+        disabledBackgroundColor = Color.White.copy(alpha = 0.14f),
+        disabledThumbColor = Color.White
     )
-    Row(
-        modifier = Modifier.padding(top = spec.topInsetDp.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
+    top.yukonga.miuix.kmp.basic.Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(50),
+        color = Color(0xFF16181D).copy(alpha = 0.72f),
+        contentColor = Color.White,
+        shadowElevation = 0.dp
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size((spec.iconSizeDp + 14).dp)
-                .background(spec.containerColor, CircleShape),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            AnimatedContent(
-                targetState = icon,
-                transitionSpec = {
-                    (fadeIn(standardMotion) +
-                        scaleIn(initialScale = 0.82f, animationSpec = emphasizedMotion))
-                        .togetherWith(
-                            fadeOut(expressiveMotion) +
-                                scaleOut(
-                                    targetScale = 1.12f,
-                                    animationSpec = standardMotion
-                                )
-                        )
-                },
-                label = "miuix-gesture-icon"
-            ) { target ->
-                AppIcon(
-                    imageVector = target,
-                    contentDescription = null,
-                    tint = spec.iconTint,
-                    modifier = Modifier.size(spec.iconSizeDp.dp)
-                )
-            }
+            top.yukonga.miuix.kmp.basic.Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Slider(
+                value = progress,
+                onValueChange = {},
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription = resolveGestureLevelLabel(spec.kind)
+                        stateDescription = "${(progress * 100).roundToInt()}%"
+                    },
+                enabled = false,
+                height = 20.dp,
+                colors = sliderColors
+            )
         }
-        Slider(
-            value = progress,
-            onValueChange = {},
-            modifier = Modifier
-                .width(spec.railWidthDp.dp)
-                .height(spec.railHeightDp.dp)
-                .semantics { contentDescription = resolveGestureLevelLabel(spec.kind) },
-            enabled = false,
-            height = spec.railHeightDp.dp,
-            colors = sliderColors
-        )
     }
 }
 
@@ -490,8 +564,9 @@ fun GestureLevelOverlayContent(
             GestureLevelOverlayStyle.Md3 -> Md3GestureLevelIndicator(
                 spec = spec,
                 icon = icon,
-                progress = { progress },
-                percent = percentInt
+                progress = { percent.coerceIn(0f, 1f) },
+                percent = percentInt,
+                modifier = Modifier.fillMaxSize()
             )
             GestureLevelOverlayStyle.Ios -> IosGestureLevelCapsule(
                 spec = spec,
@@ -502,7 +577,13 @@ fun GestureLevelOverlayContent(
             GestureLevelOverlayStyle.Miuix -> MiuixGestureLevelSlider(
                 spec = spec,
                 icon = icon,
-                progress = progress
+                progress = percent.coerceIn(0f, 1f),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+                    .padding(horizontal = 16.dp)
+                    .padding(top = spec.topInsetDp.dp)
+                    .width(200.dp)
             )
         }
     }

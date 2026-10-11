@@ -39,7 +39,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1091,8 +1091,9 @@ private fun ImagePreviewOverlayContent(
                             }
                         },
                     beyondViewportPageCount = 1,  // 预加载相邻页面
-                    userScrollEnabled = !isVerticalDismissDragging &&
-                        !isDismissing && !isPreparingDismiss &&
+                    // The image recognizer consumes vertical moves. Do not restart Pager's
+                    // scrollable node when a drag starts; its hit path must survive until release.
+                    userScrollEnabled = !isDismissing && !isPreparingDismiss &&
                         activeZoomScale <= 1.01f,
                     key = { images.getOrElse(it) { "" } }
                 ) { page ->

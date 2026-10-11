@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -44,7 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.clip
@@ -154,6 +154,8 @@ fun LiveEmoticonSheet(
                 if (packages.size > 1) {
                     val safeIndex = selectedPkgIndex.coerceIn(0, packages.lastIndex)
                     AppThemeAdaptiveTabRow(
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+                        centerContent = false,
                         options = packages.mapIndexed { index, pkg ->
                             AppSegmentOption(index, pkg.name)
                         },

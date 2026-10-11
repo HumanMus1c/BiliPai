@@ -483,6 +483,7 @@ private fun WallpaperDeviceTabRow(
         )
     }
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
         options = options,
         selectedValue = selectedTab,
         onSelectionChange = onSelectedTabChange,

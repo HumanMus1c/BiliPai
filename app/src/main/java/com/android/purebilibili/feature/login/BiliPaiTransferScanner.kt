@@ -39,6 +39,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -56,6 +60,8 @@ fun BiliPaiTransferScanner(
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnCode by rememberUpdatedState(onCode)
     val currentOnError by rememberUpdatedState(onError)
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    var galleryJob by remember { mutableStateOf<Job?>(null) }
     var granted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
@@ -66,15 +72,30 @@ fun BiliPaiTransferScanner(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val bitmap = runCatching { decodeUriBitmap(context, uri, maxDimension = 2048) }.getOrNull()
-        val text = bitmap?.let {
-            if (acceptAnyQr) BiliPaiQrDecoder.decodeBitmap(it, acceptAny = true)
-            else BiliPaiQrDecoder.decodeBitmap(it)
-        }
-        if (text != null) {
-            currentOnCode(text)
-        } else {
-            currentOnError("未能从所选图片中识别到受支持的二维码，请换一张图片或直接拍照扫描")
+        galleryJob?.cancel()
+        galleryJob = coroutineScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                try {
+                    val bitmap = decodeUriBitmap(context, uri, maxDimension = 2048)
+                    bitmap?.let {
+                        try {
+                            BiliPaiQrDecoder.decodeBitmap(it, acceptAny = true)
+                        } finally {
+                            it.recycle()
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            when {
+                text == null -> currentOnError("未能识别图片中的二维码，请选择清晰、完整的二维码截图")
+                acceptAnyQr || text.startsWith("bilipai://transfer/") || parseBilibiliLoginQr(text) != null ->
+                    currentOnCode(text)
+                else -> currentOnError("已识别二维码，但它不是受支持的 B 站登录或哔哩派转移二维码")
+            }
         }
     }
     fun launchGalleryPicker() {
@@ -118,7 +139,6 @@ fun BiliPaiTransferScanner(
     // so the camera preview bleeds over surrounding text. TextureView (COMPATIBLE) clips.
     previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
     // NagramX-style viewfinder: spring-in appearance, corner brackets, recognition pulse.
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     val pulse = remember { androidx.compose.animation.core.Animatable(0f) }
     var cameraControl by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
@@ -330,13 +350,15 @@ private fun decodeUriBitmap(
     maxDimension: Int,
 ): android.graphics.Bitmap? {
     val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    val input = context.contentResolver.openInputStream(uri) ?: return null
+    // Bounds-only decode intentionally returns null; validity comes from outWidth/outHeight.
+    input.use { BitmapFactory.decodeStream(it, null, options) }
+    val sample = resolveQrAlbumSampleSize(options.outWidth, options.outHeight, maxDimension)
         ?: return null
-    var sample = 1
-    while (options.outWidth / (sample * 2) >= maxDimension / 2 || options.outHeight / (sample * 2) >= maxDimension / 2) {
-        sample *= 2
+    val bounds = android.graphics.BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
     }
-    val bounds = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
     val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         ?: return null
     val rotationDegrees = runCatching {
@@ -351,7 +373,9 @@ private fun decodeUriBitmap(
     }.getOrNull() ?: 0
     if (rotationDegrees == 0) return decoded
     val matrix = android.graphics.Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-    return android.graphics.Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+    val oriented = android.graphics.Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+    if (oriented !== decoded) decoded.recycle()
+    return oriented
 }
 
 private fun androidExifOrientationDegrees(orientation: Int): Int = when (orientation) {

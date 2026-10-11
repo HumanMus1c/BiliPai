@@ -1,6 +1,7 @@
 // File: feature/video/ui/components/DanmakuPoolSheet.kt
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.components.appSearchElasticPress
 import com.android.purebilibili.core.ui.components.AppTextButton
 
 import android.content.ClipData
@@ -10,7 +11,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -184,7 +185,8 @@ fun DanmakuPoolSheet(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 4.dp)
+                    .appSearchElasticPress(),
                 placeholder = {
                     AppText(
                         text = "搜索当前已加载的弹幕...",

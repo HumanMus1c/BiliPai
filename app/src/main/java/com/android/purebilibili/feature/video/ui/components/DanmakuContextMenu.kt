@@ -149,6 +149,7 @@ fun DanmakuContextMenu(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
             Box(
                 modifier = Modifier
                     .fillMaxSize()

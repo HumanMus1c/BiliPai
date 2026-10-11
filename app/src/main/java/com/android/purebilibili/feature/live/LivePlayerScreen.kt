@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.live
 
+import com.android.purebilibili.core.ui.components.AppDurationPicker
 import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.theme.resolveAccessibleContainerColors
@@ -27,7 +28,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -2462,6 +2463,7 @@ private fun LivePrimaryInteractionPanel(
                 )
         ) {
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                 options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
                 selectedValue = pagerState.currentPage,
                 onSelectionChange = { index ->
@@ -2985,11 +2987,19 @@ private fun LiveShutdownTimerDialog(
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    var customMinutes by remember(activeTargetMillis) {
+        mutableStateOf(activeTargetMillis?.let {
+            ((it - System.currentTimeMillis()) / 60_000L).coerceIn(1L, 59999L).toInt()
+        } ?: 30)
+    }
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { AppText("定时关闭") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
+            ) {
                 val remainingText = activeTargetMillis
                     ?.let { ((it - System.currentTimeMillis()) / 60_000L).coerceAtLeast(0L) }
                     ?.let { "剩余约${it}分钟" }
@@ -3012,11 +3022,19 @@ private fun LiveShutdownTimerDialog(
                         )
                     }
                 }
+                AppDurationPicker(
+                    minutes = customMinutes,
+                    onMinutesChange = { customMinutes = it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (activeTargetMillis != null) {
+                    AppTextButton(onClick = onCancelTimer) { AppText("取消定时") }
+                }
             }
         },
         confirmButton = {
-            if (activeTargetMillis != null) {
-                AppTextButton(onClick = onCancelTimer) { AppText("取消定时") }
+            AppTextButton(enabled = customMinutes > 0, onClick = { onSetMinutes(customMinutes.toLong()) }) {
+                AppText("应用")
             }
         },
         dismissButton = {

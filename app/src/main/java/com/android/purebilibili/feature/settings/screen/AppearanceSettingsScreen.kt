@@ -2,6 +2,7 @@
 
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.ui.components.AppColorPicker
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.AppIconStyle
 import com.android.purebilibili.core.ui.AppListItemStyle
@@ -24,7 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.*
@@ -89,11 +90,6 @@ import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.components.*
 import com.android.purebilibili.core.ui.animation.EntranceGroup
 import com.android.purebilibili.core.ui.animation.entrance
-import com.github.skydoves.colorpicker.compose.BrightnessSlider
-import com.github.skydoves.colorpicker.compose.HsvColorPicker
-import com.github.skydoves.colorpicker.compose.HueSlider
-import com.github.skydoves.colorpicker.compose.SaturationSlider
-import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
@@ -2034,7 +2030,7 @@ fun AppearanceSettingsContent(
     }
 
     if (showMd3ColorPickerDialog) {
-        Md3CustomColorPickerDialog(
+        ThemeCustomColorPickerDialog(
             initialHex = state.md3CustomColorHex,
             onDismiss = { showMd3ColorPickerDialog = false },
             onConfirm = { hex ->
@@ -2045,7 +2041,7 @@ fun AppearanceSettingsContent(
     }
 
     roleColorTarget?.let { target ->
-        Md3CustomColorPickerDialog(
+        ThemeCustomColorPickerDialog(
             initialHex = target.read(themeRoleOverrides),
             onDismiss = { roleColorTarget = null },
             onConfirm = { hex ->
@@ -2205,12 +2201,11 @@ internal fun ThemeRoleModeEditor(
 }
 
 @Composable
-private fun Md3CustomColorPickerDialog(
+private fun ThemeCustomColorPickerDialog(
     initialHex: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
-    val controller = rememberColorPickerController()
     val haptic = rememberHapticFeedback()
     var pendingHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
     var lastValidHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
@@ -2218,7 +2213,6 @@ private fun Md3CustomColorPickerDialog(
     val hasValidHex = isValidMd3CustomColorHex(pendingHex)
     val pendingColor = remember(lastValidHex) { parseMd3CustomColorHex(lastValidHex) }
     val invalidInput = pendingHex.isNotBlank() && !hasValidHex
-    val sliderPositions = remember(pendingColor) { resolveMd3ColorPickerSliderPositions(pendingColor) }
 
     fun updatePendingHex(value: String) {
         val nextHex = value.uppercase().take(9)
@@ -2226,12 +2220,6 @@ private fun Md3CustomColorPickerDialog(
         if (isValidMd3CustomColorHex(nextHex)) {
             lastValidHex = normalizeMd3CustomColorHex(nextHex)
         }
-    }
-
-    // HsvColorPicker only consumes initialColor during setup. Keep its controller in sync with
-    // manual HEX edits and presets so the next slider gesture cannot restore the initial blue.
-    LaunchedEffect(pendingColor) {
-        controller.selectByColor(pendingColor, fromUser = false)
     }
 
     fun emitSelectionHapticIfNeeded() {
@@ -2287,57 +2275,17 @@ private fun Md3CustomColorPickerDialog(
                     )
                 }
 
-                HsvColorPicker(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    controller = controller,
-                    initialColor = pendingColor,
-                    onStart = { emitSelectionHapticIfNeeded() },
-                    onColorChanged = { envelope ->
-                        if (envelope.fromUser) {
-                            val nextHex = formatMd3CustomColorHex(envelope.color)
-                            if (nextHex != pendingHex) {
-                                updatePendingHex(nextHex)
-                                emitSelectionHapticIfNeeded()
-                            }
+                AppColorPicker(
+                    color = pendingColor,
+                    modifier = Modifier.fillMaxWidth(),
+                    onColorChanged = { color ->
+                        val nextHex = formatMd3CustomColorHex(color)
+                        if (nextHex != pendingHex) {
+                            updatePendingHex(nextHex)
+                            emitSelectionHapticIfNeeded()
                         }
-                    }
+                    },
                 )
-
-                Md3ColorPickerSliderFrame(position = sliderPositions.hue) {
-                    HueSlider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(resolveMd3ColorPickerSliderLayout().trackHeight),
-                        controller = controller,
-                        wheelRadius = 0.dp,
-                        wheelAlpha = 0f,
-                        onStart = { emitSelectionHapticIfNeeded() }
-                    )
-                }
-                Md3ColorPickerSliderFrame(position = sliderPositions.saturation) {
-                    SaturationSlider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(resolveMd3ColorPickerSliderLayout().trackHeight),
-                        controller = controller,
-                        wheelRadius = 0.dp,
-                        wheelAlpha = 0f,
-                        onStart = { emitSelectionHapticIfNeeded() }
-                    )
-                }
-                Md3ColorPickerSliderFrame(position = sliderPositions.brightness) {
-                    BrightnessSlider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(resolveMd3ColorPickerSliderLayout().trackHeight),
-                        controller = controller,
-                        wheelRadius = 0.dp,
-                        wheelAlpha = 0f,
-                        onStart = { emitSelectionHapticIfNeeded() }
-                    )
-                }
 
                 AppTextField(
                     value = pendingHex,

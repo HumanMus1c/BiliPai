@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
@@ -960,6 +960,8 @@ private fun LiveAreaHomeChipRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppThemeAdaptiveTabRow(
+            role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+            centerContent = false,
             options = categoryOptions,
             selectedValue = selectedCategory,
             onSelectionChange = onAreaSelected,
@@ -1029,6 +1031,8 @@ private fun LiveSortTagChipRow(
         72.dp
     }
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
+        centerContent = false,
         options = options,
         selectedValue = selectedValue,
         onSelectionChange = { value ->

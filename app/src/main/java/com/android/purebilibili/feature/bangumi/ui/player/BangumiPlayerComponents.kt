@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/ui/player/BangumiPlayerComponents.kt
 package com.android.purebilibili.feature.bangumi.ui.player
+
+import com.android.purebilibili.feature.video.ui.overlay.NextWatchOverlay
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -666,6 +668,28 @@ fun BangumiPlayerView(
             )
         }
         
+        NextWatchOverlay(
+            player = exoPlayer,
+            mediaKey = "bangumi:$epId:$cid",
+            eligible = !showControls && !isScreenLocked && !showGestureIndicator &&
+                exoPlayer.repeatMode != androidx.media3.common.Player.REPEAT_MODE_ONE,
+            resolve = {
+                pages.getOrNull(currentPageIndex + 1)?.let { next ->
+                    com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion(
+                        bvid, cid, bvid, next.cid, next.part, coverUrl, "下一集", pageIndex = currentPageIndex + 1
+                    )
+                }
+            },
+            play = { target ->
+                val index = target.pageIndex
+                if (index != null && target.sourceCid == cid && target.sourceBvid == bvid && index == currentPageIndex + 1 &&
+                    pages.getOrNull(index)?.cid == target.cid) {
+                    onPageSelect(index)
+                    true
+                } else false
+            },
+        )
+
         BangumiPlayerOverlayHost(
             player = exoPlayer,
             seasonId = seasonId,

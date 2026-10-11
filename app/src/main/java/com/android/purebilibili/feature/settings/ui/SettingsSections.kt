@@ -454,7 +454,7 @@ internal fun SettingsRootCategoryContent(
                                     value = settingsDestinationCopy(SettingsSearchTarget.INTERACTION_COMMENT).summary,
                                     openFocus = SettingsSceneDetailFocus(
                                         SettingsSearchTarget.PLAYBACK,
-                                        SettingsSearchFocusIds.PLAYBACK_INTERACTION,
+                                        SettingsSearchFocusIds.PLAYBACK_COMMENTS,
                                     ),
                                     onClick = actions.onPlaybackClick,
                                 ),
@@ -746,7 +746,7 @@ internal fun SettingsRootCategoryContent(
                                     value = settingsDestinationCopy(SettingsSearchTarget.INTERACTION_COMMENT).summary,
                                     openFocus = SettingsSceneDetailFocus(
                                         SettingsSearchTarget.PLAYBACK,
-                                        SettingsSearchFocusIds.PLAYBACK_INTERACTION,
+                                        SettingsSearchFocusIds.PLAYBACK_COMMENTS,
                                     ),
                                     onClick = actions.onPlaybackClick
                                 )

@@ -17,6 +17,7 @@ object SettingsSearchFocusIds {
     const val PLAYBACK_GESTURE = "playback_gesture"
     const val PLAYBACK_DEBUG = "playback_debug"
     const val PLAYBACK_INTERACTION = "playback_interaction"
+    const val PLAYBACK_COMMENTS = "playback_comments"
     const val PLAYBACK_FULLSCREEN = "playback_fullscreen"
     const val PLAYBACK_NETWORK = "playback_network"
     const val PLAYBACK_DATA_SAVER = "playback_data_saver"
@@ -85,21 +86,26 @@ internal fun resolveHomeSettingsScrollIndex(focusId: String): Int? = when (focus
     else -> null
 }
 
-internal fun resolvePlaybackSettingsScrollIndex(
-    focusId: String
-): Int? {
-    return when (focusId) {
-        SettingsSearchFocusIds.PLAYBACK_DECODER -> 0
-        SettingsSearchFocusIds.PLAYBACK_SPEED -> 2
-        SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER -> 4
-        SettingsSearchFocusIds.PLAYBACK_GESTURE -> 6
-        SettingsSearchFocusIds.PLAYBACK_DEBUG -> 8
-        SettingsSearchFocusIds.PLAYBACK_NETWORK -> 10
-        SettingsSearchFocusIds.PLAYBACK_DATA_SAVER -> 12
-        SettingsSearchFocusIds.PLAYBACK_INTERACTION -> 14
-        SettingsSearchFocusIds.PLAYBACK_FULLSCREEN -> 16
-        else -> null
-    }
+/** Ordered section keys shared by search positioning and the merged playback page. */
+internal val playbackSettingsSectionKeys = listOf(
+    SettingsSearchFocusIds.PLAYBACK_DECODER,
+    SettingsSearchFocusIds.PLAYBACK_SPEED,
+    SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER,
+    SettingsSearchFocusIds.PLAYBACK_DEBUG,
+    SettingsSearchFocusIds.PLAYBACK_NETWORK,
+    SettingsSearchFocusIds.PLAYBACK_DATA_SAVER,
+    SettingsSearchFocusIds.PLAYBACK_INTERACTION,
+    SettingsSearchFocusIds.PLAYBACK_COMMENTS,
+    SettingsSearchFocusIds.PLAYBACK_FULLSCREEN,
+)
+
+internal fun resolvePlaybackSettingsScrollIndex(focusId: String): Int? {
+    val sectionKey = if (focusId == SettingsSearchFocusIds.PLAYBACK_GESTURE) {
+        SettingsSearchFocusIds.PLAYBACK_FULLSCREEN
+    } else focusId
+    return playbackSettingsSectionKeys.indexOf(sectionKey)
+        .takeIf { it >= 0 }
+        ?.times(2)
 }
 
 internal fun resolveBottomBarSettingsScrollIndex(
@@ -153,7 +159,7 @@ internal fun resolveSettingsSceneDetailFocus(
     )
     SettingsSearchTarget.INTERACTION_COMMENT -> SettingsSceneDetailFocus(
         target = SettingsSearchTarget.PLAYBACK,
-        focusId = SettingsSearchFocusIds.PLAYBACK_INTERACTION
+        focusId = SettingsSearchFocusIds.PLAYBACK_COMMENTS
     )
     SettingsSearchTarget.DIAGNOSTICS -> SettingsSceneDetailFocus(
         target = SettingsSearchTarget.PLAYBACK,

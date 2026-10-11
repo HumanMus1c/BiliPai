@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,7 +67,7 @@ internal fun Material3AppUpdateDialog(
                 }
                 IconButton(
                     onClick = actions.onDismissRequest,
-                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).appElasticPress(),
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
@@ -81,7 +83,7 @@ internal fun Material3AppUpdateDialog(
             if (!state.showReleaseNotesOnly) {
                 Button(
                     onClick = actions.onPrimaryAction,
-                    enabled = !state.downloadState.isActiveDownload(),
+                    enabled = !state.downloadState.isActiveDownload(), modifier = Modifier.appElasticPress(enabled = !state.downloadState.isActiveDownload()),
                 ) {
                     Text(
                         text = appUpdatePrimaryLabel(state.downloadState, state.hasAsset),
@@ -101,6 +103,7 @@ internal fun Material3AppUpdateDialog(
                     } else {
                         actions.onDismissRequest
                     },
+                    modifier = Modifier.appElasticPress(),
                 ) {
                     Text(
                         text = if (state.downloadState.isActiveDownload()) "取消下载" else "稍后",
@@ -330,7 +333,8 @@ private fun Material3DownloadChannels(
                 onClick = actions.onOpenRelease,
                 modifier = Modifier
                     .weight(1f)
-                    .sizeIn(minHeight = 48.dp),
+                    .sizeIn(minHeight = 48.dp)
+                    .appElasticPress(),
             ) {
                 Text("正式版下载", maxLines = 1, softWrap = false)
             }
@@ -338,7 +342,8 @@ private fun Material3DownloadChannels(
                 onClick = actions.onOpenTestRelease,
                 modifier = Modifier
                     .weight(1f)
-                    .sizeIn(minHeight = 48.dp),
+                    .sizeIn(minHeight = 48.dp)
+                    .appElasticPress(),
             ) {
                 Text("测试版下载", maxLines = 1, softWrap = false)
             }

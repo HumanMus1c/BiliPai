@@ -18,6 +18,7 @@ import com.android.purebilibili.core.ui.components.AppDropdownMenuItem
 import com.android.purebilibili.core.ui.components.AppFilterChip
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.appElasticPress
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppInputChip
 import com.android.purebilibili.core.ui.components.AppSurface
@@ -26,7 +27,6 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.liquidDockViewport
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.navigation.animatePagerSelection
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.navigation.SearchSubmitAction
@@ -65,16 +65,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -1474,15 +1474,11 @@ fun SearchScreen(
                             } else requestedSkeletonColumns
                         HorizontalPager(
                             state = searchPagerState,
-                            userScrollEnabled = false,
+                            userScrollEnabled = true,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .then(searchChromeSource?.modifier ?: Modifier)
-                        .globalWallpaperAwareBackground()
-                                .verticalPriorityHorizontalPagerSwipe(
-                                    state = searchPagerState,
-                                    enabled = true,
-                                ),
+                        .globalWallpaperAwareBackground(),
                             beyondViewportPageCount = 1
                         ) { page ->
                         val targetSearchType = resolveSearchTypeForPagerPage(page, searchTabs)
@@ -2586,9 +2582,16 @@ fun SearchTopBar(
     } else {
         HomeTopChromeRenderMode.PLAIN
     }
+    val searchElasticState = com.android.purebilibili.core.ui.components.rememberAppElasticPressState(
+        feedbackStrength = com.android.purebilibili.core.ui.components.APP_SEARCH_ELASTIC_FEEDBACK_STRENGTH,
+    )
+    val backElasticState = com.android.purebilibili.core.ui.components.rememberAppElasticPressState()
+    val submitElasticState = com.android.purebilibili.core.ui.components.rememberAppElasticPressState()
+    val clearElasticState = com.android.purebilibili.core.ui.components.rememberAppElasticPressState()
     fun Modifier.searchTopChromeGlass(
         shape: androidx.compose.ui.graphics.Shape,
         controlHeightDp: Int,
+        interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
     ): Modifier {
         if (!glassActive) return this
         return homeTopBottomBarMatchedSurface(
@@ -2605,6 +2608,7 @@ fun SearchTopBar(
             forceLowBlurBudget = false,
             drawShellLens = true,
             shellLensIntensity = resolveFloatingDockGeometryScale(controlHeightDp.toFloat()),
+            interactionState = interactionState,
         )
     }
 
@@ -2714,9 +2718,12 @@ fun SearchTopBar(
                 val actionShape = resolveHomeTopEdgeButtonShape(topChromePolicy)
                 SearchTopBarIconButton(
                     onClick = onBack,
+                    elasticState = backElasticState,
+                    shape = actionShape,
+                    transformInBackdrop = glassActive,
                     modifier = Modifier
                         .size(chromeSpec.clearActionSizeDp.dp)
-                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp)
+                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp, backElasticState)
                 ) {
                     AppIcon(
                         backIcon,
@@ -2755,7 +2762,9 @@ fun SearchTopBar(
                         .weight(1f)
                         .fillMaxWidth()
                         .height(inputHeightDp.dp)
-                        .searchTopChromeGlass(inputShape, inputHeightDp)
+                        .appElasticPress(state = searchElasticState, transformInBackdrop = glassActive, highlightShape = inputShape)
+                        .searchTopChromeGlass(inputShape, inputHeightDp, searchElasticState)
+                        .then(if (glassActive) Modifier.graphicsLayer(searchElasticState.layerBlock) else Modifier)
                         .onFocusChanged { onFocusChanged(it.isFocused) }
                 )
 
@@ -2763,10 +2772,13 @@ fun SearchTopBar(
 
                 SearchTopBarIconButton(
                     onClick = { onSearch(resolvedSubmitKeyword) },
+                    elasticState = submitElasticState,
+                    shape = actionShape,
+                    transformInBackdrop = glassActive,
                     enabled = canSubmit,
                     modifier = Modifier
                         .size(chromeSpec.submitActionSizeDp.dp)
-                        .searchTopChromeGlass(actionShape, chromeSpec.submitActionSizeDp)
+                        .searchTopChromeGlass(actionShape, chromeSpec.submitActionSizeDp, submitElasticState)
                         .then(
                             if (glassActive) {
                                 Modifier
@@ -2799,10 +2811,13 @@ fun SearchTopBar(
 
                 SearchTopBarIconButton(
                     onClick = onClearQuery,
+                    elasticState = clearElasticState,
+                    shape = actionShape,
+                    transformInBackdrop = glassActive,
                     enabled = query.isNotEmpty(),
                     modifier = Modifier
                         .size(chromeSpec.clearActionSizeDp.dp)
-                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp)
+                        .searchTopChromeGlass(actionShape, chromeSpec.clearActionSizeDp, clearElasticState)
                 ) {
                     AppIcon(
                         clearIcon,
@@ -2823,6 +2838,9 @@ fun SearchTopBar(
 @Composable
 private fun SearchTopBarIconButton(
     onClick: () -> Unit,
+    elasticState: com.android.purebilibili.core.ui.components.AppElasticPressState,
+    shape: androidx.compose.ui.graphics.Shape,
+    transformInBackdrop: Boolean,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     content: @Composable () -> Unit
@@ -2834,13 +2852,29 @@ private fun SearchTopBarIconButton(
         ),
         contentAlignment = Alignment.Center,
     ) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            AppIconButton(
-                onClick = onClick,
-                modifier = Modifier.matchParentSize(),
+        // The surface owns motion; never move only the glyph inside a fixed clipping shell.
+        Box(
+            modifier = modifier.appElasticPress(
                 enabled = enabled,
-                content = content
-            )
+                state = elasticState,
+                transformInBackdrop = transformInBackdrop,
+                highlightShape = shape,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.android.purebilibili.core.ui.components.LocalElasticPressEnabled provides false,
+            ) {
+                AppIconButton(
+                    onClick = onClick,
+                    modifier = Modifier.matchParentSize().then(
+                        if (transformInBackdrop) Modifier.graphicsLayer(elasticState.layerBlock)
+                        else Modifier,
+                    ),
+                    enabled = enabled,
+                    content = content,
+                )
+            }
         }
     }
 }

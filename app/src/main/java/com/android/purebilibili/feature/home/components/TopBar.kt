@@ -70,6 +70,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi // [Added]
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -979,7 +980,8 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
     drawShellLens: Boolean = true,
     shellLensIntensity: Float = 1f,
     isScrolling: Boolean = false,
-    materialScrollProgress: Float = if (isScrolling) 1f else 0f
+    materialScrollProgress: Float = if (isScrolling) 1f else 0f,
+    interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
 ): Modifier = composed {
     val isGlassEnabled = renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_BACKDROP ||
         renderMode == HomeTopChromeRenderMode.LIQUID_GLASS_HAZE
@@ -1013,6 +1015,8 @@ internal fun Modifier.homeTopBottomBarMatchedSurface(
             drawLens = drawShellLens,
             lensIntensity = shellLensIntensity,
             liquidGlassTuning = resolvedLiquidGlassTuning,
+            interactionState = interactionState,
+            interactionLayerBlock = interactionState?.layerBlock,
         )
     } else {
         this.bottomBarMatchedLiquidDockSurface(
@@ -1077,7 +1081,8 @@ private fun LightweightHomeTopTabs(
     isTransitionRunning: Boolean = false,
     showPartitionAction: Boolean = true,
     isViewportSyncEnabled: Boolean = true,
-    forceMaterialUnderline: Boolean = false
+    forceMaterialUnderline: Boolean = false,
+    dockHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
 ) {
     val chromePolicy = rememberAppTopChromePolicy()
     val resolvedLiquidGlassTuning = remember(liquidGlassStyle, liquidGlassTuning) {
@@ -1103,7 +1108,8 @@ private fun LightweightHomeTopTabs(
     val showIcon = shouldShowTopTabIcon(normalizedLabelMode)
     val showText = shouldShowTopTabText(normalizedLabelMode)
     val effectivePresentation = when {
-        skinPlainStyle || forceMaterialUnderline -> AppTopTabPresentation.MATERIAL_UNDERLINE
+        skinPlainStyle || forceMaterialUnderline || LocalAppUiStyle.current == AppUiStyle.MATERIAL3 ->
+            AppTopTabPresentation.MATERIAL_UNDERLINE
         // Retired Miuix TONAL_CAPSULE callers must not revive the old per-item fill.
         presentation == AppTopTabPresentation.TONAL_CAPSULE ->
             AppTopTabPresentation.MATERIAL_UNDERLINE
@@ -1118,7 +1124,7 @@ private fun LightweightHomeTopTabs(
         selectionIndicatorStyle = resolveHomeSelectionIndicatorStyle(
             uiStyle = LocalAppUiStyle.current,
             liquidGlassEnabled = isLiquidGlassEnabled,
-            forceMaterialUnderline = forceMaterialUnderline,
+            forceMaterialUnderline = forceMaterialUnderline || LocalAppUiStyle.current == AppUiStyle.MATERIAL3,
         ),
     )
     val topTabMotionSpec = remember { resolveSegmentedControlMotionSpec() }
@@ -1295,7 +1301,47 @@ private fun LightweightHomeTopTabs(
                 containerWidth = effectiveMaxDockWidth.dp,
                 itemCount = categories.size,
                 labelMode = normalizedLabelMode,
+                shellHeight = floatingDockHeight,
             )
+            val floatingLabelFontSize = resolveFloatingDockLabelFontSize(
+                showIcon = showIcon,
+                showText = showText,
+                fontScale = density.fontScale,
+            )
+            val minimumSlotWidth = com.android.purebilibili.core.ui.components.rememberMeasuredTabMinWidth(
+                requestedMinWidth = maxOf(
+                    (floatingDockHeight - AppSpacingTokens.ExtraSmall * 2).coerceAtLeast(0.dp),
+                    if (showIcon) resolveTopTabIconSizeDp(if (showText) 0 else 1).dp +
+                        AppSpacingTokens.Small * 2 else AppChromeSizeTokens.MinimumTouchTarget,
+                ),
+                labels = if (showText) categories else emptyList(),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = floatingLabelFontSize,
+                    fontWeight = FontWeight.Bold,
+                ),
+            )
+            val dockContentPadding = dockHorizontalPadding * 2
+            val minimumContentWidth = minimumSlotWidth * categories.size + dockContentPadding
+            val needsDockScroll = minimumContentWidth > effectiveMaxDockWidth.dp
+            val visibleSlotCount = kotlin.math.floor(
+                ((effectiveMaxDockWidth.dp - dockContentPadding) / minimumSlotWidth).toDouble(),
+            ).toInt().coerceIn(1, categories.size.coerceAtLeast(1))
+            val scrollingSlotWidth = ((effectiveMaxDockWidth.dp - dockContentPadding) /
+                visibleSlotCount).coerceAtLeast(minimumSlotWidth)
+            val fittedDockWidth = maxOf(floatingDockWidth, minimumContentWidth)
+                .coerceAtMost(effectiveMaxDockWidth.dp)
+            val dockScrollState = androidx.compose.foundation.rememberScrollState()
+            if (needsDockScroll) {
+                com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible(
+                    scrollState = dockScrollState,
+                    selectedIndex = selectedIndex,
+                    itemWidthPx = with(density) { scrollingSlotWidth.toPx() },
+                    contentPaddingPx = with(density) { dockHorizontalPadding.toPx() },
+                    focusPosition = currentPositionProvider,
+                    continuousFollow = pagerScrollingProvider,
+                    centerSelection = false,
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1315,12 +1361,11 @@ private fun LightweightHomeTopTabs(
                     showIcon = showIcon,
                     showText = showText,
                     iconFamily = topTabIconFamily,
-                    itemWidth = null,
-                    labelFontSize = resolveFloatingDockLabelFontSize(
-                        showIcon = showIcon,
-                        showText = showText,
-                        fontScale = density.fontScale,
-                    ),
+                    itemWidth = scrollingSlotWidth.takeIf { needsDockScroll },
+                    dockHeight = floatingDockHeight,
+                    horizontalPadding = dockHorizontalPadding,
+                    scrollState = dockScrollState.takeIf { needsDockScroll },
+                    labelFontSize = floatingLabelFontSize,
                     liquidGlassEffectsEnabled = isLiquidGlassEnabled,
                     miuixBackdrop = miuixBackdrop,
                     liquidGlassPreset = liquidGlassPreset,
@@ -1328,7 +1373,7 @@ private fun LightweightHomeTopTabs(
                     indicatorPositionProvider = currentPositionProvider,
                     isScrollInProgressProvider = pagerScrollingProvider,
                     modifier = Modifier
-                        .width(floatingDockWidth)
+                        .width(if (needsDockScroll) effectiveMaxDockWidth.dp else fittedDockWidth)
                         .height(floatingDockHeight),
                 )
             }
@@ -1597,11 +1642,11 @@ private fun LightweightHomeTopTabs(
         val homeSelectionIndicatorStyle = resolveHomeSelectionIndicatorStyle(
             uiStyle = LocalAppUiStyle.current,
             liquidGlassEnabled = isLiquidGlassEnabled,
-            forceMaterialUnderline = forceMaterialUnderline,
+            forceMaterialUnderline = forceMaterialUnderline || LocalAppUiStyle.current == AppUiStyle.MATERIAL3,
         )
         val shouldUseHomeCapsule =
             homeSelectionIndicatorStyle == HomeSelectionIndicatorStyle.CAPSULE
-        // 玻璃开启或 Miuix 主题使用胶囊；仅 Material3 的非玻璃路径使用短下划线。
+        // MD3 首页始终使用下划线；Miuix 保留原胶囊策略。
         val shouldUseMd3LiquidCapsule = effectivePresentation == AppTopTabPresentation.MATERIAL_UNDERLINE &&
             !skinPlainStyle &&
             !hasSkinStickerIcons &&
@@ -1712,7 +1757,9 @@ private fun LightweightHomeTopTabs(
             indicatorWidthPx = targetIndicatorWidthPx,
             contentPaddingPx = with(density) { md3ContentPadding.toPx() }
         )
-        val shouldAnimateMd3Tap = shouldUseMd3NativeUnderline && shouldAnimateMd3TopTabUnderline(
+        val shouldAnimateMd3Tap = shouldUseMd3NativeUnderline &&
+            !com.android.purebilibili.core.ui.LocalSystemReduceMotion.current &&
+            shouldAnimateMd3TopTabUnderline(
             pagerIsDragging = pagerIsDragging,
             topTabIndicatorOwnsPosition = topTabIndicatorOwnsPosition
         )
@@ -2069,7 +2116,37 @@ private fun LightweightHomeTopTabs(
                 } // stable export + visible content with indicator-only motion
 
                 // 非玻璃 MD3 与皮肤顶栏使用单层短指示线，始终位于内容底部居中。
-                if (shouldUseMd3NativeUnderline) {
+                val useNativeTonalPill = shouldUseMd3NativeUnderline &&
+                    !skinPlainStyle && !forceMaterialUnderline &&
+                    LocalAppUiStyle.current == AppUiStyle.MATERIAL3
+                if (useNativeTonalPill) {
+                    val pillColor = MaterialTheme.colorScheme.secondaryContainer
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // This is a sibling of the content container. Child zIndex
+                            // cannot lift glyphs above a later sibling's opaque fill.
+                            .zIndex(-1f)
+                            .drawBehind {
+                                val pillWidth = (itemWidth.toPx() - 8.dp.toPx()).coerceAtLeast(0f)
+                                val pillHeight = (size.height - 8.dp.toPx()).coerceAtLeast(0f)
+                                val left = resolveMd3TopTabIndicatorTranslationPx(
+                                    absolutePagerPosition = topTabIndicatorPositionState.value,
+                                    itemWidthPx = itemWidth.toPx(),
+                                    rowScrollOffsetPx = rowScrollOffsetPx,
+                                    indicatorWidthPx = pillWidth,
+                                    contentPaddingPx = topTabHorizontalPadding.toPx(),
+                                )
+                                drawRoundRect(
+                                    color = pillColor,
+                                    topLeft = androidx.compose.ui.geometry.Offset(left, 4.dp.toPx()),
+                                    size = androidx.compose.ui.geometry.Size(pillWidth, pillHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(pillHeight / 2f),
+                                )
+                            },
+                    )
+                }
+                if (shouldUseMd3NativeUnderline && !useNativeTonalPill) {
                     LightweightTopTabMd3Underline(
                         positionState = topTabIndicatorPositionState,
                         density = density,
@@ -2798,7 +2875,8 @@ fun CategoryTabRow(
     skinPlainContentColor: Color? = null,
     topTabSkinIconPaths: Map<String, TopTabSkinIconPaths> = emptyMap(),
     partitionSkinIconPath: String? = null,
-    forceMaterialUnderline: Boolean = false
+    forceMaterialUnderline: Boolean = false,
+    dockHorizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
 ) {
     val chromePolicy = rememberAppTopChromePolicy()
     val presetStyle = resolveHomeTopPresetStyle(
@@ -2833,7 +2911,8 @@ fun CategoryTabRow(
         isTransitionRunning = isTransitionRunning,
         showPartitionAction = showPartitionAction,
         isViewportSyncEnabled = isViewportSyncEnabled,
-        forceMaterialUnderline = forceMaterialUnderline
+        forceMaterialUnderline = forceMaterialUnderline || LocalAppUiStyle.current == AppUiStyle.MATERIAL3,
+        dockHorizontalPadding = dockHorizontalPadding,
     )
 }
 

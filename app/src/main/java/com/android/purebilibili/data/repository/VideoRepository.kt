@@ -1988,6 +1988,9 @@ object VideoRepository {
     
     suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> = VideoCatalogRepository.getRelatedVideos(bvid)
 
+    suspend fun getRelatedVideosResult(bvid: String): Result<List<RelatedVideo>> =
+        VideoCatalogRepository.getRelatedVideosResult(bvid)
+
 
     //  [新增] API 错误码分类，提供用户友好的错误提示
     private fun classifyPlayUrlError(code: Int, message: String?): String {

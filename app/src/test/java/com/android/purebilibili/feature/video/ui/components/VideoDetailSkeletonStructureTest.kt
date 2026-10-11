@@ -36,6 +36,19 @@ class VideoDetailSkeletonStructureTest {
         assertTrue(source.contains("RoundedCornerShape(12.dp)"))
     }
 
+    @Test
+    fun foldableAndLargeScreenPanesRenderLoadingBeforeSuccess() {
+        val tablet = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/TabletVideoLayout.kt")
+        val large = loadSource("app/src/main/java/com/android/purebilibili/feature/video/screen/LargeScreenVideoLayout.kt")
+        assertTrue(tablet.contains("uiState is VideoPlaybackUiState.Loading && !layoutPolicy.useTabletopLayout"))
+        assertTrue(tablet.contains("VideoDetailInfoPaneSkeleton("))
+        assertTrue(tablet.split("VideoDetailSecondaryPaneSkeleton(").size >= 3)
+        assertTrue(large.contains("VideoDetailInfoPaneSkeleton("))
+        assertTrue(large.contains("VideoDetailSecondaryPaneSkeleton("))
+        assertTrue(tablet.contains("relatedLoadState = success.relatedLoadState"))
+        assertTrue(tablet.contains("tablet_intro_related_loading"))
+    }
+
     private fun loadSource(path: String): String {
         val normalizedPath = path.removePrefix("app/")
         val sourceFile = listOf(

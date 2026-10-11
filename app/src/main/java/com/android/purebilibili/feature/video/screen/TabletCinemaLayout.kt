@@ -40,11 +40,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,7 +64,6 @@ import androidx.compose.material3.MaterialTheme
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
@@ -578,6 +577,8 @@ private fun CinemaStagePlayer(
                         sponsorContributionState = sponsorContributionState,
                     ),
                     actions = VideoPlayerSectionActions(
+                    resolveNextWatch = playbackActions.resolveNextWatch,
+                    playNextWatch = playbackActions.playNextWatch,
                         onToggleFullscreen = onToggleFullscreen,
                         onQualityChange = playbackActions.changeQuality,
                         onBack = onBack,
@@ -1196,17 +1197,14 @@ private fun CinemaSideCurtain(
 
                             HorizontalPager(
                                 state = pagerState,
-                                userScrollEnabled = false,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalPriorityHorizontalPagerSwipe(
-                                        state = pagerState,
-                                        enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                                userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
                                             currentPage = pagerState.currentPage,
                                             commentPageIndex = 0,
                                             isPagerScrollInProgress = pagerState.isScrollInProgress,
                                         ),
-                                    )
+                                modifier = Modifier
+                                    .fillMaxSize()
+
                             ) { page ->
                                 when {
                                     success == null -> {

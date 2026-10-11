@@ -11,7 +11,7 @@ import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.feature.settings.ui.LocalSettingsTopContentPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -178,6 +178,8 @@ fun AnimationSettingsContent(
         .collectAsStateWithLifecycle(initialValue = LiquidGlassReadabilityMode.STABLE)
     val uiEntranceAnimationEnabled by SettingsManager.getUiEntranceAnimationEnabled(context)
         .collectAsStateWithLifecycle(initialValue = true)
+    val maidLottieAnimationEnabled by SettingsManager.getMaidLottieAnimationEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val skeletonBreathingEnabled = com.android.purebilibili.core.ui.skeleton.rememberSkeletonBreathingEnabled()
     val globalTextTapCopyEnabled by SettingsManager
         .getGlobalTextTapCopyEnabled(context)
@@ -262,7 +264,7 @@ fun AnimationSettingsContent(
     SettingsSectionFocusEffect(
         listState = listState,
         target = SettingsSearchTarget.ANIMATION,
-        sectionKeys = (if (advancedOnly) emptyList() else listOf("animation_page_title", "animation_page", "animation_card_title", "animation_card")) + listOf("animation_glass_title", "animation_glass"),
+        sectionKeys = (if (advancedOnly) emptyList() else listOf("animation_page_title", "animation_page", "animation_maid_lottie_title", "animation_maid_lottie", "animation_card_title", "animation_card")) + listOf("animation_glass_title", "animation_glass"),
         legacyKeys = mapOf(
             SettingsSearchFocusIds.ANIMATION_START to "animation_page_title",
             SettingsSearchFocusIds.ANIMATION_VISUAL_EFFECTS to "animation_glass_title",
@@ -342,6 +344,32 @@ fun AnimationSettingsContent(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            item(key = "animation_maid_lottie_title") {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceSectionTitle("蓝雪女仆")
+                }
+            }
+            item(key = "animation_maid_lottie") {
+                Box(modifier = Modifier.entrance()) {
+                    AppPreferenceGroup {
+                        SettingsItemAnchor("animation.maid_lottie_animation_enabled") {
+                            AppSwitchPreference(
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.ANIMATION),
+                                title = settingItemTitle("animation.maid_lottie_animation_enabled"),
+                                subtitle = "关闭后隐藏女仆动画和静态图",
+                                checked = maidLottieAnimationEnabled,
+                                onCheckedChange = { enabled ->
+                                    scope.launch {
+                                        SettingsManager.setMaidLottieAnimationEnabled(context, enabled)
+                                    }
+                                },
+                                iconTint = iOSBlue,
+                            )
                         }
                     }
                 }

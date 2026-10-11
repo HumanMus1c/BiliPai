@@ -13,7 +13,8 @@ import com.android.purebilibili.core.ui.MediaContrastPalette
 
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.resolveAppTvIcon
+import androidx.compose.ui.res.painterResource
+import com.android.purebilibili.R
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.tween
@@ -355,10 +356,10 @@ private fun VideoCardLargeCover(
                 Spacer(modifier = Modifier.weight(1f))
 
                 AppIcon(
-                    imageVector = resolveAppTvIcon(),
+                    painter = painterResource(R.drawable.ic_pili_tv_play),
                     contentDescription = "播放视频",
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(50.dp),
                 )
             }
         }

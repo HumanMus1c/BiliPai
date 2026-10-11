@@ -241,6 +241,7 @@ fun <T> AppSingleChoiceDialog(
             usePlatformDefaultWidth = layoutPolicy.usePlatformDefaultWidth,
         ),
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         AppPopupSurface(
             type = AppPopupSurfaceType.DIALOG,
             modifier = modifier
@@ -385,6 +386,7 @@ fun AppSliderDialog(
             usePlatformDefaultWidth = layoutPolicy.usePlatformDefaultWidth,
         ),
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         AppPopupSurface(
             type = AppPopupSurfaceType.DIALOG,
             modifier = modifier.appContentDialogWidth(

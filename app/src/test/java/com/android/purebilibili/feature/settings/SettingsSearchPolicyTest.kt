@@ -249,7 +249,7 @@ class SettingsSearchPolicyTest {
         assertTrue(
             results.any {
                 it.target == SettingsSearchTarget.PLAYBACK &&
-                    it.focusId == SettingsSearchFocusIds.PLAYBACK_INTERACTION
+                    it.focusId == SettingsSearchFocusIds.PLAYBACK_COMMENTS
             }
         )
     }
@@ -273,7 +273,7 @@ class SettingsSearchPolicyTest {
         assertTrue(
             results.any {
                 it.target == SettingsSearchTarget.PLAYBACK &&
-                    it.focusId == SettingsSearchFocusIds.PLAYBACK_INTERACTION
+                    it.focusId == SettingsSearchFocusIds.PLAYBACK_COMMENTS
             }
         )
     }
@@ -285,7 +285,7 @@ class SettingsSearchPolicyTest {
         assertTrue(
             results.any {
                 it.target == SettingsSearchTarget.PLAYBACK &&
-                    it.focusId == SettingsSearchFocusIds.PLAYBACK_INTERACTION
+                    it.focusId == SettingsSearchFocusIds.PLAYBACK_COMMENTS
             }
         )
     }
@@ -455,4 +455,21 @@ class SettingsSearchPolicyTest {
         assertEquals("平板侧边导航栏", result?.title)
         assertEquals("导航设置", result?.section)
     }
+    @Test
+    fun allRestoredCommentSettingsHaveConcreteSearchDestinations() {
+        val restored = settingsItemDirectory.filter { it.page == SettingsRootCategory.COMMENTS_CONTENT }
+        assertEquals(18, restored.size)
+        restored.forEach { item ->
+            val result = resolveSettingsSearchResults(item.title)
+                .first { it.settingId == item.settingId }
+            assertEquals(SettingsSearchFocusIds.PLAYBACK_COMMENTS, result.focusId)
+            assertEquals(com.android.purebilibili.navigation3.BiliPaiNavKey.PlaybackSettings,
+                resolveSettingsSearchNavigation(result))
+            assertTrue(result.path.contains("播放设置 / 互动与评论"))
+        }
+        assertTrue(resolveSettingsSearchResults("隐藏三连").any {
+            it.settingId == "playback.hide_interactive_command_danmaku"
+        })
+    }
+
 }

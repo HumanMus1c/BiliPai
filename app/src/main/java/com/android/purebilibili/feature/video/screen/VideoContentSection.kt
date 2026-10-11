@@ -13,12 +13,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -106,6 +106,7 @@ import com.android.purebilibili.feature.video.ui.components.LandscapeSidePanel
 import com.android.purebilibili.feature.video.ui.components.LandscapeSidePanelEdge
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
+import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewDialog
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewTextContent
 import com.android.purebilibili.feature.dynamic.components.ImagePreviewSourceAnchor
@@ -424,6 +425,7 @@ internal class VideoContentData(
     val videoTags: List<VideoTag>,
     val bgmInfo: BgmInfo?,
     val bgmInfoList: List<BgmInfo>,
+    val relatedLoadState: VideoPlaybackUiState.RelatedLoadState = VideoPlaybackUiState.RelatedLoadState.READY,
 )
 
 internal class VideoContentEngagementState(
@@ -924,7 +926,11 @@ internal fun VideoContentSection(
                 beyondViewportPageCount = resolveVideoDetailBeyondViewportPageCount(
                     selectedTabIndex = pagerState.currentPage
                 ),
-                userScrollEnabled = false,
+                userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
+                            currentPage = pagerState.currentPage,
+                            commentPageIndex = 1,
+                            isPagerScrollInProgress = pagerState.isScrollInProgress,
+                        ),
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
@@ -934,14 +940,7 @@ internal fun VideoContentSection(
                             Modifier.videoContentTopPadding(tabBarVisibleHeightPx)
                         }
                     )
-                    .verticalPriorityHorizontalPagerSwipe(
-                        state = pagerState,
-                        enabled = shouldEnableVideoContentHorizontalPagerSwipe(
-                            currentPage = pagerState.currentPage,
-                            commentPageIndex = 1,
-                            isPagerScrollInProgress = pagerState.isScrollInProgress,
-                        ),
-                    )
+
             ) { page ->
                 when (page) {
                     0 -> VideoIntroTab(
@@ -949,6 +948,7 @@ internal fun VideoContentSection(
                         modifier = Modifier,
                         info = info,
                         relatedVideos = relatedVideos,
+                        relatedLoadState = data.relatedLoadState,
                         currentPageIndex = currentPageIndex,
                         followingMids = followingMids,
                         videoTags = videoTags,
@@ -1328,6 +1328,7 @@ private fun VideoIntroTab(
     modifier: Modifier,
     info: ViewInfo,
     relatedVideos: List<RelatedVideo>,
+    relatedLoadState: VideoPlaybackUiState.RelatedLoadState,
     currentPageIndex: Int,
     followingMids: Set<Long>,
     videoTags: List<VideoTag>,
@@ -1448,6 +1449,21 @@ private fun VideoIntroTab(
         }
         item(key = "video_related_header", contentType = "video_related_header") {
             VideoRecommendationHeader()
+        }
+
+        if (relatedLoadState == VideoPlaybackUiState.RelatedLoadState.LOADING) {
+            item(key = "video_related_loading") {
+                Column {
+                    repeat(3) { com.android.purebilibili.core.ui.skeleton.MediaListRowSkeleton() }
+                }
+            }
+        } else if (visibleRelatedVideos.isEmpty()) {
+            item(key = "video_related_empty") {
+                AppText(
+                    if (relatedLoadState == VideoPlaybackUiState.RelatedLoadState.FAILED) "相关推荐加载失败" else "暂无相关推荐",
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
         }
 
         itemsIndexed(
@@ -2158,6 +2174,8 @@ private fun VideoContentTabBar(
             }
         ) {
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+                centerContent = false,
                 options = tabs.mapIndexed { index, label -> AppSegmentOption(index, label) },
                 selectedValue = selectedTabIndex,
                 onSelectionChange = onTabSelected,

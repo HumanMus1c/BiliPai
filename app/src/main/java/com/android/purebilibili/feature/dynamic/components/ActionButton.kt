@@ -1,6 +1,7 @@
 // 文件路径: feature/dynamic/components/ActionButton.kt
 package com.android.purebilibili.feature.dynamic.components
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.appElasticPress
 import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppChromeSizeTokens
@@ -18,25 +19,19 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,18 +85,8 @@ fun ActionButton(
         disabledContentColor = if (isDark) Color(0xFF666666) else Color(0xFF999999),
     )
     
-    //  iOS 风格按压动画
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "actionButtonScale"
-    )
-    
+
     //  优雅的图标 - 根据状态切换填充/描边
     val buttonIcon = when {
         isLike && isActive -> rememberAppLikeFilledIcon()
@@ -127,7 +112,7 @@ fun ActionButton(
                 onClick = onClick,
                 enabled = enabled,
                 colors = miuixButtonColors,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().appElasticPress(enabled = enabled),
                 insideMargin = PaddingValues(
                     horizontal = AppSpacingTokens.Small,
                     vertical = AppSpacingTokens.Medium
@@ -157,7 +142,7 @@ fun ActionButton(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
-                    .scale(scale),
+                    .appElasticPress(enabled = enabled),
                 contentPadding = PaddingValues(
                     horizontal = AppSpacingTokens.Small + AppSpacingTokens.Micro,
                     vertical = AppSpacingTokens.Small
@@ -193,7 +178,7 @@ fun ActionButton(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = AppChromeSizeTokens.MinimumTouchTarget)
-                .scale(scale)
+                .appElasticPress(enabled = enabled)
                 .then(
                     if (useFilledShell) {
                         Modifier

@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import com.android.purebilibili.core.ui.common.ProvideAppTextSelectionHost
+import com.android.purebilibili.core.ui.MaidLottieAnimationSettingsHost
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
@@ -1549,6 +1550,7 @@ open class MainActivity : AppCompatActivity() {
                         LocalAppSingleChoicePresentation provides
                             appThemeSettings.singleChoicePresentation,
                     ) {
+                    MaidLottieAnimationSettingsHost {
                     val isPipRenderingActive =
                         isInPipMode || miniPlayerManager.shouldKeepPlaybackForPipTransition()
                     val isFullscreenPlayerLocked = AppScreenshotGestureBlockState.fullscreenPlayerLocked
@@ -2039,11 +2041,13 @@ open class MainActivity : AppCompatActivity() {
                                         onFinished = { showMaidStartup = false }
                                     )
                                 } else {
-                                    Image(
-                                        painter = androidx.compose.ui.res.painterResource(com.android.bilipai.brandmotion.R.drawable.bilipai_maid_static),
-                                        contentDescription = "蓝雪女仆",
-                                        modifier = Modifier.size(maidStartupSize)
-                                    )
+                                    if (com.android.purebilibili.core.ui.LocalMaidLottieAnimationEnabled.current) {
+                                        Image(
+                                            painter = androidx.compose.ui.res.painterResource(com.android.bilipai.brandmotion.R.drawable.bilipai_maid_static),
+                                            contentDescription = "蓝雪女仆",
+                                            modifier = Modifier.size(maidStartupSize)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2325,6 +2329,7 @@ open class MainActivity : AppCompatActivity() {
                         )
                     }
 
+                    }
                     }
                 }
                 }

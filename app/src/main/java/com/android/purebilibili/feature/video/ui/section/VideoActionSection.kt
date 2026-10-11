@@ -1,16 +1,15 @@
 // File: feature/video/ui/section/VideoActionSection.kt
 package com.android.purebilibili.feature.video.ui.section
+import com.android.purebilibili.core.ui.components.appElasticPress
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -389,7 +388,6 @@ private fun TripleProgressActionButton(
     horizontalPadding: Dp = 4.dp
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
     val inactiveTint = MaterialTheme.colorScheme.onSurfaceVariant
     val iconTint = resolveVideoActionTint(
         isActive = isActive,
@@ -401,14 +399,6 @@ private fun TripleProgressActionButton(
         activeColor = activeColor,
         inactiveColor = inactiveTint
     )
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && !disableInternalClick) 0.92f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "tripleActionButtonScale"
-    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -416,10 +406,10 @@ private fun TripleProgressActionButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .appElasticPress(
+                enabled = !disableInternalClick,
+                dragEnabled = onLongClick == null,
+            )
             .then(
                 if (disableInternalClick) {
                     Modifier
@@ -697,19 +687,8 @@ private fun BiliActionButton(
     enableActivePulse: Boolean = false,
     horizontalPadding: Dp = 4.dp
 ) {
-    // Press animation
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f, // 略微减小缩放感
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "buttonScale"
-    )
-    
+
     // Active state pulse animation
     var shouldPulse by remember { mutableStateOf(false) }
     val pulseScale by animateFloatAsState(
@@ -744,9 +723,10 @@ private fun BiliActionButton(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
+            .appElasticPress(dragEnabled = onLongClick == null)
             .graphicsLayer {
-                scaleX = scale * pulseScale
-                scaleY = scale * pulseScale
+                scaleX = pulseScale
+                scaleY = pulseScale
             }
             .combinedClickable(
                 interactionSource = interactionSource,
@@ -794,19 +774,8 @@ fun ActionButton(
 ) {
     val isDark = isSystemInDarkTheme()
     
-    // Press animation state
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.85f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "pressScale"
-    )
-    
+
     // Heartbeat pulse animation - triggered when isActive becomes true
     var shouldPulse by remember { mutableStateOf(false) }
     val pulseScale by animateFloatAsState(
@@ -831,10 +800,7 @@ fun ActionButton(
         modifier = Modifier
             .padding(vertical = 2.dp)
             .width(56.dp)
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-            }
+            .appElasticPress()
             .clickable(
                 interactionSource = interactionSource,
                 indication = null

@@ -4,7 +4,6 @@ package com.android.purebilibili.feature.video.ui.components
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 
@@ -13,7 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -100,7 +99,8 @@ fun EmotePanelSheet(
                 var selectedPackageIndex by remember { mutableIntStateOf(0) }
                 
                 AppThemeAdaptiveTabRow(
-indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+                    centerContent = false,
                     options = packages.mapIndexed { index, pkg ->
                         AppSegmentOption(index, pkg.text)
                     },

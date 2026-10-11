@@ -1,5 +1,6 @@
 // 文件路径: feature/video/VideoPlayerOverlay.kt
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.appElasticPress
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -93,7 +94,6 @@ import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppTextButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -121,7 +121,7 @@ import com.android.purebilibili.feature.anime4k.Anime4KPreset
 import com.android.purebilibili.feature.anime4k.DEFAULT_FSR_SHARPNESS
 
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -2482,7 +2482,7 @@ private fun PortraitTopBar(
                 AppIcon(
                     imageVector = Icons.Outlined.Headphones,
                     contentDescription = "听视频",
-                    tint = Color.White,
+                    tint = if (isAudioOnly) MaterialTheme.colorScheme.onPrimary else Color.White,
                     modifier = Modifier.size(layoutPolicy.iconSizeDp.dp)
                 )
             }
@@ -2899,7 +2899,7 @@ fun LandscapeEndDrawer(
                     
                     if (hasSeason) {
                         AppThemeAdaptiveTabRow(
-indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                            role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                             options = listOf(
                                 AppSegmentOption(0, "推荐视频"),
                                 AppSegmentOption(1, "合集列表"),
@@ -3030,7 +3030,7 @@ private fun InteractionButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(
+        modifier = Modifier.appElasticPress().clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
             onClick = onClick
@@ -3174,6 +3174,7 @@ private fun LandscapeProgressIcon(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
+            .appElasticPress(dragEnabled = onLongPress == null)
             .then(
                 if (onLongPress != null && onRelease != null) {
                     Modifier.pointerInput(Unit) {

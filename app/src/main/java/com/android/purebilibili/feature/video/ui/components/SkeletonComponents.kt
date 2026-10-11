@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -101,6 +102,46 @@ fun VideoDetailSkeleton(animated: Boolean = true) {
             VideoDetailRelatedHeaderSkeleton()
             repeat(2) {
                 RelatedVideoGridRowSkeleton()
+            }
+        }
+    }
+}
+
+/** Loading content follows the pane bounds when a foldable changes posture. */
+@Composable
+internal fun VideoDetailInfoPaneSkeleton(modifier: Modifier = Modifier) {
+    ShimmerContainer(modifier = modifier) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            item {
+                VideoDetailUpInfoSkeleton()
+                VideoDetailTitleInfoSkeleton()
+                VideoDetailActionButtonsSkeleton()
+            }
+        }
+    }
+}
+
+@Composable
+internal fun VideoDetailSecondaryPaneSkeleton(
+    showComments: Boolean,
+    modifier: Modifier = Modifier,
+    showIntro: Boolean = false,
+) {
+    ShimmerContainer(modifier = modifier) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            item { VideoDetailTabBarSkeleton() }
+            if (showIntro) {
+                item {
+                    VideoDetailUpInfoSkeleton()
+                    VideoDetailTitleInfoSkeleton()
+                    VideoDetailActionButtonsSkeleton()
+                }
+            } else items(6) {
+                if (showComments) {
+                    com.android.purebilibili.core.ui.skeleton.CommentListItemSkeleton()
+                } else {
+                    RelatedVideoGridRowSkeleton()
+                }
             }
         }
     }

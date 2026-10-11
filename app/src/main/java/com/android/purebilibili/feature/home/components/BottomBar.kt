@@ -69,6 +69,8 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WatchLater
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.appSearchElasticPress
+import com.android.purebilibili.core.ui.components.appElasticPress
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -982,6 +984,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
     isScrolling: Boolean = false,
     materialScrollProgress: Float = 0f,
     materialMotionProgress: Float = 0f,
+    interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
     materialPressProgress: Float = 0f,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f)
 ): Modifier = composed {
@@ -1103,7 +1106,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                                 }
                             )
                         },
-                        layerBlock = if (renderGlassEffects) {
+                        layerBlock = interactionState?.layerBlock ?: if (renderGlassEffects) {
                             {
                                 val width = size.width.coerceAtLeast(1f)
                                 val s = lerp(1f, 1f + AppSpacingTokens.Large.toPx() / width, materialPressProgress)
@@ -1127,6 +1130,7 @@ internal fun Modifier.biliPaiMiuixFloatingDockSurface(
                             } else {
                                 drawRect(containerColor.copy(alpha = 0.65f))
                             }
+                            interactionState?.drawHighlight(this)
                         }
                     )
                     .run {
@@ -2759,17 +2763,18 @@ private fun OfficialMd3FloatingToolbarContent(
                 showIcon && showText && selected -> FilledTonalButton(
                     onClick = onClick,
                     contentPadding = PaddingValues(horizontal = 16.dp),
+                    modifier = Modifier.appElasticPress(),
                 ) {
                     icon()
                     Spacer(Modifier.width(8.dp))
                     AppText(text = label, maxLines = 1)
                 }
-                showIcon && selected -> FilledTonalIconButton(onClick = onClick) { icon() }
-                showIcon -> IconButton(onClick = onClick) { icon() }
-                selected -> FilledTonalButton(onClick = onClick) {
+                showIcon && selected -> FilledTonalIconButton(onClick = onClick, modifier = Modifier.appElasticPress()) { icon() }
+                showIcon -> IconButton(onClick = onClick, modifier = Modifier.appElasticPress()) { icon() }
+                selected -> FilledTonalButton(onClick = onClick, modifier = Modifier.appElasticPress()) {
                     AppText(text = label, maxLines = 1)
                 }
-                else -> TextButton(onClick = onClick) {
+                else -> TextButton(onClick = onClick, modifier = Modifier.appElasticPress()) {
                     AppText(text = label, maxLines = 1)
                 }
             }
@@ -2780,6 +2785,7 @@ private fun OfficialMd3FloatingToolbarContent(
                 onClick = {
                     performMaterialBottomBarTap(haptic = haptic, onClick = onToggleSidebar)
                 },
+                modifier = Modifier.appElasticPress(),
             ) {
                 AppIcon(
                     imageVector = Icons.AutoMirrored.Outlined.MenuOpen,
@@ -4582,6 +4588,7 @@ private fun BiliPaiBottomBarSearchCapsule(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .appElasticPress(enabled = !expanded)
             .biliPaiMiuixFloatingDockSurface(
                 shape = shape,
                 backdrop = miuixBackdrop,
@@ -4686,6 +4693,7 @@ internal fun BiliPaiBottomBarSearchVisualContent(
         Box(
             modifier = Modifier
                 .size(AppChromeSizeTokens.MinimumTouchTarget)
+                .appSearchElasticPress(enabled = expanded && interactive)
                 .then(
                     if (expanded && interactive) {
                         Modifier.clickable(

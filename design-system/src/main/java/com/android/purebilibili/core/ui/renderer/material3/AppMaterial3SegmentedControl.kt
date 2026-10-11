@@ -1,5 +1,9 @@
 package com.android.purebilibili.core.ui.renderer.material3
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +87,7 @@ internal fun <T> AppMaterial3TabRow(
     selectedValue: T,
     enabled: Boolean,
     scrollable: Boolean,
+    centerContent: Boolean = false,
     minTabWidth: Dp,
     modifier: Modifier,
     allowLabelOverflow: Boolean = false,
@@ -91,18 +96,16 @@ internal fun <T> AppMaterial3TabRow(
     onSelectionChange: (T) -> Unit,
 ) {
     val selectedIndex = resolveAppSegmentedSelectionIndex(options, selectedValue)
-    val longestLabelLength = remember(options) {
-        options.maxOfOrNull { it.label.length } ?: 0
-    }
-    val labelFontSize = resolveAppSegmentedLabelFontSize(
-        MaterialTheme.typography.labelLarge.fontSize, options.size, longestLabelLength
-    )
+    // Tabs are navigation labels, so adding categories must not shrink their text.
+    // Use the same theme size for the pill, underline, and width measurement paths.
+    val labelStyle = MaterialTheme.typography.titleMedium
+    val labelFontSize = labelStyle.fontSize
     if (indicatorPresentation == AppTabRowIndicatorPresentation.TONAL_PILL) {
         AppTonalPillTabRow(
             options = options,
             selectedValue = selectedValue,
             onSelectionChange = onSelectionChange,
-            modifier = modifier,
+            modifier = if (centerContent) modifier.wrapContentWidth(Alignment.CenterHorizontally) else modifier,
             enabled = enabled,
             scrollable = scrollable,
             labelFontSize = labelFontSize,
@@ -144,7 +147,7 @@ internal fun <T> AppMaterial3TabRow(
                         } else {
                             TextOverflow.Clip
                         },
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = labelFontSize),
+                        style = labelStyle,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     )
                 },
@@ -152,15 +155,27 @@ internal fun <T> AppMaterial3TabRow(
         }
     }
     if (scrollable) {
-        AppPrimaryScrollableTabRow(
-            selectedTabIndex = selectedIndex,
-            modifier = modifier.fillMaxWidth(),
-            containerColor = Color.Transparent,
-            edgePadding = 0.dp,
-            minTabWidth = minTabWidth,
-            indicatorPositionProvider = indicatorPositionProvider,
-            tabs = tabs,
+        val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val style = labelStyle.copy(
+            fontWeight = FontWeight.SemiBold,
         )
+        val contentWidth = options.fold(0.dp) { width, option ->
+            width + maxOf(minTabWidth, with(density) {
+                textMeasurer.measure(option.label, style = style, maxLines = 1).size.width.toDp()
+            } + 32.dp)
+        }
+        BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+            AppPrimaryScrollableTabRow(
+                selectedTabIndex = selectedIndex,
+                modifier = if (centerContent) Modifier.width(minOf(contentWidth, maxWidth)) else Modifier.fillMaxWidth(),
+                containerColor = Color.Transparent,
+                edgePadding = 0.dp,
+                minTabWidth = minTabWidth,
+                indicatorPositionProvider = indicatorPositionProvider,
+                tabs = tabs,
+            )
+        }
     } else {
         AppPrimaryTabRow(
             selectedTabIndex = selectedIndex,

@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -102,6 +102,7 @@ fun LiveContributionRankSheet(
                 style = MaterialTheme.typography.bodySmall
             )
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                 options = rankTypes.mapIndexed { index, type ->
                     AppSegmentOption(index, type.title)
                 },

@@ -9,6 +9,8 @@ import com.android.purebilibili.feature.video.viewmodel.CommentSortMode
 
 @Immutable
 internal data class VideoDetailPlaybackActions(
+    val resolveNextWatch: () -> com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion? = { null },
+    val playNextWatch: (com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion) -> Boolean = { false },
     val changeQuality: (Int) -> Unit,
     val reloadVideo: () -> Unit,
     val switchCdn: () -> Unit,

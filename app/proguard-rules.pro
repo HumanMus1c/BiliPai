@@ -9,6 +9,18 @@
 -keepattributes InnerClasses,EnclosingMethod
 -keepattributes SourceFile,LineNumberTable
 
+# WorkManager startup compatibility workaround for crash dfcc3eef05f5b473fa7d2c78264b72f7.
+# Preserve the SDK_INT >= 34 branch and its isolated API-34 implementation;
+# do not inline/merge/optimize these boundaries into startup callers. Keep names
+# obfuscatable and unused code shrinkable. This does not handle ROMs that report
+# API 34+ while lacking JobScheduler.forNamespace; those need separate evidence.
+-keep,allowshrinking,allowobfuscation class androidx.work.impl.background.systemjob.JobSchedulerExtKt {
+    *;
+}
+-keep,allowshrinking,allowobfuscation class androidx.work.impl.background.systemjob.JobScheduler34 {
+    *;
+}
+
 # Optional classes referenced by third-party libraries on specific code paths.
 # Consumer rules supplied by each dependency remain authoritative.
 -dontwarn javax.annotation.**

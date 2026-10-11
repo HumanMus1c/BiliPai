@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.download
+
+import com.android.purebilibili.feature.video.ui.overlay.NextWatchOverlay
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -905,6 +907,29 @@ fun OfflineVideoPlayerScreen(
             }
 
             // 6. 顶部渐变遮罩
+            NextWatchOverlay(
+                player = player,
+                mediaKey = "offline:${task.id}",
+                eligible = !showControls && playbackFailure == null && !task.isAudioOnly &&
+                    gestureMode == GestureMode.None && player.repeatMode != Player.REPEAT_MODE_ONE,
+                resolve = {
+                    episodeQueue.getOrNull(currentEpisodeIndex + 1)?.let { next ->
+                        com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion(
+                            task.bvid, task.cid, next.bvid, next.cid, next.title, next.cover, "下一集",
+                            playlistIndex = currentEpisodeIndex + 1
+                        )
+                    }
+                },
+                play = { target ->
+                    val next = episodeQueue.getOrNull(target.playlistIndex ?: -1)
+                    if (target.sourceBvid == task.bvid && target.sourceCid == task.cid &&
+                        next != null && next.bvid == target.bvid && next.cid == target.cid) {
+                        switchEpisode(next.id)
+                        true
+                    } else false
+                },
+            )
+
             AnimatedVisibility(
                 visible = showControls,
                 enter = fadeIn(),

@@ -77,3 +77,11 @@ internal fun resolveNowPlayingBarSourceChromeReveal(
     start = VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START,
     end = VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_END,
 )
+
+/** Finish the snapshot's internal layout before exposing its text and controls. */
+internal fun resolveNowPlayingBarMediaLayoutHandoff(morphDepthProgress: Float): Float =
+    resolveVideoCardTimelineWindowProgress(
+        progress = resolveVideoCardReturnSettleFromMorphDepth(morphDepthProgress),
+        start = VideoCardTransitionVisualTimeline.MEDIA_LAYOUT_RETURN_START,
+        end = VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START,
+    )

@@ -1326,6 +1326,7 @@ private fun FloatingControlPanelDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         Box(
             modifier = Modifier
                 .fillMaxSize()

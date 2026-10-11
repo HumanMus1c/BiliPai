@@ -1,5 +1,9 @@
 package com.android.purebilibili.feature.home.components
 
+import androidx.compose.ui.graphics.graphicsLayer
+
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -186,6 +191,7 @@ internal fun BottomBarMatchedLiquidDock(
     isScrollInProgressProvider: () -> Boolean = { false },
     materialScrollProgressOverride: Float? = null,
     materialMotionProgress: Float = 0f,
+    interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
     materialPressProgress: Float = 0f,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -211,6 +217,7 @@ internal fun BottomBarMatchedLiquidDock(
                     isScrollInProgressProvider = isScrollInProgressProvider,
                     materialScrollProgressOverride = materialScrollProgressOverride,
                     materialMotionProgress = materialMotionProgress,
+                    interactionState = interactionState,
                     materialPressProgress = materialPressProgress
                 )
         )
@@ -235,6 +242,7 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
     isScrollInProgressProvider: () -> Boolean = { false },
     materialScrollProgressOverride: Float? = null,
     materialMotionProgress: Float = 0f,
+    interactionState: com.android.purebilibili.core.ui.components.AppElasticPressState? = null,
     materialPressProgress: Float = 0f,
     drawShellLens: Boolean = true,
     shellLensIntensity: Float = 1f
@@ -268,7 +276,8 @@ internal fun Modifier.bottomBarMatchedLiquidDockSurface(
         isScrolling = isScrolling,
         materialScrollProgress = materialScrollProgress,
         materialMotionProgress = materialMotionProgress,
-        materialPressProgress = materialPressProgress
+        interactionState = interactionState,
+                    materialPressProgress = materialPressProgress
     )
 }
 
@@ -300,16 +309,26 @@ internal fun BottomBarMatchedReusableLiquidDock(
      * Other chrome must leave this false.
      */
     reuseEnabled: Boolean = false,
+    elasticFeedbackEnabled: Boolean = false,
+    elasticFeedbackStrength: Float = 1f,
     useNeutralLiquidContainer: Boolean = false,
     drawShellLens: Boolean = true,
     shellLensIntensity: Float = 1f,
     isScrollInProgressProvider: () -> Boolean = { false },
     content: @Composable BoxScope.(liquidChromeActive: Boolean) -> Unit
 ) {
+    val elasticState = com.android.purebilibili.core.ui.components.rememberAppElasticPressState(
+        feedbackStrength = elasticFeedbackStrength,
+    )
     val reuseAllowed = LocalAppThemeConfig.current.liquidGlassEnabled
     if (!reuseEnabled || !reuseAllowed || !liquidGlassEffectsEnabled) {
-        Box(modifier = modifier) {
-            content(false)
+        Box(modifier = modifier.appElasticPress(enabled = elasticFeedbackEnabled, state = elasticState)) {
+            CompositionLocalProvider(
+                com.android.purebilibili.core.ui.components.LocalElasticPressEnabled provides
+                    (!elasticFeedbackEnabled && com.android.purebilibili.core.ui.components.LocalElasticPressEnabled.current),
+            ) {
+                content(false)
+            }
         }
         return
     }
@@ -361,7 +380,11 @@ internal fun BottomBarMatchedReusableLiquidDock(
         AppSpacingTokens.None
     }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.appElasticPress(
+        enabled = elasticFeedbackEnabled,
+        state = elasticState,
+        transformInBackdrop = glassEnabled,
+    )) {
         if (drawShellLens) {
             Box(
                 modifier = Modifier
@@ -386,6 +409,7 @@ internal fun BottomBarMatchedReusableLiquidDock(
             shape = shape,
             blurEnabled = true,
             glassEnabled = glassEnabled,
+            interactionState = elasticState.takeIf { elasticFeedbackEnabled && glassEnabled },
             drawShellLens = drawShellLens,
             shellLensIntensity = shellLensIntensity,
             blurRadius = tuning.shellBlurRadiusDp.dp,
@@ -394,7 +418,13 @@ internal fun BottomBarMatchedReusableLiquidDock(
             liquidGlassTuning = liquidGlassTuning,
             isScrollInProgressProvider = isScrollInProgressProvider
         ) {}
-        content(true)
+        Box(modifier = if (elasticFeedbackEnabled && glassEnabled) {
+            Modifier.graphicsLayer(elasticState.layerBlock)
+        } else Modifier) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.android.purebilibili.core.ui.components.LocalElasticPressEnabled provides (!elasticFeedbackEnabled && com.android.purebilibili.core.ui.components.LocalElasticPressEnabled.current),
+            ) { content(true) }
+        }
     }
 }
 

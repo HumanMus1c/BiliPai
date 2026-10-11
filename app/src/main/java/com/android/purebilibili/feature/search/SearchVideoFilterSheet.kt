@@ -47,7 +47,6 @@ import com.android.purebilibili.core.ui.AppChromeSizeTokens
 import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
 import com.android.purebilibili.core.ui.AppSpacingTokens
-import com.android.purebilibili.core.ui.BottomSheetHost
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.KeepScrollableTabSelectionVisible
 import com.android.purebilibili.core.ui.components.liquidDockViewport
@@ -61,11 +60,8 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
-import com.android.purebilibili.core.ui.resolveBottomSheetHost
 import com.android.purebilibili.data.repository.SearchDuration
 import com.android.purebilibili.data.repository.SearchOrder
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
-import top.yukonga.miuix.kmp.layout.BottomSheetDefaults
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -282,11 +278,6 @@ private fun SearchVideoFilterSheetHost(
     onPubTimeTypeChange: (SearchVideoPubTimeType) -> Unit,
     onCustomPubTimeRange: (Long, Long) -> Unit
 ) {
-    // Host contract from stage 3: MIUIX → OverlayBottomSheet (needs the Miuix popup
-    // host mounted by AdaptiveScaffold), MATERIAL3 → Material3 ModalBottomSheet via
-    // the neutral AppModalBottomSheet facade. Never copy the host decision here.
-    val useMiuixSheet = resolveBottomSheetHost(LocalAppUiStyle.current) ==
-        BottomSheetHost.MIUIX_OVERLAY
     val sheetContent: @Composable () -> Unit = {
         SearchVideoFilterSheetContent(
             currentDurations = currentDurations,
@@ -300,20 +291,9 @@ private fun SearchVideoFilterSheetHost(
             onCustomPubTimeRange = onCustomPubTimeRange
         )
     }
-    if (useMiuixSheet) {
-        OverlayBottomSheet(
-            show = true,
-            title = "筛选",
-            backgroundColor = BottomSheetDefaults.backgroundColor(),
-            onDismissRequest = onDismiss,
-            content = sheetContent
-        )
-    } else {
-        AppModalBottomSheet(
-            onDismissRequest = onDismiss
-        ) {
-            sheetContent()
-        }
+    AppModalBottomSheet(onDismissRequest = onDismiss) {
+        AppText("筛选", modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
+        sheetContent()
     }
 }
 

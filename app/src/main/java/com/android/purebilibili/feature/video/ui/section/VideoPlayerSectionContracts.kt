@@ -95,6 +95,8 @@ internal data class VideoPlayerSectionState(
  * the generated Compose method signature or mix navigation with rendering state.
  */
 internal data class VideoPlayerSectionActions(
+    val resolveNextWatch: () -> com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion? = { null },
+    val playNextWatch: (com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion) -> Boolean = { false },
     val onToggleFullscreen: () -> Unit,
     val onQualityChange: (Int) -> Unit,
     val onBack: () -> Unit,

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,7 +116,7 @@ internal fun SettingsSearchResultsSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
-                androidx.compose.material3.TextButton(onClick = onClearQuery) { AppText("清除搜索") }
+                androidx.compose.material3.TextButton(onClick = onClearQuery, modifier = Modifier.appElasticPress()) { AppText("清除搜索") }
             }
         } else {
             // 顶栏已是「搜索结果」，不再重复放 CategoryHeader，避免与列表叠字。

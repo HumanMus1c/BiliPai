@@ -105,6 +105,7 @@ fun PlayerMiuixListPopup(
             onDismissRequest = onDismissRequest,
             properties = DialogProperties(usePlatformDefaultWidth = false),
         ) {
+            com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
             Box(
                 modifier = Modifier
                     .fillMaxSize()

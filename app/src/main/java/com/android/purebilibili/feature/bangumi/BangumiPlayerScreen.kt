@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/BangumiPlayerScreen.kt
 package com.android.purebilibili.feature.bangumi
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import android.app.Activity
 import android.content.Context
@@ -1148,7 +1150,7 @@ private fun BangumiPlayNoticeOverlay(
                     .align(Alignment.TopStart)
                     .padding(16.dp)
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.appElasticPress()) {
                     AppIcon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",

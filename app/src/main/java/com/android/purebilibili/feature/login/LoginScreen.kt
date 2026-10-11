@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.login
 
+import com.android.purebilibili.core.ui.components.appSearchElasticPress
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -370,6 +371,7 @@ private fun LoginMethodTabs(
     modifier: Modifier = Modifier
 ) {
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
         options = resolveAvailableLoginMethods().map { method ->
             AppSegmentOption(method, loginMethodLabel(method))
         },
@@ -448,7 +450,7 @@ private fun BiliPaiTransferDialog(onDismiss: () -> Unit) {
         }
     }
 
-    androidx.compose.material3.AlertDialog(
+    com.android.purebilibili.core.ui.AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { AppText("BiliPai 安全传输") },
         text = {
@@ -1071,7 +1073,7 @@ private fun PhoneRegionPickerSheet(
                 labelText = "搜索名称或区号",
                 label = { AppText("搜索名称或区号") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().appSearchElasticPress(),
             )
             LazyColumn(
                 modifier = Modifier

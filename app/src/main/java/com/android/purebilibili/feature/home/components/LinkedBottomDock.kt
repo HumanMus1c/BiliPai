@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.appElasticPress
+import com.android.purebilibili.core.ui.components.rememberAppElasticPressState
 import androidx.compose.animation.core.EaseInCubic
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.ui.graphics.TransformOrigin
@@ -93,539 +95,575 @@ internal fun LinkedBottomDock(
     hazeState: HazeState? = null,
     navigationContent: @Composable () -> Unit,
 ) {
-    val hasAudio = nowPlayingContent != null
-    var internalPhase by remember(currentItem, searchEnabled) {
-        mutableStateOf(
-            resolveLinkedDockInitialPhase(
-                currentItem = currentItem,
-                collapseRequested = collapseRequested,
-                hasAudio = hasAudio,
-                savedPhase = dockPhase,
-            )
-        )
-    }
-    val phase = dockPhase ?: internalPhase
-    val updatePhase: (LinkedDockPhase) -> Unit = { newPhase ->
-        if (dockPhase != null && onDockPhaseChange != null) {
-            onDockPhaseChange(newPhase)
-        } else {
-            internalPhase = newPhase
-        }
-    }
-    LaunchedEffect(hasAudio, dockPhase) {
-        if (dockPhase == null) {
-            internalPhase = resolveLinkedDockPhaseOnAudioChange(internalPhase, hasAudio)
-        }
-    }
-    var query by remember { mutableStateOf("") }
-    LaunchedEffect(phase) {
-        if (shouldResetLinkedDockSearchQuery(phase)) {
-            query = ""
-        }
-    }
-    var pendingUserImeRequest by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val scroll = LocalHomeScrollOffset.current
-    val currentPhase by rememberUpdatedState(phase)
-    val scrolling by rememberUpdatedState(isFeedScrollInProgress)
-    val threshold = with(LocalDensity.current) { 24.dp.toPx() }
-    LaunchedEffect(currentItem, hasAudio, searchEnabled, scroll, threshold, isTopLevelDestination, mergeOnScrollDownEnabled) {
-        var previous = scroll.floatValue
-        var accumulated = 0f
-        snapshotFlow { scroll.floatValue to scrolling }.collect { (offset, active) ->
-            val delta = offset - previous
-            previous = offset
-            if (!active || !isTopLevelDestination || currentPhase == LinkedDockPhase.Search) {
-                accumulated = 0f
-            } else if (!mergeOnScrollDownEnabled) {
-                // 用户选择下滑不合体：只保留向上滚动回到展开（分体）的能力。
-                accumulated = accumulateDockScroll(accumulated, delta)
-                if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
-                    updatePhase(LinkedDockPhase.Expanded)
-                    accumulated = 0f
-                }
-            } else {
-                accumulated = accumulateDockScroll(accumulated, delta)
-                if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
-                    updatePhase(LinkedDockPhase.Expanded)
-                    accumulated = 0f
-                } else if (hasAudio && accumulated >= threshold) {
-                    updatePhase(LinkedDockPhase.Playback)
-                    accumulated = 0f
-                }
-            }
-        }
-    }
-    // Keep the dock phase while a child destination covers the current tab. Keying this effect
-    // by isTopLevelDestination made the returning page re-expand/re-collapse the playback strip,
-    // which also shifted the predictive-back target after the gesture had started.
-    // Skip while the list is scrolling so resting phase does not fight scroll-driven search size.
-    LaunchedEffect(currentItem, collapseRequested, hasAudio) {
-        if (
-            isTopLevelDestination &&
-            currentItem != BottomNavItem.HOME &&
-            currentPhase != LinkedDockPhase.Search &&
-            !isFeedScrollInProgress
-        ) {
-            updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
-        }
-    }
-    fun expand() {
-        focusManager.clearFocus()
-        keyboardController?.hide()
-        updatePhase(LinkedDockPhase.Expanded)
-    }
-    var phaseBeforeSearch by remember { mutableStateOf(LinkedDockPhase.Expanded) }
-    val backEnabled = shouldEnableLinkedDockBackHandler(
-        phase = phase,
-        isTopLevelDestination = isTopLevelDestination,
-    )
-    BackHandler(enabled = backEnabled) {
-        focusManager.clearFocus()
-        keyboardController?.hide()
-        updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio, phaseBeforeSearch))
-    }
-    val reduceMotion = rememberSystemReduceMotion()
-    val transition = updateTransition(targetState = phase, label = "linkedBottomDock")
-    // 合体与解体使用方向感知曲线：收拢走 emphasized-exit（中段加速的压缩感），
-    // 展开走 emphasized-enter（快起缓收的弹开感），比对称 easeInOut 更有方向性。
-    val merge = transition.animateFloat(
-        transitionSpec = {
-            if (reduceMotion) {
-                snap()
-            } else if (targetState == LinkedDockPhase.Expanded) {
-                emphasizedEnterTween(LINKED_DOCK_MERGE_DURATION_MILLIS + 20)
-            } else {
-                emphasizedExitTween(LINKED_DOCK_MERGE_DURATION_MILLIS)
-            }
-        },
-        label = "dockMerge",
-    ) { if (it == LinkedDockPhase.Expanded) 0f else 1f }
-    val search = transition.animateFloat(
-        transitionSpec = {
-            if (reduceMotion) snap() else iosMorphTween(LINKED_DOCK_SEARCH_DURATION_MILLIS)
-        },
-        label = "dockSearch",
-    ) { if (it == LinkedDockPhase.Search || it == LinkedDockPhase.Compact) 1f else 0f }
-    val imeSettled = WindowInsets.ime
-        .getBottom(LocalDensity.current) == 0
-    val nowPlayingLayoutStable = !transition.isRunning && imeSettled
-    val mergeProgressProvider = remember(merge) {
-        { merge.value.coerceIn(0f, 1f) }
-    }
-    val searchProgressProvider = remember(search) {
-        { search.value.coerceIn(0f, 1f) }
-    }
-    val zeroProgressProvider = remember { { 0f } }
-    val identityIconScaleProvider = remember { { 1f } }
-
-    // Presence 出入场：首次出现时从下方上滑落位并带轻微回弹（低阻尼弹簧），
-    // 关闭时宽度按右缘锚点收起并同步 fade，消失动画期间保持组合到动画结束。
-    // 共享过渡驱动的关闭（点条进详情）不走动画直接 snap：morph 是唯一几何时间轴，
-    // presence 叠加播放会在交接收尾时闪帧。入场始终播放——卡片返回的落点不是
-    // 小横条自身，且小横条自己作为 morph 源时由 handoff alpha 压到落位才显现。
-    val presence = remember { Animatable(if (hasAudio) 1f else 0f) }
-    var keepSlotComposed by remember { mutableStateOf(hasAudio) }
-    val slotEntering = remember { mutableStateOf(false) }
-    LaunchedEffect(hasAudio, animateNowPlayingPresence, reduceMotion) {
-        val target = if (hasAudio) 1f else 0f
-        when {
-            presence.value == target -> keepSlotComposed = hasAudio
-            hasAudio -> {
-                keepSlotComposed = true
-                if (reduceMotion) {
-                    slotEntering.value = false
-                    presence.snapTo(1f)
-                } else {
-                    slotEntering.value = true
-                    presence.animateTo(
-                        targetValue = 1f,
-                        animationSpec = resolveAudioNowPlayingPresenceEnterSpringSpec(),
-                    )
-                    slotEntering.value = false
-                }
-            }
-            animateNowPlayingPresence -> {
-                slotEntering.value = false
-                presence.animateTo(
-                    targetValue = 0f,
-                    animationSpec = resolveAudioNowPlayingPresenceAnimationSpec(
-                        active = false,
-                        reduceMotion = reduceMotion,
-                    ),
+    com.android.purebilibili.core.ui.components.ProvideAppElasticFeedback {
+        val hasAudio = nowPlayingContent != null
+        var internalPhase by remember(currentItem, searchEnabled) {
+            mutableStateOf(
+                resolveLinkedDockInitialPhase(
+                    currentItem = currentItem,
+                    collapseRequested = collapseRequested,
+                    hasAudio = hasAudio,
+                    savedPhase = dockPhase,
                 )
-                keepSlotComposed = false
-            }
-            else -> {
-                slotEntering.value = false
-                presence.snapTo(0f)
-                keepSlotComposed = false
-            }
-        }
-    }
-    val presenceProgressProvider = remember(presence) {
-        { presence.value.coerceIn(0f, 1f) }
-    }
-    // 入场期间槽宽直接取目标值（上滑 + fade 已足够），宽度收放只在退出时生效。
-    val slotGeometryPresenceProvider = remember {
-        { if (slotEntering.value) 1f else presence.value.coerceIn(0f, 1f) }
-    }
-    // 保留最后一个有效播放条，退出动画完成后再释放；最新值在关闭时已是 null。
-    var retainedNowPlayingContent by remember { mutableStateOf(nowPlayingContent) }
-    SideEffect {
-        if (nowPlayingContent != null || !keepSlotComposed) {
-            retainedNowPlayingContent = nowPlayingContent
-        }
-    }
-    val nowPlayingSlot = nowPlayingContent
-        ?: retainedNowPlayingContent.takeIf { keepSlotComposed }
-
-    val shape = resolveSharedBottomBarCapsuleShape()
-    val contentColor = MaterialTheme.colorScheme.onSurface
-    val accentColor = MaterialTheme.colorScheme.primary
-    BoxWithConstraints(
-        modifier = modifier.fillMaxWidth().imePadding().navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        val density = LocalDensity.current
-        val maximumWidth: Int
-        val button: Int
-        val barHeight: Int
-        val controlHeight: Int
-        val gap: Int
-        val verticalGap: Int
-        with(density) {
-            maximumWidth = constraints.maxWidth.coerceAtMost(600.dp.roundToPx())
-            button = 56.dp.roundToPx()
-            barHeight = 64.dp.roundToPx()
-            controlHeight = 56.dp.roundToPx()
-            gap = 8.dp.roundToPx()
-            verticalGap = 4.dp.roundToPx()
-        }
-        val searchHeight = button
-        // 容器高度固定为两行。小横条行收放只改变上方透明区，morph 进度不再进入
-        // 容器 measure，导航行/首按钮/搜索胶囊不会被拖动每帧重测量（官方 deferred
-        // reads 规范：帧率状态读取只应触发 placement/绘制）。
-        val containerHeight = barHeight + verticalGap + barHeight
-        val navRowY = containerHeight - barHeight
-        val controlRowY = navRowY + (barHeight - controlHeight) / 2
-
-        val preferredNavigationWidth = with(density) {
-            resolveBiliPaiFloatingBottomBarWidth(
-                containerWidth = maximumWidth.toDp(),
-                itemCount = navigationItemCount,
-                minEdgePadding = navigationMinEdgePadding,
-                labelMode = navigationLabelMode,
-                cornerRadius = 32.dp,
-            ).roundToPx()
-        }
-        val reservedSearchWidth = if (searchEnabled) button + gap else 0
-        val expandedNavigationWidth = preferredNavigationWidth.coerceAtMost(
-            (maximumWidth - reservedSearchWidth).coerceAtLeast(0)
-        )
-        val navWidth = expandedNavigationWidth.coerceAtMost(maximumWidth)
-        val navigationX = resolveLinkedDockNavigationX(
-            maximumWidth = maximumWidth,
-            navigationWidth = navWidth,
-            button = button,
-            gap = gap,
-            searchEnabled = searchEnabled,
-        )
-        // 小横条展开态与底栏整簇（导航胶囊 + 搜索圆钮）同宽同起点：
-        // 两行胶囊长度一致、左右边缘对齐。
-        val bottomBarClusterWidth = (navWidth + reservedSearchWidth).coerceAtMost(maximumWidth)
-
-        // 折叠落定时不组合导航行（等价旧实现 progress>=0.999 不放置），
-        // 避免透明导航层在静止折叠态拦截底栏区域外的触摸。
-        val collapsedAtRest = phase != LinkedDockPhase.Expanded && !transition.isRunning
-
-        Box(
-            modifier = Modifier.size(
-                with(density) { maximumWidth.toDp() },
-                with(density) { containerHeight.toDp() },
             )
-        ) {
-            if (!collapsedAtRest) {
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(navigationX, navRowY) }
-                        .size(
-                            with(density) { navWidth.toDp() },
-                            with(density) { barHeight.toDp() },
+        }
+        val phase = dockPhase ?: internalPhase
+        val updatePhase: (LinkedDockPhase) -> Unit = { newPhase ->
+            if (dockPhase != null && onDockPhaseChange != null) {
+                onDockPhaseChange(newPhase)
+            } else {
+                internalPhase = newPhase
+            }
+        }
+        LaunchedEffect(hasAudio, dockPhase) {
+            if (dockPhase == null) {
+                internalPhase = resolveLinkedDockPhaseOnAudioChange(internalPhase, hasAudio)
+            }
+        }
+        var query by remember { mutableStateOf("") }
+        LaunchedEffect(phase) {
+            if (shouldResetLinkedDockSearchQuery(phase)) {
+                query = ""
+            }
+        }
+        var pendingUserImeRequest by remember { mutableStateOf(false) }
+        val focusManager = LocalFocusManager.current
+        val keyboardController = LocalSoftwareKeyboardController.current
+        val scroll = LocalHomeScrollOffset.current
+        val currentPhase by rememberUpdatedState(phase)
+        val scrolling by rememberUpdatedState(isFeedScrollInProgress)
+        val threshold = with(LocalDensity.current) { 24.dp.toPx() }
+        LaunchedEffect(currentItem, hasAudio, searchEnabled, scroll, threshold, isTopLevelDestination, mergeOnScrollDownEnabled) {
+            var previous = scroll.floatValue
+            var accumulated = 0f
+            snapshotFlow { scroll.floatValue to scrolling }.collect { (offset, active) ->
+                val delta = offset - previous
+                previous = offset
+                if (!active || !isTopLevelDestination || currentPhase == LinkedDockPhase.Search) {
+                    accumulated = 0f
+                } else if (!mergeOnScrollDownEnabled) {
+                    // 用户选择下滑不合体：只保留向上滚动回到展开（分体）的能力。
+                    accumulated = accumulateDockScroll(accumulated, delta)
+                    if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
+                        updatePhase(LinkedDockPhase.Expanded)
+                        accumulated = 0f
+                    }
+                } else {
+                    accumulated = accumulateDockScroll(accumulated, delta)
+                    if ((offset <= 0f && delta < 0f) || accumulated <= -threshold) {
+                        updatePhase(LinkedDockPhase.Expanded)
+                        accumulated = 0f
+                    } else if (hasAudio && accumulated >= threshold) {
+                        updatePhase(LinkedDockPhase.Playback)
+                        accumulated = 0f
+                    }
+                }
+            }
+        }
+        // Keep the dock phase while a child destination covers the current tab. Keying this effect
+        // by isTopLevelDestination made the returning page re-expand/re-collapse the playback strip,
+        // which also shifted the predictive-back target after the gesture had started.
+        // Skip while the list is scrolling so resting phase does not fight scroll-driven search size.
+        LaunchedEffect(currentItem, collapseRequested, hasAudio) {
+            if (
+                isTopLevelDestination &&
+                currentItem != BottomNavItem.HOME &&
+                currentPhase != LinkedDockPhase.Search &&
+                !isFeedScrollInProgress
+            ) {
+                updatePhase(resolveLinkedDockRestingPhase(collapseRequested, hasAudio))
+            }
+        }
+        fun expand() {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            updatePhase(LinkedDockPhase.Expanded)
+        }
+        var phaseBeforeSearch by remember { mutableStateOf(LinkedDockPhase.Expanded) }
+        val backEnabled = shouldEnableLinkedDockBackHandler(
+            phase = phase,
+            isTopLevelDestination = isTopLevelDestination,
+        )
+        BackHandler(enabled = backEnabled) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            updatePhase(resolveLinkedDockPhaseOnSearchDismiss(hasAudio, phaseBeforeSearch))
+        }
+        val reduceMotion = rememberSystemReduceMotion()
+        val transition = updateTransition(targetState = phase, label = "linkedBottomDock")
+        // 合体与解体使用方向感知曲线：收拢走 emphasized-exit（中段加速的压缩感），
+        // 展开走 emphasized-enter（快起缓收的弹开感），比对称 easeInOut 更有方向性。
+        val merge = transition.animateFloat(
+            transitionSpec = {
+                if (reduceMotion) {
+                    snap()
+                } else if (targetState == LinkedDockPhase.Expanded) {
+                    emphasizedEnterTween(LINKED_DOCK_MERGE_DURATION_MILLIS + 20)
+                } else {
+                    emphasizedExitTween(LINKED_DOCK_MERGE_DURATION_MILLIS)
+                }
+            },
+            label = "dockMerge",
+        ) { if (it == LinkedDockPhase.Expanded) 0f else 1f }
+        val search = transition.animateFloat(
+            transitionSpec = {
+                if (reduceMotion) snap() else iosMorphTween(LINKED_DOCK_SEARCH_DURATION_MILLIS)
+            },
+            label = "dockSearch",
+        ) { if (it == LinkedDockPhase.Search || it == LinkedDockPhase.Compact) 1f else 0f }
+        val imeSettled = WindowInsets.ime
+            .getBottom(LocalDensity.current) == 0
+        val nowPlayingLayoutStable = !transition.isRunning && imeSettled
+        val mergeProgressProvider = remember(merge) {
+            { merge.value.coerceIn(0f, 1f) }
+        }
+        val searchProgressProvider = remember(search) {
+            { search.value.coerceIn(0f, 1f) }
+        }
+        val zeroProgressProvider = remember { { 0f } }
+        val identityIconScaleProvider = remember { { 1f } }
+
+        // Shared morph owns both directions. Keep the real slot at its endpoint while
+        // handoff alpha hides it; replaying an entrance spring causes a second landing.
+        val presence = remember { Animatable(if (hasAudio) 1f else 0f) }
+        var keepSlotComposed by remember { mutableStateOf(hasAudio) }
+        val slotEntering = remember { mutableStateOf(false) }
+        LaunchedEffect(hasAudio, animateNowPlayingPresence, reduceMotion) {
+            val target = if (hasAudio) 1f else 0f
+            when {
+                !animateNowPlayingPresence -> {
+                    slotEntering.value = false
+                    presence.snapTo(target)
+                    keepSlotComposed = hasAudio
+                }
+                presence.value == target -> {
+                    slotEntering.value = false
+                    keepSlotComposed = hasAudio
+                }
+                hasAudio -> {
+                    keepSlotComposed = true
+                    if (reduceMotion) {
+                        slotEntering.value = false
+                        presence.snapTo(1f)
+                    } else {
+                        slotEntering.value = true
+                        presence.animateTo(
+                            targetValue = 1f,
+                            animationSpec = resolveAudioNowPlayingPresenceEnterSpringSpec(),
                         )
-                        .graphicsLayer {
-                            // 退出窗口（前 34%）ease-in 淡出；全程向左侧圆钮方向
-                            // 轻微收拢缩放，读作"并入圆钮"而非原地溶解。
-                            val exitProgress = (merge.value / 0.34f).coerceIn(0f, 1f)
-                            alpha = 1f - EaseInCubic.transform(exitProgress)
-                            val collapse = EaseOutCubic.transform(merge.value)
-                            scaleX = 1f - 0.10f * collapse
-                            scaleY = 1f - 0.10f * collapse
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                        }
-                        .pointerInput(phase) {
-                            if (phase != LinkedDockPhase.Expanded) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        awaitPointerEvent(PointerEventPass.Initial)
-                                            .changes.forEach { it.consume() }
+                        slotEntering.value = false
+                    }
+                }
+                animateNowPlayingPresence -> {
+                    slotEntering.value = false
+                    presence.animateTo(
+                        targetValue = 0f,
+                        animationSpec = resolveAudioNowPlayingPresenceAnimationSpec(
+                            active = false,
+                            reduceMotion = reduceMotion,
+                        ),
+                    )
+                    keepSlotComposed = false
+                }
+                else -> {
+                    slotEntering.value = false
+                    presence.snapTo(0f)
+                    keepSlotComposed = false
+                }
+            }
+        }
+        val presenceProgressProvider = remember(presence) {
+            { presence.value.coerceIn(0f, 1f) }
+        }
+        // 入场期间槽宽直接取目标值（上滑 + fade 已足够），宽度收放只在退出时生效。
+        val slotGeometryPresenceProvider = remember {
+            { if (slotEntering.value) 1f else presence.value.coerceIn(0f, 1f) }
+        }
+        // 保留最后一个有效播放条，退出动画完成后再释放；最新值在关闭时已是 null。
+        var retainedNowPlayingContent by remember { mutableStateOf(nowPlayingContent) }
+        SideEffect {
+            if (nowPlayingContent != null || !keepSlotComposed) {
+                retainedNowPlayingContent = nowPlayingContent
+            }
+        }
+        val nowPlayingSlot = nowPlayingContent
+            ?: retainedNowPlayingContent.takeIf { keepSlotComposed }
+
+        val shape = resolveSharedBottomBarCapsuleShape()
+        val contentColor = MaterialTheme.colorScheme.onSurface
+        val accentColor = MaterialTheme.colorScheme.primary
+        BoxWithConstraints(
+            modifier = modifier.fillMaxWidth().imePadding().navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            val density = LocalDensity.current
+            val maximumWidth: Int
+            val button: Int
+            val barHeight: Int
+            val controlHeight: Int
+            val gap: Int
+            val verticalGap: Int
+            with(density) {
+                maximumWidth = constraints.maxWidth.coerceAtMost(600.dp.roundToPx())
+                button = 56.dp.roundToPx()
+                barHeight = 64.dp.roundToPx()
+                controlHeight = 56.dp.roundToPx()
+                gap = 8.dp.roundToPx()
+                verticalGap = 4.dp.roundToPx()
+            }
+            val searchHeight = button
+            // 容器高度固定为两行。小横条行收放只改变上方透明区，morph 进度不再进入
+            // 容器 measure，导航行/首按钮/搜索胶囊不会被拖动每帧重测量（官方 deferred
+            // reads 规范：帧率状态读取只应触发 placement/绘制）。
+            val containerHeight = barHeight + verticalGap + barHeight
+            val navRowY = containerHeight - barHeight
+            val controlRowY = navRowY + (barHeight - controlHeight) / 2
+
+            val preferredNavigationWidth = with(density) {
+                resolveBiliPaiFloatingBottomBarWidth(
+                    containerWidth = maximumWidth.toDp(),
+                    itemCount = navigationItemCount,
+                    minEdgePadding = navigationMinEdgePadding,
+                    labelMode = navigationLabelMode,
+                    cornerRadius = 32.dp,
+                ).roundToPx()
+            }
+            val reservedSearchWidth = if (searchEnabled) button + gap else 0
+            val expandedNavigationWidth = preferredNavigationWidth.coerceAtMost(
+                (maximumWidth - reservedSearchWidth).coerceAtLeast(0)
+            )
+            val navWidth = expandedNavigationWidth.coerceAtMost(maximumWidth)
+            val navigationX = resolveLinkedDockNavigationX(
+                maximumWidth = maximumWidth,
+                navigationWidth = navWidth,
+                button = button,
+                gap = gap,
+                searchEnabled = searchEnabled,
+            )
+            // 小横条展开态与底栏整簇（导航胶囊 + 搜索圆钮）同宽同起点：
+            // 两行胶囊长度一致、左右边缘对齐。
+            val bottomBarClusterWidth = (navWidth + reservedSearchWidth).coerceAtMost(maximumWidth)
+
+            // 折叠落定时不组合导航行（等价旧实现 progress>=0.999 不放置），
+            // 避免透明导航层在静止折叠态拦截底栏区域外的触摸。
+            val collapsedAtRest = phase != LinkedDockPhase.Expanded && !transition.isRunning
+
+            Box(
+                modifier = Modifier.size(
+                    with(density) { maximumWidth.toDp() },
+                    with(density) { containerHeight.toDp() },
+                )
+            ) {
+                if (!collapsedAtRest) {
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(navigationX, navRowY) }
+                            .size(
+                                with(density) { navWidth.toDp() },
+                                with(density) { barHeight.toDp() },
+                            )
+                            .graphicsLayer {
+                                // 退出窗口（前 34%）ease-in 淡出；全程向左侧圆钮方向
+                                // 轻微收拢缩放，读作"并入圆钮"而非原地溶解。
+                                val exitProgress = (merge.value / 0.34f).coerceIn(0f, 1f)
+                                alpha = 1f - EaseInCubic.transform(exitProgress)
+                                val collapse = EaseOutCubic.transform(merge.value)
+                                scaleX = 1f - 0.10f * collapse
+                                scaleY = 1f - 0.10f * collapse
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            }
+                            .pointerInput(phase) {
+                                if (phase != LinkedDockPhase.Expanded) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            awaitPointerEvent(PointerEventPass.Initial)
+                                                .changes.forEach { it.consume() }
+                                        }
                                     }
                                 }
                             }
+                            .then(
+                                if (phase != LinkedDockPhase.Expanded) {
+                                    Modifier.clearAndSetSemantics {}
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                    ) {
+                        navigationContent()
+                    }
+                }
+                val homeElasticState = rememberAppElasticPressState(
+                    visualSize = with(density) { controlHeight.toDp() },
+                )
+                val homeGlassMotion = glassEnabled && backdrop != null
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(0, controlRowY) }
+                        .size(
+                            with(density) { button.toDp() },
+                            with(density) { controlHeight.toDp() },
+                        )
+                        .appElasticPress(
+                            enabled = phase != LinkedDockPhase.Expanded,
+                            state = homeElasticState,
+                            transformInBackdrop = homeGlassMotion,
+                        )
+                        .graphicsLayer {
+                            // 进入窗口（前 50%）ease-out 淡入并从 92% 缩放弹出，落定干净无过冲。
+                            val enterProgress = (merge.value / 0.5f).coerceIn(0f, 1f)
+                            val eased = EaseOutCubic.transform(enterProgress)
+                            alpha = eased
+                            val scale = 0.92f + 0.08f * eased
+                            scaleX = scale
+                            scaleY = scale
                         }
                         .then(
                             if (phase != LinkedDockPhase.Expanded) {
-                                Modifier.clearAndSetSemantics {}
+                                Modifier.clickable(role = Role.Button) { expand() }
                             } else {
-                                Modifier
+                                Modifier.clearAndSetSemantics {}
                             }
                         ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    navigationContent()
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(0, controlRowY) }
-                    .size(
-                        with(density) { button.toDp() },
-                        with(density) { controlHeight.toDp() },
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .biliPaiFloatingDockShell(
+                                backdrop = backdrop,
+                                interactionLayerBlock = homeElasticState.layerBlock.takeIf { homeGlassMotion },
+                                interactionState = homeElasticState.takeIf { homeGlassMotion },
+                                containerColor = containerColor,
+                                pressProgress = 0f,
+                                shape = shape,
+                                enabled = glassEnabled,
+                                blurEnabled = blurEnabled,
+                                hazeState = hazeState,
+                                liquidGlassTuning = liquidGlassTuning,
+                            )
                     )
-                    .graphicsLayer {
-                        // 进入窗口（前 50%）ease-out 淡入并从 92% 缩放弹出，落定干净无过冲。
-                        val enterProgress = (merge.value / 0.5f).coerceIn(0f, 1f)
-                        val eased = EaseOutCubic.transform(enterProgress)
-                        alpha = eased
-                        val scale = 0.92f + 0.08f * eased
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .then(
-                        if (phase != LinkedDockPhase.Expanded) {
-                            Modifier.clickable(role = Role.Button) { expand() }
-                        } else {
-                            Modifier.clearAndSetSemantics {}
-                        }
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .biliPaiFloatingDockShell(
-                            backdrop = backdrop,
-                            containerColor = containerColor,
-                            pressProgress = 0f,
-                            shape = shape,
-                            enabled = glassEnabled,
-                            blurEnabled = blurEnabled,
-                            hazeState = hazeState,
-                            liquidGlassTuning = liquidGlassTuning,
+                    AppIcon(
+                        imageVector = if (iconStyle == SharedFloatingBottomBarIconStyle.MIUIX) {
+                            resolveHomeNavigationBarIcon(firstItem, currentItem == firstItem)
+                        } else resolveMaterialBottomBarIcon(firstItem, currentItem == firstItem),
+                        contentDescription = "$firstLabel，展开底栏",
+                        tint = accentColor,
+                        modifier = if (homeGlassMotion) Modifier.graphicsLayer(homeElasticState.layerBlock) else Modifier,
+                    )
+                }
+                if (nowPlayingSlot != null) {
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer {
+                                alpha = resolveAudioNowPlayingPresenceAlpha(presenceProgressProvider())
+                                // 首次出现：从下方上滑落位，弹簧 overshoot 时越过终点
+                                // 再回落即为轻微回弹；非入场（退出/静止）不附加位移。
+                                translationY = if (!slotEntering.value || reduceMotion) {
+                                    0f
+                                } else {
+                                    (1f - presence.value) *
+                                        AUDIO_NOW_PLAYING_PRESENCE_ENTER_SLIDE_DP.dp.toPx()
+                                }
+                            }
+                            .layout { measurable, _ ->
+                                // 小横条槽宽度真实随 morph/presence 变化，是唯一保留
+                                // 每帧测量的子树；读进度只触发本槽自身的重新测量。
+                                val geometry = resolveLinkedDockGeometry(
+                                    width = maximumWidth,
+                                    button = button,
+                                    barHeight = barHeight,
+                                    gap = gap,
+                                    hasAudio = true,
+                                    searchEnabled = searchEnabled,
+                                    mergeProgress = merge.value,
+                                    searchProgress = search.value,
+                                    verticalGap = verticalGap,
+                                    presenceProgress = slotGeometryPresenceProvider(),
+                                    expandedAudioWidth = bottomBarClusterWidth,
+                                    expandedAudioX = navigationX,
+                                )
+                                // 槽高与导航行同为 barHeight：两行胶囊圆角（percent=50）
+                                // 严格一致，不会因槽更矮而出现更小的圆角。
+                                val placeable = measurable.measure(
+                                    Constraints.fixed(geometry.audioWidth, barHeight)
+                                )
+                                layout(geometry.audioWidth, barHeight) {
+                                    placeable.placeRelative(0, 0)
+                                }
+                            }
+                            .offset {
+                                val geometry = resolveLinkedDockGeometry(
+                                    width = maximumWidth,
+                                    button = button,
+                                    barHeight = barHeight,
+                                    gap = gap,
+                                    hasAudio = true,
+                                    searchEnabled = searchEnabled,
+                                    mergeProgress = merge.value,
+                                    searchProgress = search.value,
+                                    verticalGap = verticalGap,
+                                    presenceProgress = slotGeometryPresenceProvider(),
+                                    expandedAudioWidth = bottomBarClusterWidth,
+                                    expandedAudioX = navigationX,
+                                )
+                                // 槽高已与导航行同为 barHeight：展开时槽底贴导航行上方
+                                // verticalGap 处；收合时槽与导航行完全重合（圆心同中心）。
+                                IntOffset(
+                                    geometry.audioX,
+                                    navRowY - verticalGap - barHeight +
+                                        ((barHeight + verticalGap) * merge.value).roundToInt(),
+                                )
+                            },
+                    ) {
+                        nowPlayingSlot.invoke(
+                            Modifier.fillMaxSize(),
+                            mergeProgressProvider,
+                            searchProgressProvider,
+                            zeroProgressProvider,
+                            if (shouldExpandPlaybackFromSearch(phase, hasAudio)) {
+                                {
+                                    if (!transition.isRunning) {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        updatePhase(LinkedDockPhase.Playback)
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                            nowPlayingLayoutStable,
                         )
-                )
-                AppIcon(
-                    imageVector = if (iconStyle == SharedFloatingBottomBarIconStyle.MIUIX) {
-                        resolveHomeNavigationBarIcon(firstItem, currentItem == firstItem)
-                    } else resolveMaterialBottomBarIcon(firstItem, currentItem == firstItem),
-                    contentDescription = "$firstLabel，展开底栏",
-                    tint = accentColor,
-                )
-            }
-            if (nowPlayingSlot != null) {
+                    }
+                }
                 Box(
                     modifier = Modifier
-                        .graphicsLayer {
-                            alpha = resolveAudioNowPlayingPresenceAlpha(presenceProgressProvider())
-                            // 首次出现：从下方上滑落位，弹簧 overshoot 时越过终点
-                            // 再回落即为轻微回弹；非入场（退出/静止）不附加位移。
-                            translationY = if (!slotEntering.value || reduceMotion) {
-                                0f
-                            } else {
-                                (1f - presence.value) *
-                                    AUDIO_NOW_PLAYING_PRESENCE_ENTER_SLIDE_DP.dp.toPx()
-                            }
-                        }
-                        .layout { measurable, _ ->
-                            // 小横条槽宽度真实随 morph/presence 变化，是唯一保留
-                            // 每帧测量的子树；读进度只触发本槽自身的重新测量。
-                            val geometry = resolveLinkedDockGeometry(
-                                width = maximumWidth,
-                                button = button,
-                                barHeight = barHeight,
-                                gap = gap,
-                                hasAudio = true,
-                                searchEnabled = searchEnabled,
-                                mergeProgress = merge.value,
-                                searchProgress = search.value,
-                                verticalGap = verticalGap,
-                                presenceProgress = slotGeometryPresenceProvider(),
-                                expandedAudioWidth = bottomBarClusterWidth,
-                                expandedAudioX = navigationX,
-                            )
-                            // 槽高与导航行同为 barHeight：两行胶囊圆角（percent=50）
-                            // 严格一致，不会因槽更矮而出现更小的圆角。
-                            val placeable = measurable.measure(
-                                Constraints.fixed(geometry.audioWidth, barHeight)
-                            )
-                            layout(geometry.audioWidth, barHeight) {
-                                placeable.placeRelative(0, 0)
-                            }
-                        }
                         .offset {
                             val geometry = resolveLinkedDockGeometry(
                                 width = maximumWidth,
                                 button = button,
                                 barHeight = barHeight,
                                 gap = gap,
-                                hasAudio = true,
+                                hasAudio = hasAudio,
                                 searchEnabled = searchEnabled,
                                 mergeProgress = merge.value,
                                 searchProgress = search.value,
                                 verticalGap = verticalGap,
-                                presenceProgress = slotGeometryPresenceProvider(),
-                                expandedAudioWidth = bottomBarClusterWidth,
-                                expandedAudioX = navigationX,
                             )
-                            // 槽高已与导航行同为 barHeight：展开时槽底贴导航行上方
-                            // verticalGap 处；收合时槽与导航行完全重合（圆心同中心）。
                             IntOffset(
-                                geometry.audioX,
-                                navRowY - verticalGap - barHeight +
-                                    ((barHeight + verticalGap) * merge.value).roundToInt(),
+                                resolveLinkedDockSearchX(
+                                    maximumWidth = maximumWidth,
+                                    navigationWidth = navWidth,
+                                    searchWidth = geometry.searchWidth,
+                                    button = button,
+                                    gap = gap,
+                                    mergeProgress = merge.value,
+                                    searchProgress = search.value,
+                                ),
+                                controlRowY,
                             )
-                        },
-                ) {
-                    nowPlayingSlot.invoke(
-                        Modifier.fillMaxSize(),
-                        mergeProgressProvider,
-                        searchProgressProvider,
-                        zeroProgressProvider,
-                        if (shouldExpandPlaybackFromSearch(phase, hasAudio)) {
-                            {
-                                if (!transition.isRunning) {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    updatePhase(LinkedDockPhase.Playback)
-                                }
-                            }
-                        } else {
-                            null
-                        },
-                        nowPlayingLayoutStable,
-                    )
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .offset {
-                        val geometry = resolveLinkedDockGeometry(
-                            width = maximumWidth,
-                            button = button,
-                            barHeight = barHeight,
-                            gap = gap,
-                            hasAudio = hasAudio,
-                            searchEnabled = searchEnabled,
-                            mergeProgress = merge.value,
-                            searchProgress = search.value,
-                            verticalGap = verticalGap,
-                        )
-                        IntOffset(
-                            resolveLinkedDockSearchX(
-                                maximumWidth = maximumWidth,
-                                navigationWidth = navWidth,
-                                searchWidth = geometry.searchWidth,
+                        }
+                        .layout { measurable, _ ->
+                            val geometry = resolveLinkedDockGeometry(
+                                width = maximumWidth,
                                 button = button,
+                                barHeight = barHeight,
                                 gap = gap,
+                                hasAudio = hasAudio,
+                                searchEnabled = searchEnabled,
                                 mergeProgress = merge.value,
                                 searchProgress = search.value,
-                            ),
-                            controlRowY,
+                                verticalGap = verticalGap,
+                            )
+                            val placeable = measurable.measure(
+                                Constraints.fixed(geometry.searchWidth, searchHeight)
+                            )
+                            layout(geometry.searchWidth, searchHeight) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        },
+                ) {
+                    if (searchEnabled) {
+                        val searchElasticState = rememberAppElasticPressState(
+                            feedbackStrength = com.android.purebilibili.core.ui.components.APP_SEARCH_ELASTIC_FEEDBACK_STRENGTH,
                         )
-                    }
-                    .layout { measurable, _ ->
-                        val geometry = resolveLinkedDockGeometry(
-                            width = maximumWidth,
-                            button = button,
-                            barHeight = barHeight,
-                            gap = gap,
-                            hasAudio = hasAudio,
-                            searchEnabled = searchEnabled,
-                            mergeProgress = merge.value,
-                            searchProgress = search.value,
-                            verticalGap = verticalGap,
-                        )
-                        val placeable = measurable.measure(
-                            Constraints.fixed(geometry.searchWidth, searchHeight)
-                        )
-                        layout(geometry.searchWidth, searchHeight) {
-                            placeable.placeRelative(0, 0)
-                        }
-                    },
-            ) {
-                if (searchEnabled) {
-                    Box(Modifier.fillMaxSize()) {
+                        val searchGlassMotion = glassEnabled && backdrop != null
+                        // The shell and hit target are siblings. Deform their common
+                        // parent so glass, icon and pointer feedback stay together.
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .biliPaiFloatingDockShell(
-                                    backdrop = backdrop,
-                                    containerColor = containerColor,
-                                    pressProgress = 0f,
-                                    shape = shape,
-                                    enabled = glassEnabled,
-                                    blurEnabled = blurEnabled,
-                                    hazeState = hazeState,
-                                    liquidGlassTuning = liquidGlassTuning,
-                                )
-                        )
-                        Box(
-                            Modifier
-                                .fillMaxSize()
-                                .clip(shape)
-                                .then(
-                                    if (phase != LinkedDockPhase.Search) {
-                                        Modifier.clickable(role = Role.Button) {
-                                            phaseBeforeSearch = phase
-                                            pendingUserImeRequest = true
-                                            updatePhase(LinkedDockPhase.Search)
-                                        }
-                                    } else Modifier
+                                .appElasticPress(
+                                    enabled = phase != LinkedDockPhase.Search,
+                                    state = searchElasticState,
+                                    transformInBackdrop = searchGlassMotion,
                                 )
                         ) {
-                            BiliPaiBottomBarSearchVisualContent(
-                                expanded = phase == LinkedDockPhase.Search ||
-                                    phase == LinkedDockPhase.Compact,
-                                query = query,
-                                onQueryChange = { query = it },
-                                onSubmit = {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    val keyword = query.trim()
-                                    query = ""
-                                    if (keyword.isBlank()) {
-                                        onSearchClick()
-                                    } else {
-                                        onSearchKeywordSubmit(keyword)
-                                        pendingUserImeRequest = false
-                                        updatePhase(
-                                            resolveLinkedDockPhaseOnSearchDismiss(
-                                                hasAudio = hasAudio,
-                                                previousPhase = phaseBeforeSearch,
-                                            )
-                                        )
-                                    }
-                                },
-                                contentColor = contentColor,
-                                accentColor = accentColor,
-                                iconScale = identityIconScaleProvider,
-                                fieldAlpha = searchProgressProvider,
-                                interactive = phase == LinkedDockPhase.Search,
-                                iconStyle = iconStyle,
-                                pendingUserImeRequest = pendingUserImeRequest,
-                                onUserImeRequestConsumed = { pendingUserImeRequest = false },
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .biliPaiFloatingDockShell(
+                                        backdrop = backdrop,
+                                        interactionLayerBlock = searchElasticState.layerBlock.takeIf { searchGlassMotion },
+                                        interactionState = searchElasticState.takeIf { searchGlassMotion },
+                                        containerColor = containerColor,
+                                        pressProgress = 0f,
+                                        shape = shape,
+                                        enabled = glassEnabled,
+                                        blurEnabled = blurEnabled,
+                                        hazeState = hazeState,
+                                        liquidGlassTuning = liquidGlassTuning,
+                                    )
                             )
+                            Box(
+                                Modifier
+                                    .fillMaxSize()
+                                    .then(if (searchGlassMotion) Modifier.graphicsLayer(searchElasticState.layerBlock) else Modifier)
+                                    .clip(shape)
+                                    .then(
+                                        if (phase != LinkedDockPhase.Search) {
+                                            Modifier.clickable(role = Role.Button) {
+                                                phaseBeforeSearch = phase
+                                                pendingUserImeRequest = true
+                                                updatePhase(LinkedDockPhase.Search)
+                                            }
+                                        } else Modifier
+                                    )
+                            ) {
+                                BiliPaiBottomBarSearchVisualContent(
+                                    expanded = phase == LinkedDockPhase.Search ||
+                                        phase == LinkedDockPhase.Compact,
+                                    query = query,
+                                    onQueryChange = { query = it },
+                                    onSubmit = {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        val keyword = query.trim()
+                                        query = ""
+                                        if (keyword.isBlank()) {
+                                            onSearchClick()
+                                        } else {
+                                            onSearchKeywordSubmit(keyword)
+                                            pendingUserImeRequest = false
+                                            updatePhase(
+                                                resolveLinkedDockPhaseOnSearchDismiss(
+                                                    hasAudio = hasAudio,
+                                                    previousPhase = phaseBeforeSearch,
+                                                )
+                                            )
+                                        }
+                                    },
+                                    contentColor = contentColor,
+                                    accentColor = accentColor,
+                                    iconScale = identityIconScaleProvider,
+                                    fieldAlpha = searchProgressProvider,
+                                    interactive = phase == LinkedDockPhase.Search,
+                                    iconStyle = iconStyle,
+                                    pendingUserImeRequest = pendingUserImeRequest,
+                                    onUserImeRequestConsumed = { pendingUserImeRequest = false },
+                                )
+                            }
                         }
                     }
                 }

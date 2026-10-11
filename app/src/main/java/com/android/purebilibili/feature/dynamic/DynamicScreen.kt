@@ -6,7 +6,6 @@ import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.FeedVerticalStaggeredGrid
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.components.AppTextField
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.navigation.animatePagerSelection
 
 import com.android.purebilibili.core.ui.AppAlertDialog
@@ -37,7 +36,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import com.android.purebilibili.core.ui.rememberCompatibleStaggeredGridState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -877,13 +876,9 @@ fun DynamicScreen(
                             ) {
                             HorizontalPager(
                                 state = pagerState,
-                                userScrollEnabled = false,
+                                userScrollEnabled = true,
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalPriorityHorizontalPagerSwipe(
-                                        state = pagerState,
-                                        enabled = true,
-                                    ),
+                                    .fillMaxSize(),
                                 key = { page -> resolveDynamicPagerTabKey(visibleTabs, page) }
                             ) { page ->
                                 val tab = visibleTabs.getOrNull(page) ?: return@HorizontalPager
@@ -1072,13 +1067,9 @@ fun DynamicScreen(
                         ) {
                         HorizontalPager(
                             state = pagerState,
-                            userScrollEnabled = false,
+                            userScrollEnabled = true,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .verticalPriorityHorizontalPagerSwipe(
-                                    state = pagerState,
-                                    enabled = true,
-                                ),
+                                .fillMaxSize(),
                             key = { page -> resolveDynamicPagerTabKey(visibleTabs, page) }
                         ) { page ->
                             val tab = visibleTabs.getOrNull(page) ?: return@HorizontalPager
@@ -1921,7 +1912,7 @@ private fun HorizontalUserList(
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
                             text = if (showHiddenUsers) "隐藏中" else "显示隐藏",
-                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
                         )
@@ -2002,17 +1993,17 @@ private fun HorizontalUserList(
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
                             displayName,
-                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                            style = MaterialTheme.typography.labelSmall,
                             color = if (isSelected)
                                 MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
+                            maxLines = 2,
+                            minLines = 2,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            // 预留高度已覆盖名称基线；此处再放宽名字宽度上限，
-                            // 避免较长昵称在窄视口下被过早省略号截断。
-                            // LazyRow 仍会在屏幕边缘自然裁切超出视口的内容。
+                            // 长昵称可换行；统一文字行高，避免 miuix 默认正文行高
+                            // 挤占头像、直播标记和名称的纵向空间。
                             modifier = Modifier.widthIn(
                                 min = AppSpacingTokens.TripleExtraLarge + AppSpacingTokens.Large,
                                 max = 128.dp,
@@ -2050,15 +2041,15 @@ private fun Modifier.dynamicScrollCollapseLayout(
 ): Modifier = clipToBounds().layout { measurable, constraints ->
     val fixedHeightPx = expandedHeightPx.coerceIn(constraints.minHeight, constraints.maxHeight)
     val placeable = measurable.measure(
-        constraints.copy(minHeight = fixedHeightPx, maxHeight = fixedHeightPx)
+        constraints.copy(minHeight = fixedHeightPx)
     )
     val state = listStateProvider()
     val contentOffsetYPx = resolveDynamicScrollCollapsedHeaderOffsetYPx(
-        expandedHeightPx = fixedHeightPx,
+        expandedHeightPx = placeable.height,
         firstVisibleItemIndex = state?.firstVisibleItemIndex ?: 0,
         firstVisibleItemScrollOffset = state?.firstVisibleItemScrollOffset ?: 0,
     )
-    val visibleHeightPx = (fixedHeightPx + contentOffsetYPx).coerceAtLeast(0)
+    val visibleHeightPx = (placeable.height + contentOffsetYPx).coerceAtLeast(0)
     layout(placeable.width, visibleHeightPx) {
         placeable.placeRelative(0, contentOffsetYPx)
     }

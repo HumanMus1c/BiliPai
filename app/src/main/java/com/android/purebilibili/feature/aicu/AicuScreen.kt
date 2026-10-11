@@ -7,7 +7,7 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -328,6 +328,7 @@ private fun AicuCategoryTabs(category: AicuCategory, liquidEnabled: Boolean, onS
             // Let the shared dock own its bounded fallback backdrop. Supplying a synthetic
             // gradient here separates the shell and moving indicator capture pipelines.
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                 options = options,
                 selectedValue = category,
                 onSelectionChange = onSelect,
@@ -399,6 +400,7 @@ private fun AicuCommentModeDock(
         )
         if (useGlass) {
             AppThemeAdaptiveTabRow(
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                 options = options,
                 selectedValue = selectedMode,
                 onSelectionChange = onSelect,

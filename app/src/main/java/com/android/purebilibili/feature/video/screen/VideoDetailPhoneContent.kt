@@ -235,6 +235,7 @@ internal fun VideoDetailPhoneSuccessContentLayer(
                                     commentListState = commentListState,
                                     pagerState = videoContentPagerState,
                                     relatedVideos = success.related,
+                                    relatedLoadState = success.relatedLoadState,
                                     replies = commentState.replies,
                                     replyCount = commentState.replyCount,
                                     emoteMap = success.emoteMap,

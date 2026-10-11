@@ -106,10 +106,10 @@ class GestureLevelOverlayPolicyTest {
                     percent = 0.5f,
                     colorScheme = colors
                 )
-                assertEquals(colors.primary, spec.fillColor)
-                assertEquals(colors.primary, spec.iconTint)
-                assertEquals(colors.surfaceContainerHigh, spec.containerColor)
-                assertEquals(colors.onSurface, spec.textColor)
+                assertEquals(androidx.compose.ui.graphics.lerp(colors.primary, Color.White, 0.30f), spec.fillColor)
+                assertEquals(Color.White, spec.iconTint)
+                assertEquals(Color(0xFF16181D).copy(alpha = 0.70f), spec.containerColor)
+                assertEquals(Color.White, spec.textColor)
             }
         }
     }
@@ -140,18 +140,6 @@ class GestureLevelOverlayPolicyTest {
         assertEquals(lightContent, light.iconTint)
         assertEquals(darkContainer, dark.containerColor)
         assertEquals(darkContent, dark.iconTint)
-    }
-
-    @Test
-    fun md3Diameter_adaptsToPlayerBoundsInEitherOrientation() {
-        // Embedded portrait player, fullscreen phone, and tablet.
-        assertEquals(112f, resolveMd3GestureLevelDiameterDp(360f, 202f))
-        assertEquals(136f, resolveMd3GestureLevelDiameterDp(360f, 800f))
-        assertEquals(136f, resolveMd3GestureLevelDiameterDp(800f, 360f))
-        assertEquals(160f, resolveMd3GestureLevelDiameterDp(1280f, 800f))
-        assertEquals(160f, resolveMd3GestureLevelDiameterDp(800f, 1280f))
-        // Very small split-screen players retain space around the indicator.
-        assertEquals(84f, resolveMd3GestureLevelDiameterDp(200f, 100f))
     }
 
     @Test

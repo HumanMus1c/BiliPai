@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.download
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import android.widget.Toast
 
@@ -22,7 +24,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 //  Material Icons
@@ -144,7 +146,7 @@ fun DownloadListScreen(
                                     }
                                 }
                             }
-                        }) {
+                        }, modifier = Modifier.appElasticPress()) {
                             AppText(
                                 text = if (hasActive) "暂停全部" else "继续全部",
                                 style = MaterialTheme.typography.labelMedium,
@@ -323,13 +325,13 @@ fun DownloadListScreen(
                     onClick = {
                         // Dissolve first; the actual removal happens onDissolveComplete.
                         dissolvingTaskIds = dissolvingTaskIds + taskToDelete.id
-                    }
+                    }, modifier = Modifier.appElasticPress()
                 ) {
                     AppText("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { pendingDeleteTask = null }) {
+                androidx.compose.material3.TextButton(onClick = { pendingDeleteTask = null }, modifier = Modifier.appElasticPress()) {
                     AppText("取消")
                 }
             }

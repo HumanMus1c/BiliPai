@@ -78,7 +78,8 @@ internal fun resolveScrollableTabIndicatorFollowDeltaPx(
  *
  * [focusPosition] is the continuous rail focus (tab index + fraction). While [continuousFollow]
  * is true the rail lock-steps to that focus so it glides with the indicator; when idle it performs
- * a single center hop (animated when entrance animation is on).
+ * a single center hop (animated when entrance animation is on). With [centerSelection] disabled,
+ * it preserves whole-slot alignment and scrolls only far enough to expose the selected tab.
  */
 @Composable
 internal fun KeepScrollableTabSelectionVisible(
@@ -88,11 +89,12 @@ internal fun KeepScrollableTabSelectionVisible(
     contentPaddingPx: Float = 0f,
     focusPosition: () -> Float = { selectedIndex.toFloat() },
     continuousFollow: () -> Boolean = { false },
+    centerSelection: Boolean = true,
 ) {
     val entranceAnimationEnabled = LocalAppThemeConfig.current.uiEntranceAnimationEnabled
     val focusPositionLatest by rememberUpdatedState(focusPosition)
     val continuousFollowLatest by rememberUpdatedState(continuousFollow)
-    LaunchedEffect(scrollState, itemWidthPx, contentPaddingPx, entranceAnimationEnabled) {
+    LaunchedEffect(scrollState, itemWidthPx, contentPaddingPx, entranceAnimationEnabled, centerSelection) {
         // maxValue is unknown before the scroll container is measured. Also follow resizes
         // without restarting this effect on every animation frame or fighting a manual swipe.
         snapshotFlow {
@@ -103,9 +105,26 @@ internal fun KeepScrollableTabSelectionVisible(
         }
             .filter { it.maxScrollPx != Int.MAX_VALUE && it.viewportWidthPx > 0 }
             .collectLatest { (maxScrollPx, measuredViewportPx, focus, continuous) ->
-                val target = resolveTabSelectionScrollOffsetPx(
+                val centeredTarget = resolveTabSelectionScrollOffsetPx(
                     focus, itemWidthPx, measuredViewportPx.toFloat(), maxScrollPx, contentPaddingPx,
                 )
+                val target = if (centerSelection || itemWidthPx <= 0f || !focus.isFinite()) {
+                    centeredTarget
+                } else {
+                    // Keep whole slots at both viewport edges. Read the manual scroll
+                    // offset here, outside snapshotFlow, so swiping remains user-owned.
+                    val visibleCount = kotlin.math.floor(
+                        ((measuredViewportPx - contentPaddingPx * 2) / itemWidthPx + 0.001f).toDouble(),
+                    ).toInt().coerceAtLeast(1)
+                    val first = (scrollState.value / itemWidthPx).roundToInt()
+                    val selected = focus.roundToInt().coerceAtLeast(0)
+                    val start = when {
+                        selected < first -> selected
+                        selected >= first + visibleCount -> selected - visibleCount + 1
+                        else -> first
+                    }
+                    (start * itemWidthPx).roundToInt().coerceIn(0, maxScrollPx)
+                }
                 when (
                     resolveTabSelectionRailScrollMode(
                         continuousFollow = continuous,

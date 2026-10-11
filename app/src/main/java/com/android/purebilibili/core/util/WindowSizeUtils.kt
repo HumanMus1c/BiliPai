@@ -2,6 +2,7 @@
 package com.android.purebilibili.core.util
 
 import android.app.Activity
+import android.os.Build
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
@@ -351,7 +352,8 @@ private fun Context.hasPrecisePointer(): Boolean {
     val inputManager = getSystemService(InputManager::class.java) ?: return false
     return inputManager.inputDeviceIds.any { deviceId ->
         val device = inputManager.getInputDevice(deviceId) ?: return@any false
-        device.isEnabled && (
+        val deviceEnabled = Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1 || device.isEnabled
+        deviceEnabled && (
             device.supportsSource(InputDevice.SOURCE_MOUSE) ||
                 device.supportsSource(InputDevice.SOURCE_MOUSE_RELATIVE) ||
                 device.supportsSource(InputDevice.SOURCE_TOUCHPAD)

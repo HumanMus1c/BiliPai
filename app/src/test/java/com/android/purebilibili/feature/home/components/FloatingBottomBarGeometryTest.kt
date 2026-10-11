@@ -31,16 +31,20 @@ class FloatingBottomBarGeometryTest {
     }
 
     @Test
-    fun `home top label modes keep a flat pill inside each tab slot`() {
-        // 0: icon + label, 1: icon only, 2: label only. Use the actual dock width policy.
+    fun `home top label modes preserve equal shell insets without width flattening`() {
+        // Cover both top shell styles and all label modes under constrained widths.
         for (mode in listOf(0, 1, 2)) {
-            val width = resolveHomeTopTabFloatingDockWidth(393.dp, 5, mode)
-            val slot = resolveFloatingDockSlotWidthPx(width.value, 4f, 5)
-            val height = resolveFloatingDockIndicatorHeightDp(
-                52f, slot, FloatingBottomBarGeometryMode.TopNavigation, 56f,
-            )
-            assertEquals(minOf(52f, slot / FLOATING_DOCK_MIN_INDICATOR_ASPECT), height, 0.001f, "label mode $mode")
-            assertTrue(slot / height >= FLOATING_DOCK_MIN_INDICATOR_ASPECT)
+            for (floating in listOf(false, true)) {
+                val shell = resolveHomeTopDockShellHeight(floating)
+                for (container in listOf(240.dp, 393.dp)) {
+                    val width = resolveHomeTopTabFloatingDockWidth(container, 5, mode, shell)
+                    val slot = resolveFloatingDockSlotWidthPx(width.value, 8f, 5)
+                    val height = resolveFloatingDockIndicatorHeightDp(
+                        shell.value - 8f, slot, FloatingBottomBarGeometryMode.TopNavigation, shell.value,
+                    )
+                    assertEquals(4f, (shell.value - height) / 2f, 0.001f, "label mode $mode")
+                }
+            }
         }
     }
 

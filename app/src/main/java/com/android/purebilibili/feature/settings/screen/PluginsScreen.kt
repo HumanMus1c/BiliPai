@@ -12,7 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -2547,6 +2547,7 @@ private fun JsPluginTestDialog(
                 Spacer(modifier = Modifier.height(12.dp))
                 if (modules.size > 1 && selectedModule != null) {
                     AppThemeAdaptiveTabRow(
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                         options = modules.map { module -> AppSegmentOption(module, module.title) },
                         selectedValue = selectedModule,
                         onSelectionChange = { selectedModule = it },

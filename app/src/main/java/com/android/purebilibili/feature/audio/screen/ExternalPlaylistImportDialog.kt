@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.audio.screen
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -184,6 +186,7 @@ fun ExternalPlaylistImportDialog(
             decorFitsSystemWindows = false,
         ),
     ) {
+        com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
@@ -214,7 +217,7 @@ fun ExternalPlaylistImportDialog(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onDismiss) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.appElasticPress()) {
                         Icon(Icons.Outlined.Close, contentDescription = "关闭")
                     }
                 }
@@ -282,7 +285,7 @@ fun ExternalPlaylistImportDialog(
                                 fetching = false
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().appElasticPress(enabled = !fetching),
                         enabled = !fetching,
                     ) {
                         Text(if (fetching) "正在获取…" else "获取歌单信息")
@@ -308,7 +311,7 @@ fun ExternalPlaylistImportDialog(
                             )
                         }
                         if (completed) {
-                            Button(onClick = { savePlaylist() }, enabled = matchResults.any { it.video != null }) {
+                            Button(onClick = { savePlaylist() }, enabled = matchResults.any { it.video != null }, modifier = Modifier.appElasticPress(enabled = matchResults.any { it.video != null })) {
                                 Text("保存")
                             }
                         } else {
@@ -319,7 +322,8 @@ fun ExternalPlaylistImportDialog(
                                 } else {
                                     startMatching(resume = matchCompleted in 1 until meta.tracks.size)
                                 }
-                            }) {
+                            },
+                            modifier = Modifier.appElasticPress()) {
                                 Text(
                                     when {
                                         matching -> "停止"
@@ -421,7 +425,7 @@ fun ExternalPlaylistImportDialog(
                                                     manualResults = emptyList()
                                                 }
                                             },
-                                            enabled = matchResults.isNotEmpty(),
+                                            enabled = matchResults.isNotEmpty(), modifier = Modifier.appElasticPress(enabled = matchResults.isNotEmpty()),
                                         ) {
                                             Icon(Icons.Outlined.Edit, contentDescription = "手动修正")
                                         }
@@ -459,7 +463,7 @@ fun ExternalPlaylistImportDialog(
                                                     }
                                                 }
                                             },
-                                            enabled = manualKeyword.isNotBlank() && !manualSearching,
+                                            enabled = manualKeyword.isNotBlank() && !manualSearching, modifier = Modifier.appElasticPress(enabled = manualKeyword.isNotBlank() && !manualSearching),
                                         ) {
                                             Text(if (manualSearching) "搜索中" else "搜索")
                                         }

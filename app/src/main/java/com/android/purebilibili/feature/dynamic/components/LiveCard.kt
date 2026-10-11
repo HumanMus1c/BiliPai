@@ -10,8 +10,6 @@ import com.android.purebilibili.core.ui.components.AppText
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
-import com.android.purebilibili.core.ui.MediaContrastPalette
-
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
@@ -116,7 +114,7 @@ fun LiveCard(
                             .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
                             .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
                     ) {
-                        AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MediaContrastPalette.Foreground, fontWeight = FontWeight.Bold)
+                        AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
                 
@@ -240,7 +238,7 @@ fun LiveMajorCard(
                         .background(MaterialTheme.colorScheme.primary, AppShapes.container(ContainerLevel.Tag))
                         .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
                 ) {
-                    AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MediaContrastPalette.Foreground, fontWeight = FontWeight.Bold)
+                    AppText("直播中", fontSize = MaterialTheme.typography.labelSmall.fontSize, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             }
             Spacer(modifier = Modifier.width(AppSpacingTokens.Small + AppSpacingTokens.Micro))

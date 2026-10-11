@@ -1,5 +1,7 @@
 // 文件路径: feature/video/screen/VideoDetailScreen.kt
 package com.android.purebilibili.feature.video.screen
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import com.android.purebilibili.feature.video.ambient.PlayerAmbientLayout
 import coil3.request.crossfade
@@ -63,7 +65,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.PagerState
@@ -346,7 +348,7 @@ private fun CollapsedPlayerNavigationBar(
                                 )
                             }
                         } else {
-                            IconButton(onClick = onBack, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
+                            IconButton(onClick = onBack, modifier = Modifier.size(width = 42.dp, height = 34.dp).appElasticPress()) {
                                 Icon(
                                     Icons.Filled.ArrowBack,
                                     contentDescription = "返回",
@@ -366,7 +368,7 @@ private fun CollapsedPlayerNavigationBar(
                                 )
                             }
                         } else {
-                            IconButton(onClick = onHomeClick, modifier = Modifier.size(width = 42.dp, height = 34.dp)) {
+                            IconButton(onClick = onHomeClick, modifier = Modifier.size(width = 42.dp, height = 34.dp).appElasticPress()) {
                                 Icon(
                                     Icons.Filled.Home,
                                     contentDescription = "首页",
@@ -414,7 +416,7 @@ private fun CollapsedPlayerNavigationBar(
                             onClick = onMoreClick,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
-                                .size(width = 42.dp, height = 34.dp),
+                                .size(width = 42.dp, height = 34.dp).appElasticPress(),
                         ) {
                             Icon(
                                 Icons.Filled.MoreVert,
@@ -610,6 +612,8 @@ internal fun VideoDetailScreenStateHolder(
     }
     val playbackActions = remember(viewModel, context, presentationState) {
         VideoDetailPlaybackActions(
+            resolveNextWatch = viewModel::resolveNextWatchSuggestion,
+            playNextWatch = viewModel::playNextWatchSuggestion,
             changeQuality = viewModel::changeQuality,
             reloadVideo = viewModel::reloadVideo,
             switchCdn = viewModel::switchCdn,
@@ -3770,6 +3774,8 @@ internal fun VideoDetailScreenStateHolder(
                         currentAudioQuality = audioQualityPreference,
                     ),
                     actions = VideoPlayerSectionActions(
+                        resolveNextWatch = viewModel::resolveNextWatchSuggestion,
+                        playNextWatch = viewModel::playNextWatchSuggestion,
                         onToggleFullscreen = { toggleFullscreen() },
                         onQualityChange = { qid -> viewModel.changeQuality(qid) },
                         onBack = { toggleFullscreen() },
@@ -4784,11 +4790,34 @@ internal fun VideoDetailScreenStateHolder(
                                     )
                             }
                         }
+                        val flyingSourceChromeAlphaProvider: () -> Float = {
+                            resolveVideoDetailFlyingSourceChromeAlpha(
+                                morphDepthProgress = miuixLandingState.progressProvider(),
+                                phase = videoCardDepthBackgroundState.phaseProvider(),
+                                isReturnGestureInProgress =
+                                    videoCardDepthBackgroundState
+                                        .isReturnGestureInProgressProvider() ||
+                                        videoCardDepthBackgroundState
+                                            .isGestureRestoreInProgressProvider(),
+                                sourceLayout = landingLayoutForMedia?.layout
+                                    ?: miuixLandingState.sourceLayout,
+                                followProgressEnabled = videoCardDepthBackgroundState
+                                    .returnContentFollowProgressEnabledProvider(),
+                                detailContentLoading = uiState is VideoPlaybackUiState.Loading,
+                                isNowPlayingBar =
+                                    miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true,
+                            )
+                        }
                         val returnMediaHandoffProgressProvider: () -> Float = {
                             if (!entryOwnsMiuixCardTransition) {
                                 0f
                             } else {
-                                if (nativeSnapshotTargetBoundsProvider != null) {
+                                if (miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true) {
+                                    com.android.purebilibili.core.ui.transition
+                                        .resolveNowPlayingBarMediaLayoutHandoff(
+                                            miuixLandingState.progressProvider(),
+                                        )
+                                } else if (nativeSnapshotTargetBoundsProvider != null) {
                                     com.android.purebilibili.core.ui.transition
                                         .resolveVideoCardReturnSettleFromMorphDepth(
                                             miuixLandingState.progressProvider(),
@@ -4805,6 +4834,7 @@ internal fun VideoDetailScreenStateHolder(
                                                         .isGestureRestoreInProgressProvider(),
                                             sourceLayout = landingLayoutForMedia?.layout
                                                 ?: miuixLandingState.sourceLayout,
+                                            sourceChromeAlpha = flyingSourceChromeAlphaProvider(),
                                         )
                                 }
                             }
@@ -4832,24 +4862,6 @@ internal fun VideoDetailScreenStateHolder(
                                     entryOwnsMiuixCardTransition &&
                                         currentBvid == bvid &&
                                         !hasRenderedFirstFrameForReturn,
-                            )
-                        }
-                        val flyingSourceChromeAlphaProvider: () -> Float = {
-                            resolveVideoDetailFlyingSourceChromeAlpha(
-                                morphDepthProgress = miuixLandingState.progressProvider(),
-                                phase = videoCardDepthBackgroundState.phaseProvider(),
-                                isReturnGestureInProgress =
-                                    videoCardDepthBackgroundState
-                                        .isReturnGestureInProgressProvider() ||
-                                        videoCardDepthBackgroundState
-                                            .isGestureRestoreInProgressProvider(),
-                                sourceLayout = landingLayoutForMedia?.layout
-                                    ?: miuixLandingState.sourceLayout,
-                                followProgressEnabled = videoCardDepthBackgroundState
-                                    .returnContentFollowProgressEnabledProvider(),
-                                detailContentLoading = uiState is VideoPlaybackUiState.Loading,
-                                isNowPlayingBar =
-                                    miuixLandingState.sourceChromeSnapshot?.isNowPlayingBar == true,
                             )
                         }
                         PlayerAmbientLayout(
@@ -5442,6 +5454,7 @@ internal fun VideoDetailScreenStateHolder(
                     ) {
                         VideoDetailReturnSourceCardChrome(
                             info = sourceCardInfo,
+                            horizontalMediaHandoffEnabled = !useTabletLayout,
                             sourceChromeSnapshot = miuixCardTransitionState.sourceChromeSnapshot,
                             detailContentLoading = uiState is VideoPlaybackUiState.Loading,
                             sourceLayout = miuixCardTransitionState.sourceLayout,

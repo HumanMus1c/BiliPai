@@ -35,6 +35,7 @@ internal data class VideoCardTransitionSession(
         fun create(
             bvid: String,
             source: BiliPaiVideoSource,
+            recordedSourceKey: String?,
             cardBounds: Rect?,
             coverBounds: Rect? = null,
             sourceCornerDp: Int?,
@@ -51,7 +52,8 @@ internal data class VideoCardTransitionSession(
                 ?.substringAfterLast(':', missingDelimiterValue = "")
                 ?.trim()
             val ownsRecordedGeometry = normalizedBvid.isNotEmpty() &&
-                sourceBvid == normalizedBvid
+                sourceBvid == normalizedBvid &&
+                source.key != null && source.key == recordedSourceKey
             return VideoCardTransitionSession(
                 bvid = normalizedBvid,
                 sourceRoute = normalizeBiliPaiVideoSourceRoute(source.route),

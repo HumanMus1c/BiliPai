@@ -118,7 +118,7 @@ class BiliPaiVideoSourcePolicyTest {
     }
 
     @Test
-    fun videoToVideoNavigationKeepsPreviousListSourceInsteadOfVideoRoute() {
+    fun videoLinkNavigationUsesImmediateParentInsteadOfPreviousListSource() {
         val source = resolveBiliPaiVideoSource(
             bvid = "BV2",
             explicitSourceRoute = null,
@@ -126,8 +126,8 @@ class BiliPaiVideoSourcePolicyTest {
             previousSourceRoute = "home"
         )
 
-        assertEquals("home", source.route)
-        assertEquals("home:BV2", source.key)
+        assertEquals("video/BV1", source.route)
+        assertEquals("video/BV1:BV2", source.key)
     }
 
     @Test

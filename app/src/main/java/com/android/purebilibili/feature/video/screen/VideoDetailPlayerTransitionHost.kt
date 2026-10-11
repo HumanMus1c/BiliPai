@@ -301,6 +301,8 @@ internal fun PortraitInlineVideoPlayerHost(
                 subtitleDisplayModePreferenceOverride = subtitleDisplayModePreferenceOverride,
             ),
             actions = VideoPlayerSectionActions(
+                    resolveNextWatch = playbackActions.resolveNextWatch,
+                    playNextWatch = playbackActions.playNextWatch,
                 onToggleFullscreen = onToggleFullscreen,
                 onQualityChange = { qid -> playbackActions.changeQuality(qid) },
                 onBack = onBack,

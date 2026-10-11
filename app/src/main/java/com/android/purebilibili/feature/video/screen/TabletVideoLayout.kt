@@ -9,10 +9,10 @@ import com.android.purebilibili.core.ui.components.AppText
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,7 +43,6 @@ import com.android.purebilibili.core.ui.AppSplitLayout
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppSingleChoiceRow
 import com.android.purebilibili.core.ui.components.AppTextButton
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.feature.video.share.VideoSharePayload
 import com.android.purebilibili.feature.video.share.VideoShareSheetHost
 import com.android.purebilibili.feature.video.share.buildVideoSharePayload
@@ -175,6 +174,8 @@ internal fun TabletSecondaryLiquidTabRow(
     modifier: Modifier = Modifier,
 ) {
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+        centerContent = false,
         options = labels.mapIndexed { index, label -> AppSegmentOption(index, label) },
         selectedValue = selectedIndex,
         onSelectionChange = onSelected,
@@ -427,6 +428,8 @@ internal fun TabletVideoLayout(
                                     viewportWidthDpOverride = playerWidth.value.toInt(),
                                 ),
                                 actions = VideoPlayerSectionActions(
+                    resolveNextWatch = playbackActions.resolveNextWatch,
+                    playNextWatch = playbackActions.playNextWatch,
                                     onToggleFullscreen = onToggleFullscreen,
                                     onQualityChange = playbackActions.changeQuality,
                                     onBack = onBack,
@@ -485,6 +488,14 @@ internal fun TabletVideoLayout(
                         videoNoteEnabled = videoNoteEnabled,
                         videoNoteDefaultCollapsed = videoNoteDefaultCollapsed,
                         showRelatedVideos = false,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .widthIn(max = layoutPolicy.infoMaxWidthDp.dp)
+                            .align(Alignment.CenterHorizontally),
+                    )
+                } else if (uiState is VideoPlaybackUiState.Loading && !layoutPolicy.useTabletopLayout) {
+                    com.android.purebilibili.feature.video.ui.components.VideoDetailInfoPaneSkeleton(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
@@ -551,6 +562,13 @@ internal fun TabletVideoLayout(
                         } else null,
                     )
                 }
+            } else if (uiState is VideoPlaybackUiState.Loading) {
+                com.android.purebilibili.feature.video.ui.components.VideoDetailSecondaryPaneSkeleton(
+                    showComments = useThreePaneLayout || secondaryDefaultTab ==
+                        com.android.purebilibili.core.store.TabletSecondaryDefaultTab.COMMENTS,
+                    modifier = Modifier.fillMaxSize(),
+                    showIntro = layoutPolicy.useTabletopLayout,
+                )
             }
         },
         tertiaryContent = if (useThreePaneLayout) {
@@ -577,6 +595,11 @@ internal fun TabletVideoLayout(
                         onRequestedTabConsumed = {},
                         fixedTab = TabletSecondaryTab.RELATED,
                         introContent = null,
+                    )
+                } else if (uiState is VideoPlaybackUiState.Loading) {
+                    com.android.purebilibili.feature.video.ui.components.VideoDetailSecondaryPaneSkeleton(
+                        showComments = false,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
@@ -656,6 +679,7 @@ internal fun TabletVideoInfoPane(
         bgmInfoList = success.bgmInfoList,
         onBgmClick = onBgmClick,
         relatedVideos = if (showRelatedVideos) success.related else emptyList(),
+        relatedLoadState = success.relatedLoadState,
         showRelatedVideos = showRelatedVideos,
         onFollowClick = engagementActions.toggleFollow,
         onFavoriteClick = { engagementActions.onFavoriteAction(false) },
@@ -970,18 +994,15 @@ internal fun TabletSecondaryContent(
         
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalPriorityHorizontalPagerSwipe(
-                    state = pagerState,
-                    enabled = shouldEnableVideoContentHorizontalPagerSwipe(
+            userScrollEnabled = shouldEnableVideoContentHorizontalPagerSwipe(
                         currentPage = pagerState.currentPage,
                         commentPageIndex = 0,
                         isPagerScrollInProgress = pagerState.isScrollInProgress,
                     ),
-                )
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+
         ) { page ->
             when (tabs[page]) {
                 TabletSecondaryTab.COMMENTS -> {
@@ -1305,6 +1326,21 @@ internal fun TabletSecondaryContent(
                         contentPadding = PaddingValues(8.dp)
                     ) {
                             val relatedRows = chunkRelatedVideosForHomeStyleGrid(visibleRelatedVideos)
+                            if (success.relatedLoadState == VideoPlaybackUiState.RelatedLoadState.LOADING) {
+                                item(key = "tablet_related_loading") {
+                                    Column {
+                                        repeat(3) { com.android.purebilibili.core.ui.skeleton.MediaListRowSkeleton() }
+                                    }
+                                }
+                            } else if (visibleRelatedVideos.isEmpty()) {
+                                item(key = "tablet_related_empty") {
+                                    AppText(
+                                        if (success.relatedLoadState == VideoPlaybackUiState.RelatedLoadState.FAILED) "相关推荐加载失败" else "暂无相关推荐",
+                                        modifier = Modifier.padding(16.dp),
+                                    )
+                                }
+                            }
+
                             itemsIndexed(
                                 items = relatedRows,
                                 key = { rowIndex, row ->
@@ -1482,6 +1518,7 @@ private fun ScrollableVideoInfoSection(
     onPublicVideoNoteClick: (Long, String) -> Unit = { _, _ -> },
     onShareClick: () -> Unit = {},
     relatedVideos: List<com.android.purebilibili.data.model.response.RelatedVideo> = emptyList(),
+    relatedLoadState: VideoPlaybackUiState.RelatedLoadState = VideoPlaybackUiState.RelatedLoadState.READY,
     showRelatedVideos: Boolean = true,
     modifier: Modifier = Modifier,
     ownerTrailingContent: (@Composable RowScope.() -> Unit)? = null,
@@ -1610,6 +1647,19 @@ private fun ScrollableVideoInfoSection(
             }
         }
 
+
+        if (showRelatedVideos && relatedLoadState == VideoPlaybackUiState.RelatedLoadState.LOADING) {
+            item(key = "tablet_intro_related_loading") {
+                com.android.purebilibili.core.ui.skeleton.MediaListRowSkeleton()
+            }
+        } else if (showRelatedVideos && relatedVideos.isEmpty()) {
+            item(key = "tablet_intro_related_empty") {
+                AppText(
+                    if (relatedLoadState == VideoPlaybackUiState.RelatedLoadState.FAILED) "相关推荐加载失败" else "暂无相关推荐",
+                    modifier = Modifier.padding(16.dp),
+                )
+            }
+        }
 
         // 6. 更多推荐 (水平滚动)。大屏右栏已有相关推荐 Tab 时不再重复。
         if (showRelatedVideos && relatedVideos.isNotEmpty()) {

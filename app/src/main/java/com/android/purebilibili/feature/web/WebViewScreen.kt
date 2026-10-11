@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.web
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 import com.android.purebilibili.core.ui.components.AppIcon
 
 import android.view.ViewGroup
@@ -77,7 +79,7 @@ fun WebViewScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { openExternal(externalUrl ?: url) }) {
+                    TextButton(onClick = { openExternal(externalUrl ?: url) }, modifier = Modifier.appElasticPress()) {
                         Text("外部打开")
                     }
                 },

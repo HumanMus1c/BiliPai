@@ -1,5 +1,6 @@
 package com.android.purebilibili.feature.audio.screen
 
+import com.android.purebilibili.core.ui.components.appSearchElasticPress
 import top.yukonga.miuix.kmp.window.WindowListPopup
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.ListPopupDefaults
@@ -32,7 +33,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -62,10 +62,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -86,6 +86,8 @@ import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.calculateContrastRatio
 import com.android.purebilibili.core.ui.components.AppFilledIconButton
 import com.android.purebilibili.core.ui.components.AppIcon
+import com.android.purebilibili.core.ui.components.appElasticPress
+import com.android.purebilibili.core.ui.components.rememberAppElasticPressState
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppIconButtonDefaults
 import com.android.purebilibili.core.ui.components.AppLinearProgressIndicator
@@ -1633,7 +1635,7 @@ internal fun MusicPlayerContent(
                     label = { AppText("歌名") },
                     singleLine = true,
                     focusRequester = searchFocusRequester,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).appSearchElasticPress()
                 )
                 AppTextButton(onClick = { onLyricsSearch(lyricSearchText) }) {
                     AppText("搜索")
@@ -3503,6 +3505,7 @@ private fun MusicPlayPauseButton(
     Box(
         modifier = modifier
             .size(sizeDp.dp)
+            .appElasticPress()
             .shadow(
                 elevation = 10.dp,
                 shape = CircleShape,
@@ -3750,7 +3753,10 @@ private fun MusicTopBar(
             isDarkEnvironment = isDarkEnvironment,
             onClick = onBack
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (leadingActions != null) {
                 leadingActions()
             }
@@ -3794,59 +3800,18 @@ private fun GlassIconButton(
     isDarkEnvironment: Boolean = true,
     onClick: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val dragX = remember { Animatable(0f) }
-    val dragY = remember { Animatable(0f) }
-    val maxDragPx = with(LocalDensity.current) { 36.dp.toPx() }
-    val expansionPx = with(LocalDensity.current) { 4.dp.toPx() }
-    val releaseSpec = remember {
-        spring<Float>(
-            dampingRatio = 0.5f,
-            stiffness = 300f,
-        )
-    }
-
+    val elasticState = rememberAppElasticPressState(visualSize = 48.dp)
+    val useLiquidGlass = glassEnabled && miuixBackdrop != null
     AppIconButton(
         onClick = onClick,
         modifier = Modifier
-            .graphicsLayer {
-                val transform = resolveMusicTopControlTransform(
-                    dragX = dragX.value,
-                    dragY = dragY.value,
-                    maxDragPx = maxDragPx,
-                    widthPx = size.width,
-                    heightPx = size.height,
-                    expansionPx = expansionPx,
-                )
-                scaleX = transform.scaleX
-                scaleY = transform.scaleY
-                translationX = transform.translationX
-                translationY = transform.translationY
-            }
-            .pointerInput(maxDragPx, releaseSpec) {
-                detectDragGestures(
-                    onDragCancel = {
-                        scope.launch {
-                            launch { dragX.animateTo(0f, releaseSpec) }
-                            launch { dragY.animateTo(0f, releaseSpec) }
-                        }
-                    },
-                    onDragEnd = {
-                        scope.launch {
-                            launch { dragX.animateTo(0f, releaseSpec) }
-                            launch { dragY.animateTo(0f, releaseSpec) }
-                        }
-                    },
-                ) { change, dragAmount ->
-                    change.consume()
-                    scope.launch {
-                        dragX.snapTo((dragX.value + dragAmount.x).coerceIn(-maxDragPx, maxDragPx))
-                        dragY.snapTo((dragY.value + dragAmount.y).coerceIn(-maxDragPx, maxDragPx))
-                    }
-                }
-            }
+            .size(48.dp)
+            .appElasticPress(state = elasticState, transformInBackdrop = useLiquidGlass)
             .biliPaiFloatingDockShell(
                 backdrop = miuixBackdrop,
+                interactionLayerBlock = elasticState.layerBlock.takeIf { useLiquidGlass },
+                interactionState = elasticState.takeIf { useLiquidGlass },
+                tint = glassTintColor,
                 containerColor = resolveMusicGlassContainerColor(glassTintColor, isDarkEnvironment),
                 pressProgress = 0f,
                 shape = CircleShape,
@@ -3880,6 +3845,8 @@ private fun GlassTextButton(
     isDarkEnvironment: Boolean = true,
     liquidGlassTuning: LiquidGlassTuning = resolveLiquidGlassTuning(progress = 0.5f),
 ) {
+    val elasticState = rememberAppElasticPressState()
+    val useLiquidGlass = glassEnabled && miuixBackdrop != null
     val shape = CircleShape
     val containerColor = if (isSelected) {
         MusicAccentColor.copy(alpha = 0.26f)
@@ -3899,8 +3866,11 @@ private fun GlassTextButton(
     Box(
         modifier = modifier
             .height(48.dp)
+            .appElasticPress(state = elasticState, transformInBackdrop = useLiquidGlass)
             .biliPaiFloatingDockShell(
                 backdrop = miuixBackdrop,
+                interactionLayerBlock = elasticState.layerBlock.takeIf { useLiquidGlass },
+                interactionState = elasticState.takeIf { useLiquidGlass },
                 containerColor = containerColor,
                 pressProgress = 0f,
                 shape = shape,
@@ -3932,6 +3902,7 @@ private fun MusicDockPagePill(
     Box(
         modifier = Modifier
             .height(36.dp)
+            .appElasticPress()
             .clip(CircleShape)
             .background(
                 if (selected) {

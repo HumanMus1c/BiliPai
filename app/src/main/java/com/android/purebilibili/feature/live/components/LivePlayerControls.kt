@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.live.components
+import com.android.purebilibili.core.ui.components.appElasticPress
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 
@@ -97,6 +98,7 @@ private fun LivePlayerIconButton(
     Box(
         modifier = modifier
             .size(touchTargetSize)
+            .appElasticPress(enabled = enabled, visualSize = visualSize)
             .clickable(
                 enabled = enabled,
                 role = if (stateDescription == null) Role.Button else Role.Switch,

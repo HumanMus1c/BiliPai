@@ -61,7 +61,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
 import com.android.purebilibili.core.ui.components.AppSearchField
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppSearchFieldPresentation
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.rememberAppBackIcon
@@ -116,6 +115,10 @@ fun BangumiScreen(
     LocalNavigationBackHandler(enabled = true, onBackCompleted = handleBack)
 
     val themeConfig = LocalAppThemeConfig.current
+    val solidNativeHeader =
+        com.android.purebilibili.core.theme.LocalAppUiStyle.current ==
+            com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 &&
+            !themeConfig.liquidGlassEnabled
     val lowBlurBudget = isLowBlurBudgetForced()
     val headerBlurRequested = themeConfig.headerBlurEnabled
     val hazeState = if (
@@ -177,7 +180,16 @@ fun BangumiScreen(
                     }
                 ),
             ) {
-                Column {
+                // Native MD3 tabs include transparent unselected labels. Give the
+                // entire header an opaque surface when posters scroll underneath.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (solidNativeHeader) MaterialTheme.colorScheme.background
+                            else Color.Transparent
+                        ),
+                ) {
                     if (state.page == BangumiHubPage.SEARCH) {
                         BangumiSearchTopBar(
                             query = searchQuery,
@@ -221,6 +233,7 @@ fun BangumiScreen(
                     }
                     if (state.page != BangumiHubPage.SEARCH) {
                         AppLiquidAwareTabRow(
+                            role = com.android.purebilibili.core.ui.components.AppTabRowRole.PRIMARY,
                             options = BangumiChannel.entries.map { AppSegmentOption(it, it.label) },
                             selectedValue = state.channel,
                             enabled = !selectionActive,
@@ -236,7 +249,7 @@ fun BangumiScreen(
                     }
                     if (state.page == BangumiHubPage.FOLLOW) {
                         AppLiquidAwareTabRow(
-                            indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                            role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                             options = BangumiFollowStatus.entries.map { AppSegmentOption(it, it.label) },
                             selectedValue = state.followStatus,
                             enabled = state.followStates[state.channel to state.followStatus]?.isMutating != true,

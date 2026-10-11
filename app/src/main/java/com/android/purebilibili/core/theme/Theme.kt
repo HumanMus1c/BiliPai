@@ -760,10 +760,12 @@ internal fun createBiliPaiStyleColorScheme(
     }
 
     if (uiStyle == AppUiStyle.MIUIX) {
-        return createMiuixAlignedColorScheme(
-            primaryColor = seedColor,
-            darkTheme = darkTheme,
-            amoledDarkTheme = amoledDarkTheme
+        return enforceDynamicTextContrast(
+            createMiuixAlignedColorScheme(
+                primaryColor = seedColor,
+                darkTheme = darkTheme,
+                amoledDarkTheme = amoledDarkTheme
+            )
         )
     }
 

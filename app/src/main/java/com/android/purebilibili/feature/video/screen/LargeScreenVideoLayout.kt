@@ -200,6 +200,10 @@ internal fun LargeScreenVideoLayout(
                     modifier = modifier,
                     showRelatedVideos = showRelatedInIntro,
                 )
+            } else if (uiState is VideoPlaybackUiState.Loading) {
+                com.android.purebilibili.feature.video.ui.components.VideoDetailInfoPaneSkeleton(
+                    modifier = modifier,
+                )
             }
         }
         val side: @Composable (Boolean) -> Unit = { includeIntro ->
@@ -235,6 +239,12 @@ internal fun LargeScreenVideoLayout(
                     includeRelatedTab = includeRelatedTab,
                     includeOwnerUploadsTab = true,
                     relatedTabFirst = relatedTabFirst,
+                )
+            } else if (uiState is VideoPlaybackUiState.Loading) {
+                com.android.purebilibili.feature.video.ui.components.VideoDetailSecondaryPaneSkeleton(
+                    showComments = !relatedTabFirst || !includeRelatedTab,
+                    modifier = Modifier.fillMaxSize(),
+                    showIntro = includeIntro,
                 )
             }
         }
@@ -535,6 +545,8 @@ private fun LargeScreenPlayerHost(
                     viewportWidthDpOverride = viewportWidthDpOverride,
                 ),
                 actions = VideoPlayerSectionActions(
+                    resolveNextWatch = playbackActions.resolveNextWatch,
+                    playNextWatch = playbackActions.playNextWatch,
                     onToggleFullscreen = onToggleFullscreen,
                     onQualityChange = playbackActions.changeQuality,
                     onBack = onBack,

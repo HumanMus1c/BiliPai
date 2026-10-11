@@ -29,7 +29,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
@@ -73,7 +73,6 @@ import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppLiquidAwareTabRow
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppText
@@ -391,7 +390,7 @@ private fun TimelineSection(
             contentAlignment = Alignment.Center,
         ) {
             AppThemeAdaptiveTabRow(
-                indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                 options = BangumiTimelineRange.entries.map { range ->
                     AppSegmentOption(range, range.label)
                 },
@@ -413,7 +412,7 @@ private fun TimelineSection(
                     112.dp
                 }
                 AppThemeAdaptiveTabRow(
-                    indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                     options = state.days.mapIndexed { index, item ->
                         AppSegmentOption(index, resolveBangumiTimelineDayLabel(item))
                     },
@@ -509,6 +508,7 @@ private fun BangumiIndexContent(
                     108.dp
                 }
                 AppThemeAdaptiveTabRow(
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                     options = categories.map { AppSegmentOption(it, it.label) },
                     selectedValue = category,
                     scrollable = true,
@@ -610,6 +610,7 @@ private fun IndexFilterPanel(
                         88.dp
                     }
                     AppThemeAdaptiveTabRow(
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                         options = group.choices.map { choice ->
                             AppSegmentOption(choice, choice.label)
                         },
@@ -670,7 +671,7 @@ private fun BangumiFollowContent(
         ) {
             if (showStatusTabs) {
                 AppLiquidAwareTabRow(
-                    indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                     options = BangumiFollowStatus.entries.map { AppSegmentOption(it, it.label) },
                     selectedValue = status,
                     enabled = !state.isMutating,
@@ -880,6 +881,7 @@ private fun BangumiSearchContent(
         }
         val searchTabHorizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3) 0.dp else 12.dp
         AppThemeAdaptiveTabRow(
+            role = com.android.purebilibili.core.ui.components.AppTabRowRole.PRIMARY,
             options = categories.map { category -> AppSegmentOption(category, category.label) },
             selectedValue = state.category,
             onSelectionChange = onCategorySelected,

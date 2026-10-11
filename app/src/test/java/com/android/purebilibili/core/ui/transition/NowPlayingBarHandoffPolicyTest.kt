@@ -84,6 +84,24 @@ class NowPlayingBarHandoffPolicyTest {
     }
 
     @Test
+    fun `bar layout reaches endpoint before snapshot chrome becomes visible`() {
+        val revealStart = VideoCardTransitionVisualTimeline.SOURCE_CHROME_RETURN_START
+        val depthAtRevealStart = 1f - revealStart
+        assertEquals(1f, resolveNowPlayingBarMediaLayoutHandoff(depthAtRevealStart), 0.001f)
+        assertEquals(0f, resolveNowPlayingBarSourceChromeReveal(depthAtRevealStart), 0.001f)
+        assertEquals(1f, resolveNowPlayingBarMediaLayoutHandoff(0.1f), 0.001f)
+        assertEquals(0.5f, resolveNowPlayingBarSourceChromeReveal(0.1f), 0.001f)
+    }
+
+    @Test
+    fun `reversing return moves snapshot layout back along the same timeline`() {
+        assertEquals(0f, resolveNowPlayingBarMediaLayoutHandoff(1f), 0.001f)
+        assertEquals(0.5f, resolveNowPlayingBarMediaLayoutHandoff(0.59f), 0.001f)
+        assertEquals(1f, resolveNowPlayingBarMediaLayoutHandoff(0f), 0.001f)
+        assertEquals(0.5f, resolveNowPlayingBarMediaLayoutHandoff(0.59f), 0.001f)
+    }
+
+    @Test
     fun `loading detail shell fill ramps over the early settle window`() {
         assertEquals(0f, resolveSourceShellFillReveal(morphDepthProgress = 1f))
         assertEquals(0.5f, resolveSourceShellFillReveal(morphDepthProgress = 0.91f), 0.001f)

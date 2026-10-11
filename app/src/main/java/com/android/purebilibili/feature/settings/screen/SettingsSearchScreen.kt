@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings.screen
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -117,7 +119,7 @@ fun SettingsSearchScreen(
                         },
                     )
                     if (searchQuery.isNotBlank() && searchResults.size > visibleCount) {
-                        androidx.compose.material3.TextButton(onClick = { visibleCount += 20 }) {
+                        androidx.compose.material3.TextButton(onClick = { visibleCount += 20 }, modifier = Modifier.appElasticPress()) {
                             com.android.purebilibili.core.ui.components.AppText("加载更多")
                         }
                     }

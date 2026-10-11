@@ -382,7 +382,9 @@ internal fun BiliPaiNavDisplayHost(
         previousStack = stackSnapshot
         if (!cardMorphAvailable) {
             videoCardClock.snapClearAndIdle()
-            CardPositionManager.clearNativeVideoCardLayers()
+            if (!stackSnapshot.any { it is BiliPaiNavKey.VideoDetail }) {
+                CardPositionManager.clearNativeVideoCardLayers()
+            }
             return@LaunchedEffect
         }
         val previousTop = previous.lastOrNull()
@@ -442,10 +444,17 @@ internal fun BiliPaiNavDisplayHost(
         }
     }
 
-    // Kept separate from source metadata/currentKey so stack recomposition cannot cancel
-    // cleanup after the return. Re-opening cancels this effect through the clock phase.
-    LaunchedEffect(videoCardClock, cardMorphAvailable, videoCardClock.phase) {
-        if (!cardMorphAvailable || videoCardClock.phase != VideoCardTransitionBackgroundPhase.IDLE) {
+    // Retain click-time pixels for the entire detail round trip, including child pages and
+    // cancelled back gestures. An Idle driver alone does not prove the owning entry has left.
+    val sourceCardOwnerRetained = stackSnapshot.any { key ->
+        key is BiliPaiNavKey.VideoDetail &&
+            key.sourceRoute == sourceMetadata.sourceRoute &&
+            sourceMetadata.sourceKey == "${key.sourceRoute}:${key.bvid}"
+    }
+    LaunchedEffect(videoCardClock, cardMorphAvailable, videoCardClock.phase, sourceCardOwnerRetained) {
+        if (!cardMorphAvailable || sourceCardOwnerRetained ||
+            videoCardClock.phase != VideoCardTransitionBackgroundPhase.IDLE
+        ) {
             return@LaunchedEffect
         }
         val retiringLayer = CardPositionManager.lastClickedNativeCardLayer

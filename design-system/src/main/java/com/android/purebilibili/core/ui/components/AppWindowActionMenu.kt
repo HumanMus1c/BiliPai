@@ -14,11 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.android.purebilibili.core.ui.LocalAppThemeConfig
-import top.yukonga.miuix.kmp.basic.DropdownImpl
-import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.window.WindowListPopup
+import top.yukonga.miuix.kmp.window.WindowCascadingListPopup
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import com.android.purebilibili.core.theme.LocalAppUiStyle
+import com.android.purebilibili.core.theme.AppUiStyle
 
 /**
  * An action exposed from a page-level overflow menu.
@@ -51,7 +52,7 @@ fun AppWindowActionMenu(
     onExpandedChange: ((Boolean) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    if (!LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
+    if (LocalAppUiStyle.current != AppUiStyle.MIUIX || !LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
         var expanded by remember { mutableStateOf(false) }
         var parentActions by remember { mutableStateOf(emptyList<AppWindowAction>()) }
         val visibleGroups = parentActions.lastOrNull()?.let { listOf(it.children) }
@@ -119,76 +120,41 @@ fun AppWindowActionMenu(
         return
     }
 
-    // Own action dispatch here: the dependency's grouped window dropdown does not open
-    // DropdownItem.children. Keep native rows/appearance, but explicitly handle each click.
     var expanded by remember { mutableStateOf(false) }
-    var parentActions by remember { mutableStateOf(emptyList<AppWindowAction>()) }
-    val visibleGroups = parentActions.lastOrNull()?.let { listOf(it.children) }
-        ?: groups.filter { it.isNotEmpty() }
-
+    fun dismiss() {
+        if (expanded) {
+            expanded = false
+            onExpandedChange?.invoke(false)
+        }
+    }
     Box(modifier = modifier) {
         AppIconButton(
             enabled = enabled && groups.any { it.isNotEmpty() },
-            onClick = {
-                parentActions = emptyList()
-                expanded = true
-                onExpandedChange?.invoke(true)
-            },
+            onClick = { expanded = true; onExpandedChange?.invoke(true) },
         ) { content() }
-        WindowListPopup(
+        WindowCascadingListPopup(
             show = expanded,
-            alignment = PopupPositionProvider.Align.End,
-            onDismissRequest = {
-                expanded = false
-                onExpandedChange?.invoke(false)
+            entries = groups.filter { it.isNotEmpty() }.map { actions ->
+                DropdownEntry(items = actions.map { action ->
+                    action.toDropdownItem { selected ->
+                        if (expanded) {
+                            dismiss()
+                            selected.onClick?.invoke()
+                        }
+                    }
+                })
             },
-        ) {
-            ListPopupColumn {
-                if (parentActions.isNotEmpty()) {
-                    AppDropdownMenuItem(
-                        text = { AppText("返回") },
-                        onClick = { parentActions = parentActions.dropLast(1) },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    )
-                }
-                visibleGroups.forEachIndexed { groupIndex, actions ->
-                    if (groupIndex > 0) {
-                        AppHorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-                    }
-                    actions.forEachIndexed { actionIndex, action ->
-                        DropdownImpl(
-                            item = action.toDropdownItem(),
-                            optionSize = actions.size,
-                            isSelected = action.selected,
-                            index = actionIndex,
-                            enabled = action.enabled,
-                            hasSubmenu = action.children.isNotEmpty(),
-                            isFirst = parentActions.isEmpty() && groupIndex == 0 && actionIndex == 0,
-                            isLast = groupIndex == visibleGroups.lastIndex && actionIndex == actions.lastIndex,
-                            onSelectedIndexChange = {
-                                if (expanded && action.enabled) {
-                                    if (action.children.isNotEmpty()) {
-                                        parentActions = parentActions + action
-                                    } else {
-                                        // Close before invoking: one selection must never toggle twice.
-                                        expanded = false
-                                        onExpandedChange?.invoke(false)
-                                        action.onClick?.invoke()
-                                    }
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-        }
+            alignment = PopupPositionProvider.Align.End,
+            onDismissRequest = ::dismiss,
+        )
     }
 }
 
-private fun AppWindowAction.toDropdownItem(): DropdownItem = DropdownItem(
+private fun AppWindowAction.toDropdownItem(onSelected: (AppWindowAction) -> Unit): DropdownItem = DropdownItem(
     text = label,
     enabled = enabled,
     selected = selected,
+    onClick = { onSelected(this) },
     icon = icon?.let { imageVector ->
         { modifier ->
             if (iconTint == null) {
@@ -208,5 +174,5 @@ private fun AppWindowAction.toDropdownItem(): DropdownItem = DropdownItem(
         }
     },
     summary = summary,
-    children = children.takeIf { it.isNotEmpty() }?.map(AppWindowAction::toDropdownItem),
+    children = children.takeIf { it.isNotEmpty() }?.map { it.toDropdownItem(onSelected) },
 )

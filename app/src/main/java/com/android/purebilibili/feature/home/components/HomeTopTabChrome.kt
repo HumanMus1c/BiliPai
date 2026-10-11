@@ -177,6 +177,7 @@ internal fun HomeTopTabChrome(
                         containerWidth = cappedMaxWidth.dp,
                         itemCount = dockCategoryCount,
                         labelMode = dockLabelMode,
+                        shellHeight = resolveHomeTopDockShellHeight(isFloatingStyle = isTabFloating),
                     )
                 } else {
                     val preferredItem = resolveTopTabWrapItemWidthDp(

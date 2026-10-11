@@ -57,6 +57,8 @@ dependencies {
     implementation("io.github.alexzhirkevich:cupertino:0.1.0-alpha04")
     api("io.github.alexzhirkevich:cupertino-icons-extended:0.1.0-alpha04")
     api(libs.miuix.ui)
+    // Shared liquid value controls render a safe sibling track backdrop.
+    implementation(libs.miuix.blur)
     implementation(libs.miuix.preference)
     // ModalBottomSheet/Dialog 侧边预测返回：与 app 内 NavigationBackHandler 同栈。
     implementation("androidx.navigationevent:navigationevent-compose:1.1.2")

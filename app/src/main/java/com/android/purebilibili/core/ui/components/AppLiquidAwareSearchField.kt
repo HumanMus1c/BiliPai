@@ -36,6 +36,8 @@ fun AppLiquidAwareSearchField(
         modifier = modifier,
         backdrop = backdrop,
         reuseEnabled = true,
+        elasticFeedbackEnabled = true,
+        elasticFeedbackStrength = com.android.purebilibili.core.ui.components.APP_SEARCH_ELASTIC_FEEDBACK_STRENGTH,
         useNeutralLiquidContainer = true,
         drawShellLens = true,
         shellLensIntensity = resolveFloatingDockGeometryScale(

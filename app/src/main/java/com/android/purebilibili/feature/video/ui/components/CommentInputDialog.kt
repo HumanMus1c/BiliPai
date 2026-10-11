@@ -1,11 +1,11 @@
 // 文件路径: feature/video/ui/components/CommentInputDialog.kt
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.components.appSearchElasticPress
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
@@ -33,7 +33,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -378,6 +378,7 @@ fun CommentInputDialog(
                 decorFitsSystemWindows = false   // 沉浸式：内容延伸到状态栏/导航栏下
             )
         ) {
+            com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
             val density = LocalDensity.current
             val imeBottomPx = WindowInsets.ime.getBottom(density)
             val navigationBarsBottomPx = WindowInsets.navigationBars.getBottom(density)
@@ -795,7 +796,8 @@ fun CommentInputDialog(
                                     .padding(top = 8.dp)
                             ) {
                                 AppThemeAdaptiveTabRow(
-                                    indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+                                    centerContent = false,
                                     options = emoteTabOptions,
                                     selectedValue = selectedEmoteTab,
                                     onSelectionChange = { currentTab = it },
@@ -819,7 +821,7 @@ fun CommentInputDialog(
                                         )
                                     } else if (selectedEmoteTab == -2L && skinEmojiImages.isNotEmpty()) {
                                         val emotes = skinEmojiImages.toList()
-                                        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                                        com.android.purebilibili.core.ui.components.AppLazyVerticalGrid(
                                             columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(60.dp),
                                             verticalArrangement = Arrangement.spacedBy(12.dp),
                                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -866,7 +868,7 @@ fun CommentInputDialog(
                                                 else -> false
                                             }
                                             val showEmoteLabels = pkg.id != 53L && !pkg.text.startsWith("热词系列")
-                                            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                                            com.android.purebilibili.core.ui.components.AppLazyVerticalGrid(
                                                 columns = if (compactEmotes) {
                                                     androidx.compose.foundation.lazy.grid.GridCells.Fixed(8)
                                                 } else {
@@ -937,7 +939,7 @@ private fun CommentKaomojiGrid(
     enabled: Boolean,
     onChoose: (String) -> Unit,
 ) {
-    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+    com.android.purebilibili.core.ui.components.AppLazyVerticalGrid(
         columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(100.dp),
         modifier = Modifier
             .fillMaxSize()
@@ -997,7 +999,8 @@ private fun CommentMentionSearchPanel(
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .appSearchElasticPress(),
                 singleLine = true,
                 leadingIcon = {
                     AppIcon(

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -28,18 +27,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
@@ -53,6 +60,8 @@ import androidx.navigationevent.findViewTreeNavigationEventDispatcherOwner
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
 import com.android.purebilibili.core.theme.resolveAndroidNativeChromeTokens
+import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import top.yukonga.miuix.kmp.window.WindowDialog
 import com.android.purebilibili.core.ui.motion.AppMotionTokens
 
 data class AdaptiveBottomSheetVisualSpec(
@@ -132,28 +141,14 @@ internal fun resolveAdaptiveBottomSheetMotionSpec(
     )
 }
 
-/**
- * 弹层宿主契约：App 风格对应的 BottomSheet 宿主实现。
- *
- * [MIUIX_OVERLAY] 对应 Miuix OverlayBottomSheet，[MATERIAL3] 对应 Material3
- * ModalBottomSheet。两者不仅外观不同，弹层宿主也不同：OverlayBottomSheet 依赖
- * Miuix overlay popup host（仅 AdaptiveScaffold 的 MIUIX 模式挂载，
- * 见 [resolveAdaptiveScaffoldRenderer]），直接替换会导致无 popup host 的页面
- * 点击无效或弹层不显示 —— 不允许机械替换。业务页不允许自行判断宿主，宿主感知
- * 场景（如筛选弹层）必须消费 [resolveBottomSheetHost]，而不是复制判断逻辑。
- */
+/** Window-level hosts do not depend on an AdaptiveScaffold overlay host. */
 enum class BottomSheetHost {
-    /** Miuix OverlayBottomSheet：依赖 Miuix overlay popup host。 */
-    MIUIX_OVERLAY,
-
-    /** Material3 ModalBottomSheet：任意宿主下可用。 */
+    MIUIX_WINDOW,
     MATERIAL3,
 }
 
-fun resolveBottomSheetHost(
-    uiStyle: AppUiStyle
-): BottomSheetHost = when (uiStyle) {
-    AppUiStyle.MIUIX -> BottomSheetHost.MIUIX_OVERLAY
+fun resolveBottomSheetHost(uiStyle: AppUiStyle): BottomSheetHost = when (uiStyle) {
+    AppUiStyle.MIUIX -> BottomSheetHost.MIUIX_WINDOW
     AppUiStyle.MATERIAL3 -> BottomSheetHost.MATERIAL3
 }
 
@@ -223,18 +218,9 @@ private fun ModalSheetNavigationHost(
 }
 
 /**
- * App 通用模态弹层 facade。紧凑窗口使用底部弹层，Medium 及以上使用限宽居中弹层。
- *
- * 使用 Material3 ModalBottomSheet 作为中性宿主：即使宿主契约
- * （[resolveBottomSheetHost]）在 MIUIX 下解析为 [BottomSheetHost.MIUIX_OVERLAY]，
- * 本 facade 也不做机械替换 —— OverlayBottomSheet 依赖 Miuix overlay popup host
- * （仅 AdaptiveScaffold 的 MIUIX 模式挂载），而本 facade 的调用点无法保证处于该
- * 宿主之下。需要 Miuix overlay 宿主的场景由宿主感知 facade 消费
- * [resolveBottomSheetHost]。两值风格在此仅做视觉区分（容器色、圆角、拖拽条、动效）。
- *
- * 返回：由 [ModalSheetNavigationHost] 在 Dialog 窗口处理侧边/预测返回与 back；
- * Dialog 默认 dismissOnBackPress 关闭以避免双触发。调用方仍可传
- * `dismissOnBackPress = false` 自行接管（如评论楼中楼）。
+ * Compact windows use the theme's native sheet; wide windows use a centered dialog.
+ * Material SheetState controls the Material branch only. Miuix owns its drag/exit state.
+ * Hinge-safe presentation keeps the existing region host to avoid spanning a fold.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -249,8 +235,7 @@ fun AppModalBottomSheet(
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     presentationProgress: Float = 1f,
     dismissOnBackPress: Boolean = true,
-    // Reserve the former handle space without drawing a line; ModalBottomSheet owns swipe gestures.
-    dragHandle: @Composable (() -> Unit)? = { Spacer(Modifier.height(24.dp)) },
+    dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     windowInsets: androidx.compose.foundation.layout.WindowInsets = androidx.compose.material3.BottomSheetDefaults.modalWindowInsets,
     presentationOverride: AppModalPresentation? = null,
     sheetSurfaceModifier: Modifier = Modifier,
@@ -258,50 +243,60 @@ fun AppModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val uiStyle = LocalAppUiStyle.current
-    val miuixNonGlass = isMiuixNonGlassEnabled()
-    // 非（MIUIX 无玻璃）风格才启用系统 blur-behind；Haze 无法跨窗口采样，
-    // 底部弹窗背后的内容模糊依赖系统 FLAG_BLUR_BEHIND（API 31+，设备不支持时自动退化为纯遮罩）。
-    val blurBehind = backgroundBlurBehind && !miuixNonGlass
+    val miuix = uiStyle == AppUiStyle.MIUIX
+    // Window blur is independent of theme and the header's haze/glass preferences.
+    val blurBehind = backgroundBlurBehind
     val configuration = LocalConfiguration.current
-    // 半开折叠屏：sheet 整体收进铰链安全侧，避免横跨折缝。
     val hingeSafeRegions = LocalHingeSafeOverlayRegions.current.sheet
-    val layoutSpec = remember(configuration.screenWidthDp, miuixNonGlass) {
-        resolveAppModalLayoutSpec(
-            windowWidthDp = configuration.screenWidthDp,
-            miuixNonGlass = miuixNonGlass,
-        )
+    val layoutSpec = remember(configuration.screenWidthDp, miuix) {
+        resolveAppModalLayoutSpec(configuration.screenWidthDp, miuixNonGlass = miuix)
     }
-    val visualSpec = remember(uiStyle, miuixNonGlass) {
-        resolveAdaptiveBottomSheetVisualSpec(
-            uiStyle = uiStyle,
-            miuixNonGlass = miuixNonGlass,
-        )
+    val centered = (presentationOverride ?: layoutSpec.presentation) == AppModalPresentation.CenteredDialog
+    val resolvedColor = if (containerColor == MaterialTheme.colorScheme.surface) {
+        if (miuix) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surfaceContainerLow
+    } else containerColor
+
+    if (miuix && hingeSafeRegions == null) {
+        var show by remember { mutableStateOf(true) }
+        val latestDismiss by rememberUpdatedState(onDismissRequest)
+        val body: @Composable () -> Unit = {
+            val blurMotionModifier = rememberSheetBlurMotionModifier(blurBehind, trackPosition = !centered)
+            // Consume back when the caller handles it inside the sheet (e.g. reply navigation).
+            // Drag/outside dismissal remains available independently of this back policy.
+            if (!dismissOnBackPress) {
+                NavigationBackHandler(
+                    state = rememberNavigationEventState(NavigationEventInfo.None),
+                    onBackCompleted = {},
+                )
+            }
+            Column(Modifier.fillMaxWidth().then(blurMotionModifier).then(sheetSurfaceModifier), content = content)
+        }
+        if (centered) {
+            WindowDialog(
+                show = show,
+                modifier = modifier.heightIn(max = (configuration.screenHeightDp * layoutSpec.maxHeightFraction).dp),
+                backgroundColor = resolvedColor,
+                maxWidth = layoutSpec.maxWidthDp.dp,
+                largeScreen = true,
+                insideMargin = DpSize(0.dp, 0.dp),
+                onDismissRequest = { show = false },
+                onDismissFinished = { latestDismiss() },
+                content = body,
+            )
+        } else {
+            WindowBottomSheet(
+                show = show,
+                modifier = modifier,
+                backgroundColor = resolvedColor,
+                insideMargin = DpSize(0.dp, 0.dp),
+                onDismissRequest = { show = false },
+                onDismissFinished = { latestDismiss() },
+                content = body,
+            )
+        }
+        return
     }
-    val adaptiveSheetShape = remember(visualSpec) {
-        RoundedCornerShape(
-            topStart = visualSpec.cornerRadiusDp.dp,
-            topEnd = visualSpec.cornerRadiusDp.dp,
-        )
-    }
-    val sheetShape = shape ?: adaptiveSheetShape
-    val centeredSheetShape = shape ?: RoundedCornerShape(visualSpec.cornerRadiusDp.dp)
-    val progressVisual = resolveInteractiveOverlayProgressVisual(
-        presentationProgress = presentationProgress,
-        surfaceType = InteractiveOverlaySurfaceType.BOTTOM_SHEET,
-        blurActive = !miuixNonGlass,
-        maxScrimAlpha = scrimColor.alpha
-    )
-    val resolvedContainerColor = when (uiStyle) {
-        AppUiStyle.MIUIX -> MaterialTheme.colorScheme.surfaceContainer
-        AppUiStyle.MATERIAL3 -> MaterialTheme.colorScheme.surfaceContainerLow
-    }.let { color ->
-        color.copy(alpha = color.alpha * progressVisual.surfaceAlphaMultiplier)
-    }
-    // 返回统一走 ModalSheetNavigationHost（Dialog 窗口 NavigationBackHandler），
-    // 关闭 Dialog 默认 dismissOnBackPress，避免侧边返回与 back 双触发。
-    if (hingeSafeRegions != null ||
-        (presentationOverride ?: layoutSpec.presentation) == AppModalPresentation.CenteredDialog
-    ) {
+    if (hingeSafeRegions != null || centered) {
         Dialog(
             onDismissRequest = onDismissRequest,
             properties = DialogProperties(
@@ -310,29 +305,34 @@ fun AppModalBottomSheet(
                 decorFitsSystemWindows = false,
             ),
         ) {
-            ModalSheetNavigationHost(
-                dismissOnBackPress = dismissOnBackPress,
-                onDismissRequest = onDismissRequest,
-            ) {
-                ModalWindowBlurBehindEffect(enabled = blurBehind)
+            ModalWindowBlurBehindEffect(enabled = blurBehind)
+            ModalSheetNavigationHost(dismissOnBackPress, onDismissRequest) {
                 val surface: @Composable () -> Unit = {
                     BoxWithConstraints {
-                        AppPopupSurface(
-                            type = AppPopupSurfaceType.DIALOG,
-                            modifier = modifier
-                                .widthIn(max = layoutSpec.maxWidthDp.dp)
-                                .heightIn(
-                                    max = minOf(maxHeight, (configuration.screenHeightDp *
-                                        layoutSpec.maxHeightFraction).dp)
-                                )
-                                .fillMaxWidth()
-                                .pointerInput(Unit) { detectTapGestures { } },
-                            shape = centeredSheetShape,
-                            containerColor = resolvedContainerColor,
-                            contentColor = contentColor,
-                            tonalElevation = tonalElevation,
-                        ) {
-                            Column(content = content)
+                        val surfaceModifier = modifier.widthIn(max = layoutSpec.maxWidthDp.dp)
+                            .heightIn(max = minOf(maxHeight, (configuration.screenHeightDp * layoutSpec.maxHeightFraction).dp))
+                            .fillMaxWidth().pointerInput(Unit) { detectTapGestures { } }
+                        val surfaceContent: @Composable () -> Unit = {
+                            Column(Modifier.then(sheetSurfaceModifier), content = content)
+                        }
+                        if (miuix) {
+                            AppPopupSurface(
+                                type = AppPopupSurfaceType.DIALOG,
+                                modifier = surfaceModifier,
+                                shape = shape ?: RoundedCornerShape(28.dp),
+                                containerColor = resolvedColor,
+                                contentColor = contentColor,
+                                content = surfaceContent,
+                            )
+                        } else {
+                            Surface(
+                                modifier = surfaceModifier,
+                                shape = shape ?: MaterialTheme.shapes.extraLarge,
+                                color = resolvedColor,
+                                contentColor = contentColor,
+                                tonalElevation = tonalElevation,
+                                content = surfaceContent,
+                            )
                         }
                     }
                 }
@@ -354,42 +354,19 @@ fun AppModalBottomSheet(
         modifier = modifier,
         sheetState = sheetState,
         properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
-        shape = sheetShape,
-        containerColor = Color.Transparent,
+        shape = shape ?: BottomSheetDefaults.ExpandedShape,
+        containerColor = resolvedColor,
         contentColor = contentColor,
         tonalElevation = tonalElevation,
-        scrimColor = scrimColor.copy(alpha = progressVisual.scrimAlpha),
-        dragHandle = null,
+        scrimColor = scrimColor,
+        dragHandle = dragHandle,
         contentWindowInsets = { windowInsets },
-        content = {
-            ModalSheetNavigationHost(
-                dismissOnBackPress = dismissOnBackPress,
-                onDismissRequest = onDismissRequest,
-            ) {
-                ModalWindowBlurBehindEffect(enabled = blurBehind)
-                AppPopupSurface(
-                    type = AppPopupSurfaceType.SHEET,
-                    modifier = Modifier.fillMaxWidth().then(sheetSurfaceModifier),
-                    shape = sheetShape,
-                    containerColor = resolvedContainerColor,
-                    contentColor = contentColor,
-                    tonalElevation = tonalElevation,
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        if (dragHandle != null) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                dragHandle()
-                            }
-                        }
-                        content()
-                    }
-                }
-            }
+    ) {
+        val blurMotionModifier = rememberSheetBlurMotionModifier(blurBehind)
+        ModalSheetNavigationHost(dismissOnBackPress, onDismissRequest) {
+            Column(Modifier.fillMaxWidth().then(blurMotionModifier).then(sheetSurfaceModifier), content = content)
         }
-    )
+    }
 }
 
 data class AppBottomSheetMotion(
@@ -437,4 +414,22 @@ fun AppBottomSheetDragHandle() {
                 .background(MaterialTheme.colorScheme.outlineVariant)
         )
     }
+}
+
+/** Follow the native sheet motion without a second animation or frame-rate recomposition. */
+@Composable
+private fun rememberSheetBlurMotionModifier(enabled: Boolean, trackPosition: Boolean = true): Modifier {
+    val view = LocalView.current
+    val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    ModalWindowBlurBehindEffect(enabled = enabled, progress = {
+        if (!trackPosition) 1f else {
+            val layout = coordinates[0]
+            if (layout == null || !layout.isAttached || layout.size.height == 0) 0f
+            else {
+                val top = layout.localToWindow(Offset.Zero).y
+                ((view.rootView.height - top) / layout.size.height.toFloat()).coerceIn(0f, 1f)
+            }
+        }
+    })
+    return Modifier.onGloballyPositioned { coordinates[0] = it }
 }

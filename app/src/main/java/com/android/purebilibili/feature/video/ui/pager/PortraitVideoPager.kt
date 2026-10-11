@@ -5,6 +5,8 @@
 
 package com.android.purebilibili.feature.video.ui.pager
 
+import com.android.purebilibili.feature.video.ui.overlay.NextWatchOverlay
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1583,6 +1585,7 @@ fun PortraitVideoPager(
         portraitUpPreviewActive = false
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     VerticalPager(
         state = pagerState,
         userScrollEnabled = shouldEnablePortraitPagerUserScroll(
@@ -1766,6 +1769,46 @@ fun PortraitVideoPager(
                 onRequestCollectionItem = jumpToPortraitPageForVideo
             )
         }
+    }
+
+        NextWatchOverlay(
+            player = exoPlayer,
+            mediaKey = "portrait:$currentPlayingBvid:$currentPlayingCid",
+            eligible = isPortraitPlaybackAllowed && !isLoading && !pagerState.isScrollInProgress &&
+                !portraitCommentOverlayActive && !portraitUpPreviewActive &&
+                playbackCompletionBehavior != com.android.purebilibili.core.store.PlaybackCompletionBehavior.REPEAT_ONE,
+            resolve = {
+                val targetPage = if (pagerState.currentPage < pageItems.lastIndex) pagerState.currentPage + 1
+                    else if (playbackCompletionBehavior == com.android.purebilibili.core.store.PlaybackCompletionBehavior.LOOP_PLAYLIST) 0 else -1
+                val next = pageItems.getOrNull(targetPage)
+                val info = when (next) {
+                    is ViewInfo -> next
+                    is RelatedVideo -> toViewInfoForPortraitDetail(next)
+                    else -> null
+                }
+                if (info != null && info.bvid.isNotBlank() &&
+                    (info.bvid != currentPlayingBvid || info.cid != currentPlayingCid)) {
+                    com.android.purebilibili.feature.video.playback.next.NextWatchSuggestion(
+                        currentPlayingBvid.orEmpty(), currentPlayingCid, info.bvid, info.cid,
+                        info.title, info.pic, if (isExternalPlaylist) "接下来观看" else "推荐观看",
+                        playlistIndex = targetPage
+                    )
+                } else null
+            },
+            play = { target ->
+                val next = pageItems.getOrNull(target.playlistIndex ?: -1)
+                val info = when (next) {
+                    is ViewInfo -> next
+                    is RelatedVideo -> toViewInfoForPortraitDetail(next)
+                    else -> null
+                }
+                if (target.sourceBvid == currentPlayingBvid && target.sourceCid == currentPlayingCid &&
+                    info != null && info.bvid == target.bvid && info.cid == target.cid && target.playlistIndex != null) {
+                    scope.launch { pagerState.animateScrollToPage(target.playlistIndex) }
+                    true
+                } else false
+            },
+        )
     }
 
     com.android.purebilibili.feature.video.ui.components.CoinDialog(

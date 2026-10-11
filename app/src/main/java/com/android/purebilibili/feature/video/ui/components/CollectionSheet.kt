@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -68,7 +68,6 @@ import com.android.purebilibili.feature.home.components.cards.HorizontalVideoSta
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
 import com.android.purebilibili.core.ui.components.AppSegmentOption
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
 import com.android.purebilibili.core.ui.rememberAppClearIcon
@@ -334,7 +333,8 @@ fun CollectionSheet(
             // （胶囊指示器/拖拽选档/按压折射），关闭时回落主题原生样式
             if (sections.size > 1) {
                 AppThemeAdaptiveTabRow(
-                    indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                    role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+                    centerContent = false,
                     options = sections.mapIndexed { index, section ->
                         AppSegmentOption(index, section.title.ifBlank { "第${index + 1}季" })
                     },

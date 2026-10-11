@@ -18,6 +18,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.purebilibili.core.theme.AppUiStyle
@@ -30,7 +31,7 @@ import com.android.purebilibili.feature.video.ui.section.VideoGestureMode
  * Layout, placement, icon family and motion all differ by style.
  */
 enum class GestureLevelOverlayStyle {
-    /** Material 3: centered, theme-colored circular indicator. */
+    /** Material 3: compact horizontal bar at the top of the player. */
     Md3,
     /** iOS: centered frosted capsule with SF-style glyphs. */
     Ios,
@@ -116,12 +117,12 @@ fun resolveGestureLevelOverlaySpec(
             showPercentText = true,
             verticalRail = false,
             accentColor = colorScheme.primary,
-            trackColor = colorScheme.primary.copy(alpha = 0.16f),
-            fillColor = colorScheme.primary,
-            containerColor = colorScheme.surfaceContainerHigh,
+            trackColor = Color.White.copy(alpha = 0.18f),
+            fillColor = lerp(colorScheme.primary, Color.White, 0.30f),
+            containerColor = Color(0xFF16181D).copy(alpha = 0.70f),
             borderColor = colorScheme.outlineVariant,
-            iconTint = colorScheme.primary,
-            textColor = colorScheme.onSurface,
+            iconTint = Color.White,
+            textColor = Color.White,
             railWidthDp = 0,
             railHeightDp = 0,
             capsuleMinWidthDp = 0,
@@ -169,19 +170,6 @@ fun resolveGestureLevelOverlaySpec(
             topInsetDp = 32
         )
     }
-}
-
-internal fun resolveMd3GestureLevelDiameterDp(
-    availableWidthDp: Float,
-    availableHeightDp: Float
-): Float {
-    val shortSide = minOf(availableWidthDp, availableHeightDp).coerceAtLeast(0f)
-    val preferred = when {
-        shortSide < 300f -> 112f
-        shortSide < 600f -> 136f
-        else -> 160f
-    }
-    return minOf(preferred, (shortSide - 16f).coerceAtLeast(0f))
 }
 
 fun resolveGestureLevelIcon(

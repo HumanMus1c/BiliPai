@@ -23,10 +23,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import com.android.purebilibili.core.ui.rememberHomeStaggeredGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.android.purebilibili.core.ui.components.AppLazyVerticalStaggeredGrid as LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.*  // 🌊 瀑布流布局
 import top.yukonga.miuix.kmp.blur.Backdrop as MiuixBackdrop
 import com.android.purebilibili.core.ui.blur.rememberChromeBackdropSource
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,8 +52,6 @@ import com.android.purebilibili.core.ui.components.AppModalNavigationDrawer
 import com.android.purebilibili.core.ui.components.AppButton
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
-import com.android.purebilibili.core.ui.common.HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER
 import com.android.purebilibili.navigation.animatePagerSelection
 import androidx.compose.material3.rememberDrawerState
 import com.android.purebilibili.feature.home.components.MineSideDrawer
@@ -508,12 +507,12 @@ fun HomeScreen(
         displayedTabIndex = displayedTabIndexFromState
     )
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = initialPage) { topTabEntries.size }
-    val heroCarouselPointerActive = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    val heroCarouselPointerActive = remember { mutableStateOf(false) }
     val onHeroCarouselGestureActiveChange = remember(heroCarouselPointerActive) {
-        { active: Boolean -> heroCarouselPointerActive.set(active) }
+        { active: Boolean -> heroCarouselPointerActive.value = active }
     }
     val shouldYieldHomePagerToHeroCarousel = remember(heroCarouselPointerActive) {
-        { shouldYieldHomeTopPagerToHeroCarousel(heroCarouselPointerActive.get()) }
+        { shouldYieldHomeTopPagerToHeroCarousel(heroCarouselPointerActive.value) }
     }
     // PagerState 会从 SaveableState 恢复实际页码；不能用 initialPage 判断同步状态，
     // 否则详情返回后可能把恢复的旧页反向写回当前分类。
@@ -1999,16 +1998,10 @@ fun HomeScreen(
                         HorizontalPager(
                             state = pagerState,
                             beyondViewportPageCount = 0,
-                            userScrollEnabled = false,
+                            userScrollEnabled = homeTopPagerSwipeEnabled,
+                            shouldYieldGesture = shouldYieldHomePagerToHeroCarousel,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .verticalPriorityHorizontalPagerSwipe(
-                                    state = pagerState,
-                                    enabled = homeTopPagerSwipeEnabled,
-                                    horizontalLockSlopMultiplier =
-                                        HOME_PAGER_HORIZONTAL_LOCK_SLOP_MULTIPLIER,
-                                    shouldYield = shouldYieldHomePagerToHeroCarousel,
-                                ),
+                                .fillMaxSize(),
                             key = { index -> resolveHomeTopTabEntryKey(topTabEntries, index) }
                         ) { page ->
                         when (val entry = resolveHomeTopTabEntryOrNull(topTabEntries, page)) {

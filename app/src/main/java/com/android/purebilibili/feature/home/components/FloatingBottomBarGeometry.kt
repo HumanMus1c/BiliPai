@@ -249,15 +249,18 @@ internal fun resolveFloatingDockIndicatorHeightDp(
 ): Float {
     if (requestedHeightDp <= 0f) return 0f
     if (tabWidthDp <= 0f) return requestedHeightDp
+    if (geometryMode == FloatingBottomBarGeometryMode.TopNavigation) {
+        // Top labels and icons share one inset shell. Slot width must not flatten
+        // the indicator vertically; overflow is handled by the top rail's layout.
+        return min(requestedHeightDp, shellHeightDp ?: requestedHeightDp).coerceAtLeast(0f)
+    }
     if (geometryMode == FloatingBottomBarGeometryMode.Segmented) {
         // Compact segmented controls use a 2dp resting inset and fit their pill to the slot.
         val insetHeight = shellHeightDp?.let { (it - 4f).coerceAtLeast(0f) }
             ?: requestedHeightDp
         return resolveSegmentedControlIndicatorHeightDp(tabWidthDp, insetHeight)
     }
-    // Top navigation shares dock geometry. Applying the segmented 1.35 aspect cap here
-    // shrinks its rest/capture height while press still targets 78dp, magnifying the
-    // captured shell edges more than the bottom dock during the same gesture.
+    // The bottom dock retains its reference height and slot-aspect policy.
     // Dock 模式同样留出静止垂直边距，按 HyperIsland 的 64/56 比例（壳高 × 4/64）。
     // 兜底：调用方即使把高度传满壳高，指示器也不会贴住上下边缘。
     val restingInsetDp = shellHeightDp

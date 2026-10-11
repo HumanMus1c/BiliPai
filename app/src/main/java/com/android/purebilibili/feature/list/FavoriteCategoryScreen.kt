@@ -14,11 +14,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.MaterialTheme
+import com.android.purebilibili.core.ui.components.AppFloatingToolbar
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -344,8 +348,7 @@ private fun FavoriteCategoryContent(
         state.section == FavoriteSection.CINEMA ||
         state.section == FavoriteSection.NOTE
     val stickyChromeReserve = headerInset +
-        (if (hasFilterRow) 48.dp else AppSpacingTokens.None) +
-        (if (state.selectedIds.isNotEmpty()) 48.dp else AppSpacingTokens.None)
+        (if (hasFilterRow) 48.dp else AppSpacingTokens.None)
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             state.isLoading && state.items.isEmpty() -> Box(
@@ -375,7 +378,8 @@ private fun FavoriteCategoryContent(
                 state = state.copy(items = visibleItems),
                 gridState = gridState,
                 topPadding = stickyChromeReserve,
-                bottomPadding = contentPadding.calculateBottomPadding(),
+                bottomPadding = contentPadding.calculateBottomPadding() +
+                    if (state.selectedIds.isNotEmpty()) 80.dp else 0.dp,
                 onLoadMore = onLoadMore,
                 onToggleSelection = onToggleSelection,
                 onRemove = onRemove,
@@ -405,15 +409,13 @@ private fun FavoriteCategoryContent(
                     onSelected = { onPublishedNotesSelected(it == 1) },
                 )
             }
-
-            if (state.selectedIds.isNotEmpty()) {
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppSpacingTokens.Medium),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacingTokens.Small),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacingTokens.ExtraSmall),
-                ) {
+        }
+        if (state.selectedIds.isNotEmpty()) {
+            AppFloatingToolbar(
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(start = 12.dp, end = 12.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp),
+            ) {
+                Row(Modifier.horizontalScroll(rememberScrollState())) {
                     if (state.section == FavoriteSection.BANGUMI || state.section == FavoriteSection.CINEMA) {
                         FavoritePgcStatus.entries.forEach { status ->
                             AppTextButton(onClick = { onUpdateSelectedPgcStatus(status) }) {
@@ -425,9 +427,7 @@ private fun FavoriteCategoryContent(
                             AppText("删除(${state.selectedIds.size})")
                         }
                     }
-                    AppTextButton(onClick = onClearSelection) {
-                        AppText("取消选择")
-                    }
+                    AppTextButton(onClick = onClearSelection) { AppText("取消选择") }
                 }
             }
         }
@@ -454,6 +454,7 @@ private fun FavoriteCategoryFilterRow(
         Dp.Unspecified
     }
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
         options = options,
         selectedValue = selectedIndex.coerceIn(0, labels.lastIndex.coerceAtLeast(0)),
         onSelectionChange = onSelected,

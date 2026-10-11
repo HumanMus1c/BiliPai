@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.geometry.Rect
@@ -208,6 +209,22 @@ internal fun resolveVideoDetailFlyingSourceChromeAlpha(
     return maxOf(regularAlpha, returnProgress)
 }
 
+/** Only the info pixels to the right of the moving media edge may be painted. */
+internal fun resolveVideoDetailHorizontalInfoClipLeftPx(
+    viewportWidthPx: Float,
+    coverRightPx: Float,
+    infoLeftPx: Float,
+    inverseScaleX: Float,
+    handoffProgress: Float,
+    localScaleX: Float = 1f,
+): Float {
+    val progress = handoffProgress.coerceIn(0f, 1f)
+    val mediaRight = viewportWidthPx +
+        (coverRightPx * inverseScaleX - viewportWidthPx) * progress
+    return ((mediaRight - infoLeftPx * inverseScaleX) /
+        localScaleX.coerceAtLeast(0.01f)).coerceAtLeast(0f)
+}
+
 /**
  * Reconstructs the source card's information region in the same entry that owns the flying media.
  * The retained list card is layout-only until the navigation transition reaches IDLE.
@@ -227,6 +244,7 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
     },
     isReturnGestureInProgressProvider: () -> Boolean = { true },
     followProgressEnabledProvider: () -> Boolean = { true },
+    horizontalMediaHandoffEnabled: Boolean = true,
 ) {
     val model = resolveVideoDetailReturnSourceCardChromeModel(info, sourceChromeSnapshot) ?: return
     val isNowPlayingBar = sourceChromeSnapshot?.isNowPlayingBar == true
@@ -267,6 +285,28 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
             sourceScaleX = layout.sourceScale,
             sourceScaleY = sourceScaleY,
             depth = morphDepthProgressProvider(),
+        )
+    }
+
+    fun horizontalInfoClipLeftPx(localScaleX: Float = 1f): Float {
+        if (!horizontalMediaHandoffEnabled ||
+            layout.layout != VideoCardSourceLayout.SIDE_BY_SIDE || isNowPlayingBar
+        ) return 0f
+        val sourceAlpha = resolveVideoDetailFlyingSourceChromeAlpha(
+            morphDepthProgress = morphDepthProgressProvider(),
+            phase = phaseProvider(),
+            isReturnGestureInProgress = isReturnGestureInProgressProvider(),
+            sourceLayout = layout.layout,
+            detailContentLoading = detailContentLoading,
+            followProgressEnabled = followProgressEnabledProvider(),
+        )
+        return resolveVideoDetailHorizontalInfoClipLeftPx(
+            viewportWidthPx = viewportWidthPx,
+            coverRightPx = layout.coverOffsetXPx + layout.coverWidthPx,
+            infoLeftPx = frozenInfoAnchorXPx,
+            inverseScaleX = currentInverseScale().scaleX,
+            handoffProgress = sourceAlpha,
+            localScaleX = localScaleX,
         )
     }
 
@@ -342,13 +382,15 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
             )
         }.drawWithContent {
             val inverse = currentInverseScale()
-            scale(
-                scaleX = inverse.scaleX,
-                scaleY = inverse.scaleY,
-                pivot = Offset.Zero,
-            ) {
-                translate(-cropXPx, -cropYPx) {
-                    drawLayer(nativeCardLayer)
+            clipRect(left = horizontalInfoClipLeftPx().coerceAtMost(size.width)) {
+                scale(
+                    scaleX = inverse.scaleX,
+                    scaleY = inverse.scaleY,
+                    pivot = Offset.Zero,
+                ) {
+                    translate(-cropXPx, -cropYPx) {
+                        drawLayer(nativeCardLayer)
+                    }
                 }
             }
         }
@@ -460,6 +502,11 @@ internal fun BoxScope.VideoDetailReturnSourceCardChrome(
                     .width(infoWidth)
                     .height(cardHeight)
                     .landingLayer()
+                    .drawWithContent {
+                        val left = horizontalInfoClipLeftPx(currentInverseScale().scaleX)
+                            .coerceAtMost(size.width)
+                        clipRect(left = left) { this@drawWithContent.drawContent() }
+                    }
                     .then(
                         if (isCapsuleDock) {
                             Modifier

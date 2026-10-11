@@ -58,7 +58,7 @@ object BiliGrpcClient {
                     "BiliGrpc",
                     "gRPC request failed: path=$path http=${response.code} grpc=$grpcStatus message=${grpcMessage.orEmpty()}"
                 )
-                error("gRPC request failed: http=${response.code}, grpc=$grpcStatus")
+                error("请求失败：HTTP ${response.code}，gRPC $grpcStatus，${grpcMessage.orEmpty()}")
             }
             return ProtoWire.unframe(body)
         }

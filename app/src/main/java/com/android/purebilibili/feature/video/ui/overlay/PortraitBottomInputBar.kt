@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.appElasticPress
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -112,6 +113,7 @@ private fun PortraitInputIconButton(
     Box(
         modifier = Modifier
             .size(layoutPolicy.actionButtonSizeDp.dp)
+            .appElasticPress()
             .clip(CircleShape)
             .background(
                 if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f) else Color.Transparent

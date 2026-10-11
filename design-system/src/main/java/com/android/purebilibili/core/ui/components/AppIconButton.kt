@@ -3,6 +3,7 @@ package com.android.purebilibili.core.ui.components
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.android.purebilibili.core.theme.AppUiStyle
@@ -83,24 +84,37 @@ private fun AppIconButtonImpl(
     variant: AppIconButtonVariant,
     content: @Composable () -> Unit,
 ) {
-    when (LocalAppUiStyle.current) {
-        AppUiStyle.MATERIAL3 -> AppMaterial3IconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            colors = colors,
-            interactionSource = interactionSource,
-            variant = variant,
-            content = content,
-        )
-        AppUiStyle.MIUIX -> AppMiuixIconButton(
-            onClick = onClick,
-            modifier = modifier,
-            enabled = enabled,
-            colors = colors,
-            interactionSource = interactionSource,
-            variant = variant,
-            content = content,
-        )
+    ProvideAppElasticFeedback(enabled = enabled) {
+        when (LocalAppUiStyle.current) {
+            AppUiStyle.MATERIAL3 -> AppMaterial3IconButton(
+                onClick = onClick,
+                modifier = modifier.appElasticPress(
+                    enabled = enabled,
+                    highlightShape = when (variant) {
+                        AppIconButtonVariant.Standard -> androidx.compose.material3.IconButtonDefaults.standardShape
+                        AppIconButtonVariant.Filled -> androidx.compose.material3.IconButtonDefaults.filledShape
+                    },
+                ),
+                enabled = enabled,
+                colors = colors,
+                interactionSource = interactionSource,
+                variant = variant,
+                content = content,
+            )
+            AppUiStyle.MIUIX -> AppMiuixIconButton(
+                onClick = onClick,
+                modifier = modifier.appElasticPress(
+                    enabled = enabled,
+                    highlightShape = androidx.compose.foundation.shape.RoundedCornerShape(
+                        com.android.purebilibili.core.ui.AppChromeSizeTokens.MiuixNativeCompactCornerRadiusDp.dp,
+                    ),
+                ),
+                enabled = enabled,
+                colors = colors,
+                interactionSource = interactionSource,
+                variant = variant,
+                content = content,
+            )
+        }
     }
 }

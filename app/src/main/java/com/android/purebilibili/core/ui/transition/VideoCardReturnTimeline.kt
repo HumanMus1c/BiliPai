@@ -127,16 +127,24 @@ internal fun resolveVideoCardLiveReturnVisualHandoffAlpha(
 )
 
 /**
- * Flying media remesure progress. Reaches 1 at chrome reveal so cover crop already matches
- * the frozen cover box when title/stats fade in.
+ * Stacked media reaches its cover slot before chrome reveal. Horizontal media and its
+ * adjacent info region share one handoff, so shrinking media never exposes an empty panel.
  */
 internal fun resolveVideoDetailReturnMediaLayoutHandoffProgress(
     morphDepthProgress: Float,
     phase: VideoCardTransitionBackgroundPhase,
     isReturnGestureInProgress: Boolean,
     sourceLayout: VideoCardSourceLayout,
+    sourceChromeAlpha: Float? = null,
 ): Float {
     val depth = morphDepthProgress.coerceIn(0f, 1f)
+    if (sourceLayout == VideoCardSourceLayout.SIDE_BY_SIDE) {
+        return sourceChromeAlpha?.coerceIn(0f, 1f) ?: (1f - resolveVideoCardDetailChromeAlpha(
+            morphDepthProgress = depth,
+            phase = phase,
+            isReturnGestureInProgress = isReturnGestureInProgress,
+        ))
+    }
     // Remeasure only on an actual return. HELD with a tiny depth dip is enough to squash a
     // 16:9 inline player toward a related-card 16:10 cover while the user is still watching.
     if (

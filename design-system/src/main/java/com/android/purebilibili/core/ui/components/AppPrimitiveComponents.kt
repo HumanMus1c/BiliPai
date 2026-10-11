@@ -32,8 +32,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.snap
@@ -116,14 +114,10 @@ import top.yukonga.miuix.kmp.basic.ButtonColors as MiuixButtonColors
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private const val APP_TAB_INDICATOR_DURATION_MILLIS = 300
-private val flutterEase = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
-private val PiliPlusIndicatorDecelerate = Easing { fraction ->
-    kotlin.math.sin(flutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
-}
-private val PiliPlusIndicatorAccelerate = Easing { fraction ->
-    1f - kotlin.math.cos(flutterEase.transform(fraction) * Math.PI.toFloat() / 2f)
-}
+private const val APP_TAB_INDICATOR_DURATION_MILLIS =
+    com.android.purebilibili.core.ui.motion.AppTabIndicatorMotion.DurationMillis
+private val PiliPlusIndicatorDecelerate = com.android.purebilibili.core.ui.motion.AppTabIndicatorMotion.decelerate
+private val PiliPlusIndicatorAccelerate = com.android.purebilibili.core.ui.motion.AppTabIndicatorMotion.accelerate
 
 internal data class ElasticTabIndicatorBounds(
     val leftDp: Float,
@@ -202,7 +196,7 @@ private fun AppElasticTabIndicator(
     indicatorPositionProvider: (() -> Float)? = null,
 ) {
     if (tabSlots.isEmpty()) return
-    val animateIndicator = com.android.purebilibili.core.ui.LocalComponentMotionEnabled.current &&
+    val animateIndicator = !com.android.purebilibili.core.ui.LocalSystemReduceMotion.current &&
         indicatorPositionProvider == null
     val followPosition = indicatorPositionProvider?.invoke()
     val safeIndex = selectedTabIndex.coerceIn(tabSlots.indices)
@@ -495,49 +489,52 @@ fun AppButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
-    val readableContentColor = resolveButtonContentColor(containerColor, contentColor, MaterialTheme.colorScheme)
-    val miuixColors = MiuixButtonColors(
-        color = containerColor,
-        disabledColor = disabledContainerColor,
-        contentColor = readableContentColor,
-        disabledContentColor = disabledContentColor,
-    )
-    when (LocalAppUiStyle.current) {
-        AppUiStyle.MIUIX -> AppMiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = miuixColors,
-            insideMargin = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
+    ProvideAppElasticFeedback(enabled = enabled) {
+        val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+        val interactionModifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
+        val readableContentColor = resolveButtonContentColor(containerColor, contentColor, MaterialTheme.colorScheme)
+        val miuixColors = MiuixButtonColors(
+            color = containerColor,
+            disabledColor = disabledContainerColor,
+            contentColor = readableContentColor,
+            disabledContentColor = disabledContentColor,
         )
-        AppUiStyle.MATERIAL3 -> Button(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            shape = shape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = containerColor,
-                contentColor = readableContentColor,
-                disabledContainerColor = disabledContainerColor,
-                disabledContentColor = disabledContentColor,
-            ),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = defaultElevation,
-                pressedElevation = pressedElevation,
-            ),
-            border = border,
-            contentPadding = resolveAppButtonContentPadding(
-                uiStyle = LocalAppUiStyle.current,
-                requested = contentPadding,
-                defaultPadding = ButtonDefaults.ContentPadding,
-            ),
-            interactionSource = resolvedInteractionSource,
-            content = content,
-        )
+        when (LocalAppUiStyle.current) {
+            AppUiStyle.MIUIX -> AppMiuixButton(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                colors = miuixColors,
+                insideMargin = contentPadding,
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+            AppUiStyle.MATERIAL3 -> Button(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                shape = shape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = containerColor,
+                    contentColor = readableContentColor,
+                    disabledContainerColor = disabledContainerColor,
+                    disabledContentColor = disabledContentColor,
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = defaultElevation,
+                    pressedElevation = pressedElevation,
+                ),
+                border = border,
+                contentPadding = resolveAppButtonContentPadding(
+                    uiStyle = LocalAppUiStyle.current,
+                    requested = contentPadding,
+                    defaultPadding = ButtonDefaults.ContentPadding,
+                ),
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+        }
     }
 }
 
@@ -554,55 +551,58 @@ fun AppButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
-    val miuixColors = colors?.let {
-        MiuixButtonColors(
-            color = it.containerColor,
-            disabledColor = it.disabledContainerColor,
-            contentColor = it.contentColor,
-            disabledContentColor = it.disabledContentColor,
+    ProvideAppElasticFeedback(enabled = enabled) {
+        val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+        val interactionModifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
+        val miuixColors = colors?.let {
+            MiuixButtonColors(
+                color = it.containerColor,
+                disabledColor = it.disabledContainerColor,
+                contentColor = it.contentColor,
+                disabledContentColor = it.disabledContentColor,
+            )
+        } ?: MiuixButtonDefaults.buttonColorsPrimary()
+        val readableMiuixColors = MiuixButtonColors(
+            color = miuixColors.color,
+            disabledColor = miuixColors.disabledColor,
+            contentColor = resolveButtonContentColor(miuixColors.color, miuixColors.contentColor, MaterialTheme.colorScheme),
+            disabledContentColor = miuixColors.disabledContentColor,
         )
-    } ?: MiuixButtonDefaults.buttonColorsPrimary()
-    val readableMiuixColors = MiuixButtonColors(
-        color = miuixColors.color,
-        disabledColor = miuixColors.disabledColor,
-        contentColor = resolveButtonContentColor(miuixColors.color, miuixColors.contentColor, MaterialTheme.colorScheme),
-        disabledContentColor = miuixColors.disabledContentColor,
-    )
-    val materialColors = colors ?: ButtonDefaults.buttonColors(
-        containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-        contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
-    )
-    val readableMaterialColors = materialColors.copy(
-        contentColor = resolveButtonContentColor(materialColors.containerColor, materialColors.contentColor, MaterialTheme.colorScheme),
-    )
-    when (LocalAppUiStyle.current) {
-        AppUiStyle.MIUIX -> AppMiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = readableMiuixColors,
-            insideMargin = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
+        val materialColors = colors ?: ButtonDefaults.buttonColors(
+            containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
+            contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme),
         )
-        AppUiStyle.MATERIAL3 -> Button(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            shape = shape,
-            colors = readableMaterialColors,
-            elevation = elevation,
-            border = border,
-            contentPadding = resolveAppButtonContentPadding(
-                uiStyle = LocalAppUiStyle.current,
-                requested = contentPadding,
-                defaultPadding = ButtonDefaults.ContentPadding,
-            ),
-            interactionSource = resolvedInteractionSource,
-            content = content,
+        val readableMaterialColors = materialColors.copy(
+            contentColor = resolveButtonContentColor(materialColors.containerColor, materialColors.contentColor, MaterialTheme.colorScheme),
         )
+        when (LocalAppUiStyle.current) {
+            AppUiStyle.MIUIX -> AppMiuixButton(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                colors = readableMiuixColors,
+                insideMargin = contentPadding,
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+            AppUiStyle.MATERIAL3 -> Button(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                shape = shape,
+                colors = readableMaterialColors,
+                elevation = elevation,
+                border = border,
+                contentPadding = resolveAppButtonContentPadding(
+                    uiStyle = LocalAppUiStyle.current,
+                    requested = contentPadding,
+                    defaultPadding = ButtonDefaults.ContentPadding,
+                ),
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+        }
     }
 }
 
@@ -617,34 +617,37 @@ fun AppTextButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
-    val miuixColors = MiuixButtonColors(
-        color = colors.containerColor,
-        disabledColor = colors.disabledContainerColor,
-        contentColor = colors.contentColor,
-        disabledContentColor = colors.disabledContentColor,
-    )
-    when (LocalAppUiStyle.current) {
-        AppUiStyle.MIUIX -> AppMiuixButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            colors = miuixColors,
-            insideMargin = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
+    ProvideAppElasticFeedback(enabled = enabled) {
+        val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+        val interactionModifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
+        val miuixColors = MiuixButtonColors(
+            color = colors.containerColor,
+            disabledColor = colors.disabledContainerColor,
+            contentColor = colors.contentColor,
+            disabledContentColor = colors.disabledContentColor,
         )
-        AppUiStyle.MATERIAL3 -> TextButton(
-            onClick = onClick,
-            modifier = interactionModifier,
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            contentPadding = contentPadding,
-            interactionSource = resolvedInteractionSource,
-            content = content,
-        )
+        when (LocalAppUiStyle.current) {
+            AppUiStyle.MIUIX -> AppMiuixButton(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                colors = miuixColors,
+                insideMargin = contentPadding,
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+            AppUiStyle.MATERIAL3 -> TextButton(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                shape = shape,
+                colors = colors,
+                contentPadding = contentPadding,
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+        }
     }
 }
 
@@ -769,7 +772,7 @@ fun AppDropdownMenu(
     shape: androidx.compose.ui.graphics.Shape? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
+    if (LocalAppUiStyle.current == AppUiStyle.MIUIX && LocalAppThemeConfig.current.nativeMiuixPopupsEnabled) {
         WindowListPopup(
             show = expanded,
             popupModifier = modifier,
@@ -780,9 +783,6 @@ fun AppDropdownMenu(
             }
         }
     } else {
-        val resolvedShape = shape ?: com.android.purebilibili.core.ui.AppShapes.container(
-            com.android.purebilibili.core.ui.ContainerLevel.Card
-        )
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = onDismissRequest,
@@ -790,20 +790,9 @@ fun AppDropdownMenu(
             offset = offset,
             scrollState = scrollState,
             properties = properties,
-            shape = resolvedShape,
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-        ) {
-            com.android.purebilibili.core.ui.AppPopupSurface(
-                type = com.android.purebilibili.core.ui.AppPopupSurfaceType.MENU,
-                shape = resolvedShape,
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Column(content = content)
-            }
-        }
+            shape = shape ?: androidx.compose.material3.MenuDefaults.shape,
+            content = content,
+        )
     }
 }
 
@@ -922,32 +911,35 @@ fun AppOutlinedButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
-    val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
-    val interactionModifier = modifier.appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        AppMiuixButton(
+    ProvideAppElasticFeedback(enabled = enabled) {
+        val resolvedInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+        val interactionModifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape)
+            .appDesktopInteractionVisuals(resolvedInteractionSource, enabled)
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixButton(
+                onClick = onClick,
+                modifier = interactionModifier,
+                enabled = enabled,
+                colors = MiuixButtonDefaults.buttonColors(),
+                insideMargin = contentPadding,
+                interactionSource = resolvedInteractionSource,
+                content = content,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        OutlinedButton(
             onClick = onClick,
             modifier = interactionModifier,
             enabled = enabled,
-            colors = MiuixButtonDefaults.buttonColors(),
-            insideMargin = contentPadding,
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border,
+            contentPadding = contentPadding,
             interactionSource = resolvedInteractionSource,
             content = content,
         )
-        return
     }
-    OutlinedButton(
-        onClick = onClick,
-        modifier = interactionModifier,
-        enabled = enabled,
-        shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
-        contentPadding = contentPadding,
-        interactionSource = resolvedInteractionSource,
-        content = content,
-    )
 }
 
 @Composable
@@ -966,34 +958,36 @@ fun AppAssistChip(
     contentPadding: PaddingValues = AssistChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        AppMiuixChip(
+    ProvideAppElasticFeedback(enabled = enabled) {
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixChip(
+                onClick = onClick,
+                selected = false,
+                enabled = enabled,
+                modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
+                leadingIcon = leadingIcon,
+                trailingIcon = trailingIcon,
+                interactionSource = interactionSource,
+                label = label,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        AssistChip(
             onClick = onClick,
-            selected = false,
+            label = label,
+            modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
             enabled = enabled,
-            modifier = modifier,
             leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border,
+            horizontalArrangement = horizontalArrangement,
+            contentPadding = contentPadding,
             interactionSource = interactionSource,
-            label = label,
         )
-        return
     }
-    AssistChip(
-        onClick = onClick,
-        label = label,
-        modifier = modifier,
-        enabled = enabled,
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon,
-        shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
-        horizontalArrangement = horizontalArrangement,
-        contentPadding = contentPadding,
-        interactionSource = interactionSource,
-    )
 }
 
 @Composable
@@ -1013,35 +1007,37 @@ fun AppFilterChip(
     contentPadding: PaddingValues = FilterChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        AppMiuixChip(
-            onClick = onClick,
+    ProvideAppElasticFeedback(enabled = enabled) {
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixChip(
+                onClick = onClick,
+                selected = selected,
+                enabled = enabled,
+                modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
+                leadingIcon = leadingIcon,
+                trailingIcon = trailingIcon,
+                interactionSource = interactionSource,
+                label = label,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        FilterChip(
             selected = selected,
+            onClick = onClick,
+            label = label,
+            modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
             enabled = enabled,
-            modifier = modifier,
             leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border,
+            horizontalArrangement = horizontalArrangement,
+            contentPadding = contentPadding,
             interactionSource = interactionSource,
-            label = label,
         )
-        return
     }
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        modifier = modifier,
-        enabled = enabled,
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon,
-        shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
-        horizontalArrangement = horizontalArrangement,
-        contentPadding = contentPadding,
-        interactionSource = interactionSource,
-    )
 }
 
 @Composable
@@ -1054,27 +1050,62 @@ fun AppInputChip(
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        AppMiuixChip(
-            onClick = onClick,
+    ProvideAppElasticFeedback(enabled = enabled) {
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixChip(
+                onClick = onClick,
+                selected = selected,
+                enabled = enabled,
+                modifier = modifier.appElasticPress(enabled = enabled),
+                leadingIcon = leadingIcon,
+                trailingIcon = trailingIcon,
+                interactionSource = null,
+                label = label,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        InputChip(
             selected = selected,
+            onClick = onClick,
+            label = label,
+            modifier = modifier.appElasticPress(enabled = enabled),
             enabled = enabled,
-            modifier = modifier,
             leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
-            interactionSource = null,
-            label = label,
         )
-        return
     }
-    InputChip(
-        selected = selected,
-        onClick = onClick,
-        label = label,
-        modifier = modifier,
-        enabled = enabled,
-        leadingIcon = leadingIcon,
-        trailingIcon = trailingIcon,
+}
+
+@Composable
+private fun resolveReadableFloatingActionButtonColors(
+    requestedContainerColor: Color,
+    requestedContentColor: Color,
+): Pair<Color, Color> {
+    val defaultContainer = FloatingActionButtonDefaults.containerColor
+    val defaultContent = contentColorFor(defaultContainer)
+    val isMiuix = LocalAppUiStyle.current == AppUiStyle.MIUIX
+    val resolvedContainer = if (isMiuix) {
+        resolveMiuixFabContainerColor(
+            requested = requestedContainerColor,
+            defaultMaterialContainer = defaultContainer,
+            miuixPrimary = MiuixTheme.colorScheme.primary,
+        )
+    } else {
+        requestedContainerColor
+    }
+    val preferredContent = if (isMiuix) {
+        resolveMiuixFabContentColor(
+            requested = requestedContentColor,
+            defaultMaterialContent = defaultContent,
+            miuixOnPrimary = MiuixTheme.colorScheme.onPrimary,
+        )
+    } else {
+        requestedContentColor
+    }
+    return resolvedContainer to resolveButtonContentColor(
+        containerColor = resolvedContainer,
+        contentColor = preferredContent,
+        colorScheme = MaterialTheme.colorScheme,
     )
 }
 
@@ -1089,36 +1120,33 @@ fun AppFloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        val defaultContainer = FloatingActionButtonDefaults.containerColor
-        AppMiuixFloatingActionButton(
+    ProvideAppElasticFeedback(enabled = true) {
+        val (resolvedContainerColor, resolvedContentColor) = resolveReadableFloatingActionButtonColors(
+            requestedContainerColor = containerColor,
+            requestedContentColor = contentColor,
+        )
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixFloatingActionButton(
+                onClick = onClick,
+                modifier = modifier.appElasticPress(highlightShape = shape),
+                containerColor = resolvedContainerColor,
+                contentColor = resolvedContentColor,
+                small = false,
+                content = content,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        FloatingActionButton(
             onClick = onClick,
-            modifier = modifier,
-            containerColor = resolveMiuixFabContainerColor(
-                requested = containerColor,
-                defaultMaterialContainer = defaultContainer,
-                miuixPrimary = MiuixTheme.colorScheme.primary,
-            ),
-            contentColor = resolveMiuixFabContentColor(
-                requested = contentColor,
-                defaultMaterialContent = contentColorFor(defaultContainer),
-                miuixOnPrimary = MiuixTheme.colorScheme.onPrimary,
-            ),
-            small = false,
+            modifier = modifier.appElasticPress(highlightShape = shape),
+            shape = shape,
+            containerColor = resolvedContainerColor,
+            contentColor = resolvedContentColor,
+            elevation = elevation,
+            interactionSource = interactionSource,
             content = content,
         )
-        return
     }
-    FloatingActionButton(
-        onClick = onClick,
-        modifier = modifier,
-        shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        elevation = elevation,
-        interactionSource = interactionSource,
-        content = content,
-    )
 }
 
 @Composable
@@ -1132,36 +1160,33 @@ fun AppSmallFloatingActionButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        val defaultContainer = FloatingActionButtonDefaults.containerColor
-        AppMiuixFloatingActionButton(
+    ProvideAppElasticFeedback(enabled = true) {
+        val (resolvedContainerColor, resolvedContentColor) = resolveReadableFloatingActionButtonColors(
+            requestedContainerColor = containerColor,
+            requestedContentColor = contentColor,
+        )
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixFloatingActionButton(
+                onClick = onClick,
+                modifier = modifier.appElasticPress(highlightShape = shape),
+                containerColor = resolvedContainerColor,
+                contentColor = resolvedContentColor,
+                small = true,
+                content = content,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        SmallFloatingActionButton(
             onClick = onClick,
-            modifier = modifier,
-            containerColor = resolveMiuixFabContainerColor(
-                requested = containerColor,
-                defaultMaterialContainer = defaultContainer,
-                miuixPrimary = MiuixTheme.colorScheme.primary,
-            ),
-            contentColor = resolveMiuixFabContentColor(
-                requested = contentColor,
-                defaultMaterialContent = contentColorFor(defaultContainer),
-                miuixOnPrimary = MiuixTheme.colorScheme.onPrimary,
-            ),
-            small = true,
+            modifier = modifier.appElasticPress(highlightShape = shape),
+            shape = shape,
+            containerColor = resolvedContainerColor,
+            contentColor = resolvedContentColor,
+            elevation = elevation,
+            interactionSource = interactionSource,
             content = content,
         )
-        return
     }
-    SmallFloatingActionButton(
-        onClick = onClick,
-        modifier = modifier,
-        shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        elevation = elevation,
-        interactionSource = interactionSource,
-        content = content,
-    )
 }
 
 @Composable
@@ -1286,31 +1311,33 @@ fun AppSuggestionChip(
     contentPadding: PaddingValues = SuggestionChipDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
 ) {
-    if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
-        AppMiuixChip(
+    ProvideAppElasticFeedback(enabled = enabled) {
+        if (LocalAppUiStyle.current == AppUiStyle.MIUIX) {
+            AppMiuixChip(
+                onClick = onClick,
+                selected = false,
+                enabled = enabled,
+                modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
+                leadingIcon = icon,
+                trailingIcon = null,
+                interactionSource = interactionSource,
+                label = label,
+            )
+            return@ProvideAppElasticFeedback
+        }
+        SuggestionChip(
             onClick = onClick,
-            selected = false,
-            enabled = enabled,
-            modifier = modifier,
-            leadingIcon = icon,
-            trailingIcon = null,
-            interactionSource = interactionSource,
             label = label,
+            modifier = modifier.appElasticPress(enabled = enabled, highlightShape = shape),
+            enabled = enabled,
+            icon = icon,
+            shape = shape,
+            colors = colors,
+            elevation = elevation,
+            border = border,
+            horizontalArrangement = horizontalArrangement,
+            contentPadding = contentPadding,
+            interactionSource = interactionSource,
         )
-        return
     }
-    SuggestionChip(
-        onClick = onClick,
-        label = label,
-        modifier = modifier,
-        enabled = enabled,
-        icon = icon,
-        shape = shape,
-        colors = colors,
-        elevation = elevation,
-        border = border,
-        horizontalArrangement = horizontalArrangement,
-        contentPadding = contentPadding,
-        interactionSource = interactionSource,
-    )
 }

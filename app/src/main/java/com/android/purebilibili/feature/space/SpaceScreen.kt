@@ -40,7 +40,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.android.purebilibili.core.ui.components.liquidDockViewport
 import androidx.compose.foundation.layout.*
@@ -49,7 +49,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -99,6 +99,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
@@ -3254,27 +3255,37 @@ private fun SpaceSecondarySwitchRow(
             uiStyle = uiStyle,
         )
     }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = spec.horizontalPaddingDp.dp, vertical = 6.dp),
-    ) {
-        AppNativeTabRow(
-            options = items.map { AppSegmentOption(it.id, it.title) },
-            selectedValue = selectedId,
-            onSelectionChange = onSelect,
-            modifier = Modifier.fillMaxWidth(),
-            scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
-            minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
-            indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
-            compactMiuixWhenTwoOptions = false,
-            // Let the shared renderer size each Miuix item from its own label;
-            // long labels remain fully visible inside the horizontal rail.
-            allowLabelOverflow = true,
-            miuixNonGlassItemWidthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
-            contentSizedMiuixNonGlassItems = true,
-            contentSizedMiuixNonGlassMaxItemWidth = Dp.Infinity,
-        )
+    val themeConfig = LocalAppThemeConfig.current
+    // Contribution categories keep the same content-sized Miuix buttons with
+    // either glass preference. Scope the override to this row only.
+    val tabThemeConfig = if (uiStyle == AppUiStyle.MIUIX) {
+        themeConfig.copy(liquidGlassEnabled = false)
+    } else {
+        themeConfig
+    }
+    CompositionLocalProvider(LocalAppThemeConfig provides tabThemeConfig) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = spec.horizontalPaddingDp.dp, vertical = 6.dp),
+        ) {
+            AppNativeTabRow(
+                options = items.map { AppSegmentOption(it.id, it.title) },
+                selectedValue = selectedId,
+                onSelectionChange = onSelect,
+                modifier = Modifier.fillMaxWidth(),
+                scrollable = shouldScrollSpaceSecondarySwitchForNonGlass(items.size),
+                minTabWidth = resolveSpaceSecondarySwitchNonGlassMinTabWidthDp().dp,
+                indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                compactMiuixWhenTwoOptions = false,
+                // Let the shared renderer size each Miuix item from its own label;
+                // long labels remain fully visible inside the horizontal rail.
+                allowLabelOverflow = true,
+                miuixNonGlassItemWidthMode = MiuixNonGlassTabItemWidthMode.CONTENT,
+                contentSizedMiuixNonGlassItems = true,
+                contentSizedMiuixNonGlassMaxItemWidth = Dp.Infinity,
+            )
+        }
     }
 }
 
@@ -3294,9 +3305,11 @@ private fun SpaceMainTabRow(
             .padding(top = 6.dp, bottom = 2.dp)
     ) {
         AppThemeAdaptiveTabRow(
+            role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
             options = tabs.map { AppSegmentOption(it.tab, it.title) },
             selectedValue = tabs[selectedIndex].tab,
             onSelectionChange = onSelect,
+            centerContent = false,
             scrollable = spec.scrollable,
             dragSelectionEnabled = spec.dragSelectionEnabled,
             tapPressRefractionEnabled = true,

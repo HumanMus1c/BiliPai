@@ -31,6 +31,24 @@ class SettingsLayoutRefinementStructureTest {
     }
 
     @Test
+    fun mergedPlaybackPageRendersCommentsAndFocusOrderMatchesTheList() {
+        val playback = source("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
+        val commentSection = playback.substringAfter(
+            "if (page == PlaybackSettingsPage.PLAYBACK || page == PlaybackSettingsPage.COMMENTS) {"
+        ).substringBefore("if (page == PlaybackSettingsPage.PLAYBACK || page == PlaybackSettingsPage.FULLSCREEN)")
+        assertTrue(commentSection.contains("SettingsSearchFocusIds.PLAYBACK_COMMENTS"))
+        assertTrue(commentSection.contains("playbackControls = false"))
+        val content = playback.substringAfter("    LazyColumn(")
+        val sectionKeys = Regex("item\\(key = SettingsSearchFocusIds\\.(PLAYBACK_[A-Z_]+)\\)")
+            .findAll(content).map { match -> match.groupValues[1] }.toList()
+        val focusSource = source("src/main/java/com/android/purebilibili/feature/settings/SettingsSearchFocusPolicy.kt")
+        val focusKeys = Regex("SettingsSearchFocusIds\\.(PLAYBACK_[A-Z_]+)")
+            .findAll(focusSource.substringAfter("internal val playbackSettingsSectionKeys = listOf(")
+                .substringBefore(")")).map { it.groupValues[1] }.toList()
+        kotlin.test.assertEquals(focusKeys, sectionKeys)
+    }
+
+    @Test
     fun playbackAndGlassControlsRemainOnTheirOriginalSettingsPages() {
         val playback = source("src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt")
         val animation = source("src/main/java/com/android/purebilibili/feature/settings/screen/AnimationSettingsScreen.kt")

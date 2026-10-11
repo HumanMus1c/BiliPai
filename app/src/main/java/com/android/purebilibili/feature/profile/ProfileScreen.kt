@@ -27,7 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -2029,6 +2029,7 @@ private fun ProfileSpaceTabs(
     val chromeSpec = remember { resolveProfileSpaceTabChromeSpec() }
     val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
         options = tabs.map { AppSegmentOption(it.tab, it.title) },
         selectedValue = tabs[selectedIndex].tab,
         onSelectionChange = onTabSelected,

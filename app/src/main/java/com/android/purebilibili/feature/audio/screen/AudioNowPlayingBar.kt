@@ -6,6 +6,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import com.android.purebilibili.core.ui.components.appElasticPress
+import com.android.purebilibili.core.ui.components.rememberAppElasticPressState
+import com.android.purebilibili.core.ui.components.LocalElasticPressEnabled
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -133,455 +137,468 @@ internal fun AudioNowPlayingBar(
     surfaceMergeProgress: () -> Float = dockMergeProgress,
     modifier: Modifier = Modifier
 ) {
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val screenWidthPx = remember(configuration.screenWidthDp, density) {
-        with(density) { configuration.screenWidthDp.dp.toPx() }
-    }
-    val screenHeightPx = remember(configuration.screenHeightDp, density) {
-        with(density) { configuration.screenHeightDp.dp.toPx() }
-    }
-    SideEffect {
-        CardPositionManager.invalidateVideoSourceIfWindowChanged(screenWidthPx, screenHeightPx)
-    }
+    com.android.purebilibili.core.ui.components.ProvideAppElasticFeedback {
+        val configuration = LocalConfiguration.current
+        val density = LocalDensity.current
+        val screenWidthPx = remember(configuration.screenWidthDp, density) {
+            with(density) { configuration.screenWidthDp.dp.toPx() }
+        }
+        val screenHeightPx = remember(configuration.screenHeightDp, density) {
+            with(density) { configuration.screenHeightDp.dp.toPx() }
+        }
+        SideEffect {
+            CardPositionManager.invalidateVideoSourceIfWindowChanged(screenWidthPx, screenHeightPx)
+        }
 
-    val nativeBarLayer = rememberNativeVideoCardLayer()
-    val snapshotScope = rememberCoroutineScope()
-    var captureInProgress by remember(state.bvid) { mutableStateOf(false) }
-    val barCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val dissolveContext = LocalContext.current
+        val nativeBarLayer = rememberNativeVideoCardLayer()
+        val snapshotScope = rememberCoroutineScope()
+        var captureInProgress by remember(state.bvid) { mutableStateOf(false) }
+        val barCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
+        val coverCoordsRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
+        val dissolveContext = LocalContext.current
 
-    // 从窗口已绘制的像素截取横条，避免离屏重绘实时模糊/旋转图层。
-    // 粒子首帧出现后隐藏本体，消散完成后再暂停并关闭。
-    var cancelDissolving by remember(state.bvid) { mutableStateOf(false) }
-    var dissolveContentHidden by remember(state.bvid) { mutableStateOf(false) }
-    var dissolveEffectView by remember { mutableStateOf<ThanosEffectView?>(null) }
+        // 从窗口已绘制的像素截取横条，避免离屏重绘实时模糊/旋转图层。
+        // 粒子首帧出现后隐藏本体，消散完成后再暂停并关闭。
+        var cancelDissolving by remember(state.bvid) { mutableStateOf(false) }
+        var dissolveContentHidden by remember(state.bvid) { mutableStateOf(false) }
+        var dissolveEffectView by remember { mutableStateOf<ThanosEffectView?>(null) }
 
-    fun finishCancelDissolveCleanup() {
-        // Dock / AnimatedVisibility 保留本体直到退场结束。粒子结束后不能恢复
-        // alpha，否则清理与宿主移除之间会重新露出横条，随后再淡出一次。
-        dissolveContentHidden = true
-        dissolveEffectView?.dispose()
-        dissolveEffectView = null
-        // 关闭过程保持锁定；退出组合（或切换视频）后才重置。
-    }
+        fun finishCancelDissolveCleanup() {
+            // Dock / AnimatedVisibility 保留本体直到退场结束。粒子结束后不能恢复
+            // alpha，否则清理与宿主移除之间会重新露出横条，随后再淡出一次。
+            dissolveContentHidden = true
+            dissolveEffectView?.dispose()
+            dissolveEffectView = null
+            // 关闭过程保持锁定；退出组合（或切换视频）后才重置。
+        }
 
-    val handleCancelClick: () -> Unit = {
-        if (!cancelDissolving) {
-            val hostWindow = dissolveContext.findHostActivity()?.window
-            if (hostWindow == null || !isThanosEffectSupported(dissolveContext)) {
-                onDismiss()
-            } else {
-                cancelDissolving = true
-                snapshotScope.launch {
-                    try {
-                        withFrameNanos { }
-                        val windowBounds = barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInWindow()
-                        val snapshot = if (windowBounds != null && !windowBounds.isEmpty) {
-                            withTimeoutOrNull(500L) {
-                                captureAudioNowPlayingWindowSnapshot(hostWindow, windowBounds)
+        val handleCancelClick: () -> Unit = {
+            if (!cancelDissolving) {
+                val hostWindow = dissolveContext.findHostActivity()?.window
+                if (hostWindow == null || !isThanosEffectSupported(dissolveContext)) {
+                    onDismiss()
+                } else {
+                    cancelDissolving = true
+                    snapshotScope.launch {
+                        try {
+                            withFrameNanos { }
+                            val windowBounds = barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInWindow()
+                            val snapshot = if (windowBounds != null && !windowBounds.isEmpty) {
+                                withTimeoutOrNull(500L) {
+                                    captureAudioNowPlayingWindowSnapshot(hostWindow, windowBounds)
+                                }
+                            } else {
+                                null
                             }
-                        } else {
-                            null
-                        }
-                        if (snapshot == null) {
-                            finishCancelDissolveCleanup()
-                            onDismiss()
-                            return@launch
-                        }
-                        val bitmap = snapshot.bitmap
-                        dissolveEffectView?.dispose()
-                        dissolveEffectView = ThanosEffectView.attach(
-                            window = hostWindow,
-                            bitmap = bitmap,
-                            windowBounds = android.graphics.RectF(snapshot.windowBounds),
-                            onFirstFrame = { dissolveContentHidden = true },
-                            onComplete = {
+                            if (snapshot == null) {
                                 finishCancelDissolveCleanup()
                                 onDismiss()
-                            },
-                        )
-                        if (dissolveEffectView == null) {
-                            if (!bitmap.isRecycled) bitmap.recycle()
+                                return@launch
+                            }
+                            val bitmap = snapshot.bitmap
+                            dissolveEffectView?.dispose()
+                            dissolveEffectView = ThanosEffectView.attach(
+                                window = hostWindow,
+                                bitmap = bitmap,
+                                windowBounds = android.graphics.RectF(snapshot.windowBounds),
+                                onFirstFrame = { dissolveContentHidden = true },
+                                onComplete = {
+                                    finishCancelDissolveCleanup()
+                                    onDismiss()
+                                },
+                            )
+                            if (dissolveEffectView == null) {
+                                if (!bitmap.isRecycled) bitmap.recycle()
+                                finishCancelDissolveCleanup()
+                                onDismiss()
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            com.android.purebilibili.core.util.Logger.w(
+                                "AudioNowPlayingBar", "Cancel dissolve failed: ${error.message}",
+                            )
                             finishCancelDissolveCleanup()
                             onDismiss()
                         }
+                    }
+                }
+            }
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                dissolveEffectView?.dispose()
+                dissolveEffectView = null
+            }
+        }
+
+        val handleExpand = {
+            if (onCompactClick != null) {
+                onCompactClick()
+            } else if (!captureInProgress && canOpenAudioNowPlayingBarSource(isLayoutStable)) {
+                barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
+                    val sourceCoverBounds = coverCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()
+                    val effectiveSourceLayout = if (iconOnlyProgress() >= 0.99f) {
+                        VideoCardSourceLayout.COVER_ONLY
+                    } else {
+                        VideoCardSourceLayout.SIDE_BY_SIDE
+                    }
+                    if (state.bvid.isNotBlank() &&
+                        bounds.left.isFinite() && bounds.top.isFinite() &&
+                        bounds.right.isFinite() && bounds.bottom.isFinite() &&
+                        bounds.width > 0f && bounds.height > 0f
+                    ) {
+                        CardPositionManager.recordVideoCardPosition(
+                            bvid = state.bvid,
+                            sourceRoute = sourceRoute,
+                            bounds = bounds,
+                            screenWidth = screenWidthPx,
+                            screenHeight = screenHeightPx,
+                            density = density.density,
+                            sourceCornerDp = 28,
+                            coverBounds = sourceCoverBounds,
+                            sourceLayout = effectiveSourceLayout,
+                            sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                                title = state.title,
+                                ownerName = state.artist,
+                                ownerFaceUrl = state.artistAvatarUrl,
+                                viewText = "",
+                                danmakuText = "",
+                                durationText = "",
+                                followed = false,
+                                isNowPlayingBar = true,
+                            )
+                        )
+                    }
+                }
+                // Finish freezing before navigation removes the bar's graphics layer.
+                CardPositionManager.clearNativeVideoCardLayers()
+                captureNativeVideoCardImage(nativeBarLayer)
+                val expectedSourceKey = CardPositionManager.lastClickedVideoSourceKey
+                captureInProgress = true
+                snapshotScope.launch {
+                    try {
+                        captureNativeVideoCardBitmap(nativeBarLayer, expectedSourceKey)
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
                         com.android.purebilibili.core.util.Logger.w(
-                            "AudioNowPlayingBar", "Cancel dissolve failed: ${error.message}",
+                            "AudioNowPlayingBar", "Could not freeze return snapshot: ${error.message}",
                         )
-                        finishCancelDissolveCleanup()
-                        onDismiss()
+                    } finally {
+                        captureInProgress = false
                     }
+                    onExpand()
                 }
             }
         }
-    }
+        val reduceMotion = rememberSystemReduceMotion()
+        val sourceInActiveReturn = resolveNowPlayingBarReturnVisibility(
+            handoff = handoff,
+            currentBvid = state.bvid,
+        ) <= 0f
 
-    DisposableEffect(Unit) {
-        onDispose {
-            dissolveEffectView?.dispose()
-            dissolveEffectView = null
-        }
-    }
-
-    val handleExpand = {
-        if (onCompactClick != null) {
-            onCompactClick()
-        } else if (!captureInProgress && canOpenAudioNowPlayingBarSource(isLayoutStable)) {
-            barCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()?.let { bounds ->
-                val sourceCoverBounds = coverCoordsRef[0]?.takeIf { it.isAttached }?.boundsInRoot()
-                val effectiveSourceLayout = if (iconOnlyProgress() >= 0.99f) {
-                    VideoCardSourceLayout.COVER_ONLY
-                } else {
-                    VideoCardSourceLayout.SIDE_BY_SIDE
-                }
-                if (state.bvid.isNotBlank() &&
-                    bounds.left.isFinite() && bounds.top.isFinite() &&
-                    bounds.right.isFinite() && bounds.bottom.isFinite() &&
-                    bounds.width > 0f && bounds.height > 0f
-                ) {
-                    CardPositionManager.recordVideoCardPosition(
-                        bvid = state.bvid,
-                        sourceRoute = sourceRoute,
-                        bounds = bounds,
-                        screenWidth = screenWidthPx,
-                        screenHeight = screenHeightPx,
-                        density = density.density,
-                        sourceCornerDp = 28,
-                        coverBounds = sourceCoverBounds,
-                        sourceLayout = effectiveSourceLayout,
-                        sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
-                            title = state.title,
-                            ownerName = state.artist,
-                            ownerFaceUrl = state.artistAvatarUrl,
-                            viewText = "",
-                            danmakuText = "",
-                            durationText = "",
-                            followed = false,
-                            isNowPlayingBar = true,
-                        )
-                    )
-                }
+        val chrome = resolveMusicPlayerChromeSpec(
+            uiStyle = LocalAppUiStyle.current,
+            glassEnabled = glassEnabled
+        )
+        val shape = resolveSharedBottomBarCapsuleShape()
+        val glassActive = glassEnabled && miuixBackdrop != null
+        val immersiveBackdrop: Color? =
+            com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
+                .immersiveBackdropColor.collectAsState().value
+        val defaultContainerColor = resolveBiliPaiBottomBarShellColor(
+            containerColor = AppSurfaceTokens.surfaceContainer(),
+            liquidGlassEnabled = glassEnabled,
+            darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background()),
+            liquidGlassTuning = liquidGlassTuning,
+        )
+        // 悬浮在沉浸式音乐页上时，容器取封面主色的暗化版本，避免主题中性灰与
+        // 封面氛围色冲突。玻璃材质保留外壳的半透明度，仅替换 RGB 为氛围色调。
+        val containerColor = if (immersiveBackdrop != null) {
+            val tint = immersiveBackdrop.darken(0.52f)
+            if (glassActive) {
+                tint.copy(alpha = defaultContainerColor.alpha)
+            } else {
+                androidx.compose.ui.graphics.lerp(defaultContainerColor, tint, 0.85f)
             }
-            // Finish freezing before navigation removes the bar's graphics layer.
-            CardPositionManager.clearNativeVideoCardLayers()
-            captureNativeVideoCardImage(nativeBarLayer)
-            val expectedSourceKey = CardPositionManager.lastClickedVideoSourceKey
-            captureInProgress = true
-            snapshotScope.launch {
-                try {
-                    captureNativeVideoCardBitmap(nativeBarLayer, expectedSourceKey)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (error: Exception) {
-                    com.android.purebilibili.core.util.Logger.w(
-                        "AudioNowPlayingBar", "Could not freeze return snapshot: ${error.message}",
-                    )
-                } finally {
-                    captureInProgress = false
-                }
-                onExpand()
-            }
-        }
-    }
-    val reduceMotion = rememberSystemReduceMotion()
-    val sourceInActiveReturn = resolveNowPlayingBarReturnVisibility(
-        handoff = handoff,
-        currentBvid = state.bvid,
-    ) <= 0f
-
-    val chrome = resolveMusicPlayerChromeSpec(
-        uiStyle = LocalAppUiStyle.current,
-        glassEnabled = glassEnabled
-    )
-    val shape = resolveSharedBottomBarCapsuleShape()
-    val glassActive = glassEnabled && miuixBackdrop != null
-    val immersiveBackdrop: Color? =
-        com.android.purebilibili.feature.audio.player.AudioNowPlayingSession
-            .immersiveBackdropColor.collectAsState().value
-    val defaultContainerColor = resolveBiliPaiBottomBarShellColor(
-        containerColor = AppSurfaceTokens.surfaceContainer(),
-        liquidGlassEnabled = glassEnabled,
-        darkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background()),
-        liquidGlassTuning = liquidGlassTuning,
-    )
-    // 悬浮在沉浸式音乐页上时，容器取封面主色的暗化版本，避免主题中性灰与
-    // 封面氛围色冲突。玻璃材质保留外壳的半透明度，仅替换 RGB 为氛围色调。
-    val containerColor = if (immersiveBackdrop != null) {
-        val tint = immersiveBackdrop.darken(0.52f)
-        if (glassActive) {
-            tint.copy(alpha = defaultContainerColor.alpha)
         } else {
-            androidx.compose.ui.graphics.lerp(defaultContainerColor, tint, 0.85f)
+            defaultContainerColor
         }
-    } else {
-        defaultContainerColor
-    }
-    val immersiveContentColor = if (immersiveBackdrop != null) {
-        Color.White
-    } else {
-        null
-    }
-    // 迷你条封面旋转：播放时逐帧失效是预期开销（封面独占 graphicsLayer，
-    // 不会连带模糊外壳层重绘）；暂停后 while 循环退出，帧率自然回落。
-    val coverRotationDegrees = rememberMusicArtworkRotationDegrees(
-        active = shouldRotateMusicArtwork(
-            isPlaying = state.isPlaying,
-            reduceMotion = reduceMotion
-        ),
-        contentKey = state.coverUrl,
-        playbackSpeed = state.playbackSpeed
-    )
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (consumeNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier)
-            .padding(
-                start = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
-                end = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
-                bottom = when {
-                    dockHosted -> 0.dp
-                    liftAboveBottomBar -> 72.dp
-                    !glassActive && chrome.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 -> 16.dp
-                    else -> 8.dp
-                }
-            )
-            .onGloballyPositioned { coordinates ->
-                barCoordsRef[0] = coordinates
-            }
-            .graphicsLayer {
-                // The transition host owns the source pixels during return; do not
-                // start a second settle animation when the real bar is revealed.
-                alpha = if (sourceInActiveReturn || dissolveContentHidden) 0f else 1f
-            }
-            .clip(shape)
-            .recordNativeVideoCardLayer(
-                layer = nativeBarLayer,
-                freezeProvider = {
-                    (captureInProgress || sourceInActiveReturn) &&
-                        CardPositionManager.isNativeVideoCardLayerCurrentOwner(nativeBarLayer)
-                },
-                // Visibility is owned by the explicit now-playing handoff above.
-                sourceRoute = sourceRoute,
-            )
-            .semantics {
-                contentDescription = if (onCompactClick != null) {
-                    "当前视频：${state.title}，收起搜索并展开视频小横条"
-                } else {
-                    "当前视频：${state.title}，打开$expandDestinationLabel"
-                }
-            }
-            .clickable(
-                enabled = !sourceInActiveReturn && !cancelDissolving,
-                onClick = handleExpand,
-            )
-            .then(
-                if (onManualHide != null && !sourceInActiveReturn && !cancelDissolving) {
-                    Modifier.pointerInput(onManualHide) {
-                        // 长按立即进入沉浸态，与自动沉浸共用同一把柄唤回通道。
-                        detectTapGestures(onLongPress = { onManualHide() })
-                    }
-                } else {
-                    Modifier
-                }
-            )
-            .then(
-                if (!sourceInActiveReturn && !cancelDissolving) {
-                    Modifier.audioNowPlayingSkipGesture(
-                        onSkipNext = onSkipNext,
-                        onSkipPrevious = onSkipPrevious,
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .then(if (sourceInActiveReturn) Modifier.clearAndSetSemantics {} else Modifier),
-    ) {
+        val immersiveContentColor = if (immersiveBackdrop != null) {
+            Color.White
+        } else {
+            null
+        }
+        // 迷你条封面旋转：播放时逐帧失效是预期开销（封面独占 graphicsLayer，
+        // 不会连带模糊外壳层重绘）；暂停后 while 循环退出，帧率自然回落。
+        val coverRotationDegrees = rememberMusicArtworkRotationDegrees(
+            active = shouldRotateMusicArtwork(
+                isPlaying = state.isPlaying,
+                reduceMotion = reduceMotion
+            ),
+            contentKey = state.coverUrl,
+            playbackSpeed = state.playbackSpeed
+        )
+        val elasticState = rememberAppElasticPressState()
+        val glassMotion = glassActive && miuixBackdrop != null
         Box(
-            Modifier.matchParentSize()
-                .graphicsLayer { alpha = 1f - surfaceMergeProgress().coerceIn(0f, 1f) }
-                .biliPaiFloatingDockShell(
-                    backdrop = miuixBackdrop,
-                    containerColor = containerColor,
-                    pressProgress = 0f,
-                    shape = shape,
-                    enabled = glassActive,
-                    blurEnabled = blurEnabled,
-                    hazeState = hazeState,
-                    liquidGlassTuning = liquidGlassTuning,
+            modifier = modifier
+                .appElasticPress(
+                    enabled = !sourceInActiveReturn && !captureInProgress && !cancelDissolving,
+                    state = elasticState,
+                    transformInBackdrop = glassMotion,
                 )
-        )
-        AudioNowPlayingBarContentRow(
-            mergeProgress = dockMergeProgress,
-            searchProgress = iconOnlyProgress,
-            cover = {
-                AsyncImage(
-                    model = state.coverUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .onGloballyPositioned { coordinates ->
-                            coverCoordsRef[0] = coordinates
+                .fillMaxWidth()
+                .then(if (consumeNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier)
+                .padding(
+                    start = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
+                    end = if (dockHosted) 0.dp else chrome.horizontalPaddingDp.dp,
+                    bottom = when {
+                        dockHosted -> 0.dp
+                        liftAboveBottomBar -> 72.dp
+                        !glassActive && chrome.uiStyle == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3 -> 16.dp
+                        else -> 8.dp
+                    }
+                )
+                .onGloballyPositioned { coordinates ->
+                    barCoordsRef[0] = coordinates
+                }
+                .graphicsLayer {
+                    // The transition host owns the source pixels during return; do not
+                    // start a second settle animation when the real bar is revealed.
+                    alpha = if (sourceInActiveReturn || dissolveContentHidden) 0f else 1f
+                }
+                .recordNativeVideoCardLayer(
+                    layer = nativeBarLayer,
+                    freezeProvider = {
+                        (captureInProgress || sourceInActiveReturn) &&
+                            CardPositionManager.isNativeVideoCardLayerCurrentOwner(nativeBarLayer)
+                    },
+                    // Visibility is owned by the explicit now-playing handoff above.
+                    sourceRoute = sourceRoute,
+                )
+                .semantics {
+                    contentDescription = if (onCompactClick != null) {
+                        "当前视频：${state.title}，收起搜索并展开视频小横条"
+                    } else {
+                        "当前视频：${state.title}，打开$expandDestinationLabel"
+                    }
+                }
+                .clickable(
+                    enabled = !sourceInActiveReturn && !cancelDissolving,
+                    onClick = handleExpand,
+                )
+                .then(
+                    if (onManualHide != null && !sourceInActiveReturn && !cancelDissolving) {
+                        Modifier.pointerInput(onManualHide) {
+                            // 长按立即进入沉浸态，与自动沉浸共用同一把柄唤回通道。
+                            detectTapGestures(onLongPress = { onManualHide() })
                         }
-                        .graphicsLayer { rotationZ = coverRotationDegrees() }
-                        .clip(
-                            if (chrome.coverShapeIsCircle) {
-                                CircleShape
-                            } else {
-                                AppShapes.container(ContainerLevel.Field)
-                            }
-                        ),
-                    contentScale = ContentScale.Crop
+                    } else {
+                        Modifier
+                    }
                 )
-            },
-            title = {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            alpha = resolveAudioNowPlayingPrimaryProgress(iconOnlyProgress())
-                        },
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    AppText(
-                        text = state.title,
-                        modifier = if (state.isPlaying && isLayoutStable) {
-                            Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-                        } else {
-                            Modifier
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Clip,
-                        softWrap = false,
-                        color = immersiveContentColor
-                            ?: MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.bodyMedium
+                .then(
+                    if (!sourceInActiveReturn && !cancelDissolving) {
+                        Modifier.audioNowPlayingSkipGesture(
+                            onSkipNext = onSkipNext,
+                            onSkipPrevious = onSkipPrevious,
+                        )
+                    } else {
+                        Modifier
+                    }
+                )
+                .then(if (sourceInActiveReturn) Modifier.clearAndSetSemantics {} else Modifier),
+        ) {
+            Box(
+                Modifier.matchParentSize()
+                    .graphicsLayer { alpha = 1f - surfaceMergeProgress().coerceIn(0f, 1f) }
+                    .biliPaiFloatingDockShell(
+                        backdrop = miuixBackdrop,
+                        interactionLayerBlock = elasticState.layerBlock.takeIf { glassMotion },
+                        interactionState = elasticState.takeIf { glassMotion },
+                        containerColor = containerColor,
+                        pressProgress = 0f,
+                        shape = shape,
+                        enabled = glassActive,
+                        blurEnabled = blurEnabled,
+                        hazeState = hazeState,
+                        liquidGlassTuning = liquidGlassTuning,
                     )
-                    Box(
-                        modifier = Modifier
-                            .audioNowPlayingArtistHeight(dockMergeProgress, iconOnlyProgress)
-                            .clipToBounds()
-                            .graphicsLayer {
-                                alpha = resolveAudioNowPlayingSupplementalAlpha(
-                                    mergeProgress = dockMergeProgress(),
-                                    searchProgress = iconOnlyProgress(),
-                                )
-                            },
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            )
+            CompositionLocalProvider(LocalElasticPressEnabled provides false) {
+                AudioNowPlayingBarContentRow(
+                    modifier = if (glassMotion) Modifier.graphicsLayer(elasticState.layerBlock).clip(shape) else Modifier.clip(shape),
+                    mergeProgress = dockMergeProgress,
+                    searchProgress = iconOnlyProgress,
+                    cover = {
+                        AsyncImage(
+                            model = state.coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onGloballyPositioned { coordinates ->
+                                    coverCoordsRef[0] = coordinates
+                                }
+                                .graphicsLayer { rotationZ = coverRotationDegrees() }
+                                .clip(
+                                    if (chrome.coverShapeIsCircle) {
+                                        CircleShape
+                                    } else {
+                                        AppShapes.container(ContainerLevel.Field)
+                                    }
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                    },
+                    title = {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    alpha = resolveAudioNowPlayingPrimaryProgress(iconOnlyProgress())
+                                },
+                            verticalArrangement = Arrangement.Center,
                         ) {
-                            if (state.artistAvatarUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = state.artistAvatarUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
+                            AppText(
+                                text = state.title,
+                                modifier = if (state.isPlaying && isLayoutStable) {
+                                    Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+                                } else {
+                                    Modifier
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                softWrap = false,
+                                color = immersiveContentColor
+                                    ?: MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .audioNowPlayingArtistHeight(dockMergeProgress, iconOnlyProgress)
+                                    .clipToBounds()
+                                    .graphicsLayer {
+                                        alpha = resolveAudioNowPlayingSupplementalAlpha(
+                                            mergeProgress = dockMergeProgress(),
+                                            searchProgress = iconOnlyProgress(),
+                                        )
+                                    },
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    if (state.artistAvatarUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = state.artistAvatarUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                    AppText(
+                                        text = state.artist,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = immersiveContentColor?.copy(alpha = 0.72f)
+                                            ?: MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    play = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                                .graphicsLayer {
+                                    val primary = resolveAudioNowPlayingPrimaryProgress(iconOnlyProgress())
+                                    alpha = resolveAudioNowPlayingPrimaryAlpha(iconOnlyProgress())
+                                    scaleX = primary
+                                    scaleY = primary
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppIconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
+                                AppIcon(
+                                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription = if (state.isPlaying) "暂停" else "播放",
+                                    tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            AppText(
-                                text = state.artist,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = immersiveContentColor?.copy(alpha = 0.72f)
-                                    ?: MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
-                    }
-                }
-            },
-            play = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clipToBounds()
-                        .graphicsLayer {
-                            val primary = resolveAudioNowPlayingPrimaryProgress(iconOnlyProgress())
-                            alpha = resolveAudioNowPlayingPrimaryAlpha(iconOnlyProgress())
-                            scaleX = primary
-                            scaleY = primary
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AppIconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
-                        AppIcon(
-                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "暂停" else "播放",
-                            tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            },
-            queue = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clipToBounds()
-                        .graphicsLayer {
-                            val supplemental = resolveAudioNowPlayingSupplementalProgress(
-                                mergeProgress = dockMergeProgress(),
-                                searchProgress = iconOnlyProgress(),
-                            )
-                            alpha = resolveAudioNowPlayingSupplementalAlpha(
-                                mergeProgress = dockMergeProgress(),
-                                searchProgress = iconOnlyProgress(),
-                            )
-                            scaleX = supplemental
-                            scaleY = supplemental
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AppIconButton(onClick = handleExpand, modifier = Modifier.size(48.dp)) {
-                        AppIcon(
-                            Icons.Outlined.QueueMusic,
-                            contentDescription = "打开$expandDestinationLabel",
-                            tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            },
-            close = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clipToBounds()
-                        .graphicsLayer {
-                            val supplemental = resolveAudioNowPlayingSupplementalProgress(
-                                mergeProgress = dockMergeProgress(),
-                                searchProgress = iconOnlyProgress(),
-                            )
-                            alpha = resolveAudioNowPlayingSupplementalAlpha(
-                                mergeProgress = dockMergeProgress(),
-                                searchProgress = iconOnlyProgress(),
-                            )
-                            scaleX = supplemental
-                            scaleY = supplemental
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AppIconButton(
-                        onClick = handleCancelClick,
-                        enabled = !cancelDissolving,
-                        modifier = Modifier.size(48.dp),
-                    ) {
-                        AppIcon(
-                            Icons.Filled.Close,
-                            contentDescription = "关闭听视频条",
-                            tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            },
-        )
+                    },
+                    queue = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                                .graphicsLayer {
+                                    val supplemental = resolveAudioNowPlayingSupplementalProgress(
+                                        mergeProgress = dockMergeProgress(),
+                                        searchProgress = iconOnlyProgress(),
+                                    )
+                                    alpha = resolveAudioNowPlayingSupplementalAlpha(
+                                        mergeProgress = dockMergeProgress(),
+                                        searchProgress = iconOnlyProgress(),
+                                    )
+                                    scaleX = supplemental
+                                    scaleY = supplemental
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppIconButton(onClick = handleExpand, modifier = Modifier.size(48.dp)) {
+                                AppIcon(
+                                    Icons.Outlined.QueueMusic,
+                                    contentDescription = "打开$expandDestinationLabel",
+                                    tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    },
+                    close = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                                .graphicsLayer {
+                                    val supplemental = resolveAudioNowPlayingSupplementalProgress(
+                                        mergeProgress = dockMergeProgress(),
+                                        searchProgress = iconOnlyProgress(),
+                                    )
+                                    alpha = resolveAudioNowPlayingSupplementalAlpha(
+                                        mergeProgress = dockMergeProgress(),
+                                        searchProgress = iconOnlyProgress(),
+                                    )
+                                    scaleX = supplemental
+                                    scaleY = supplemental
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppIconButton(
+                                onClick = handleCancelClick,
+                                enabled = !cancelDissolving,
+                                modifier = Modifier.size(48.dp),
+                            ) {
+                                AppIcon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "关闭听视频条",
+                                    tint = immersiveContentColor ?: MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -605,6 +622,7 @@ private fun Modifier.audioNowPlayingSkipGesture(
 
 @Composable
 private fun AudioNowPlayingBarContentRow(
+    modifier: Modifier = Modifier,
     mergeProgress: () -> Float,
     searchProgress: () -> Float,
     cover: @Composable () -> Unit,
@@ -616,7 +634,7 @@ private fun AudioNowPlayingBarContentRow(
     // 统一 64dp：与底栏导航行同高，percent=50 共享胶囊的圆角随之严格一致。
     val height = 64.dp
     Layout(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(height),
         content = {
@@ -696,6 +714,7 @@ private fun Modifier.audioNowPlayingArtistHeight(
 internal fun AudioNowPlayingBarPresenceHost(
     visible: Boolean,
     modifier: Modifier = Modifier,
+    animatePresence: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val reduceMotion = rememberSystemReduceMotion()
@@ -714,13 +733,17 @@ internal fun AudioNowPlayingBarPresenceHost(
     )
     AnimatedVisibility(
         visible = visible,
-        enter = if (reduceMotion) {
+        enter = if (!animatePresence) {
+            androidx.compose.animation.EnterTransition.None
+        } else if (reduceMotion) {
             fadeIn(alphaEnterSpec)
         } else {
             expandVertically(geometryEnterSpec, expandFrom = Alignment.Bottom) +
                 fadeIn(alphaEnterSpec)
         },
-        exit = if (reduceMotion) {
+        exit = if (!animatePresence) {
+            androidx.compose.animation.ExitTransition.None
+        } else if (reduceMotion) {
             fadeOut(alphaExitSpec)
         } else {
             shrinkVertically(geometryExitSpec, shrinkTowards = Alignment.Bottom) +

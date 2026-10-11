@@ -1352,6 +1352,7 @@ object SettingsManager {
         MONTHLY(30, "每月")
     }
     // 键定义
+    private val KEY_NEXT_WATCH_HINT_ENABLED = booleanPreferencesKey("next_watch_hint_enabled")
     private val KEY_AUTO_PLAY = booleanPreferencesKey("auto_play")
     private val KEY_PLAYBACK_COMPLETION_BEHAVIOR = intPreferencesKey("playback_completion_behavior")
     private val KEY_HW_DECODE = booleanPreferencesKey("hw_decode")
@@ -1572,6 +1573,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("home_hero_carousel_autoplay_enabled")
     //  [新增] 卡片动画开关
     private val KEY_CARD_ANIMATION_ENABLED = booleanPreferencesKey("card_animation_enabled")
+    private val KEY_MAID_LOTTIE_ANIMATION_ENABLED =
+        booleanPreferencesKey("maid_lottie_animation_enabled")
     //  [新增] 卡片过渡动画开关
     private val KEY_CARD_TRANSITION_ENABLED = booleanPreferencesKey("card_transition_enabled")
     private val KEY_RELATED_VIDEO_TRANSITION_ENABLED =
@@ -2112,6 +2115,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     @Volatile
     private var playbackCompletionBehaviorMemoryCache: Int? = null
+
+    fun getNextWatchHintEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_NEXT_WATCH_HINT_ENABLED] ?: true }
+
+    suspend fun setNextWatchHintEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_NEXT_WATCH_HINT_ENABLED] = enabled }
+    }
 
     fun getAutoPlay(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_AUTO_PLAY] ?: true }
@@ -3187,6 +3197,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setCardAnimationEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_CARD_ANIMATION_ENABLED] = value }
+    }
+
+    fun getMaidLottieAnimationEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_MAID_LOTTIE_ANIMATION_ENABLED] ?: true }
+
+    suspend fun setMaidLottieAnimationEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_MAID_LOTTIE_ANIMATION_ENABLED] = value
+        }
     }
     
     //  [新增] --- 卡片过渡动画开关 ---
@@ -8198,6 +8217,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_HOME_HERO_CAROUSEL_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_HERO_CAROUSEL_AUTOPLAY_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_CARD_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_MAID_LOTTIE_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_UI_ENTRANCE_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_CARD_TRANSITION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(
@@ -8243,6 +8263,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_HOME_DURATION_STYLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_SHOW_PROFILE_EDIT_BUTTON, SettingsShareSection.APPEARANCE),
 
+            BooleanShareablePreferenceDefinition(KEY_NEXT_WATCH_HINT_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUTO_PLAY, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_PLAYBACK_COMPLETION_BEHAVIOR, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_HW_DECODE, SettingsShareSection.PLAYBACK),

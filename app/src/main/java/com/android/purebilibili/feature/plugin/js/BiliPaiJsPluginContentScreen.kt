@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -398,6 +398,7 @@ private fun PluginContent(
                 val modules = installed.manifest.modules
                 if (modules.isNotEmpty() && selectedModule != null) {
                     AppThemeAdaptiveTabRow(
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
                         options = modules.map { module -> AppSegmentOption(module, module.title) },
                         selectedValue = selectedModule,
                         onSelectionChange = onSelectModule,

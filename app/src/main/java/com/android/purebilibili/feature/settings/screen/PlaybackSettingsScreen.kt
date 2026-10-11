@@ -18,7 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -139,7 +139,7 @@ fun PlaybackSettingsContent(
             widthSizeClass = windowSizeClass.widthSizeClass
         )
     }
-    LaunchedEffect(focusRequest?.token) {
+    LaunchedEffect(focusRequest?.token, page) {
         val request = focusRequest ?: return@LaunchedEffect
         val playbackFocusId = when (request.target) {
             SettingsSearchTarget.PLAYBACK -> request.focusId
@@ -148,18 +148,9 @@ fun PlaybackSettingsContent(
                 ?.focusId
         } ?: return@LaunchedEffect
         val keys = when (page) {
-            PlaybackSettingsPage.PLAYBACK -> listOf(
-                SettingsSearchFocusIds.PLAYBACK_DECODER,
-                SettingsSearchFocusIds.PLAYBACK_SPEED,
-                SettingsSearchFocusIds.PLAYBACK_MINI_PLAYER,
-                SettingsSearchFocusIds.PLAYBACK_FULLSCREEN,
-                SettingsSearchFocusIds.PLAYBACK_DEBUG,
-                SettingsSearchFocusIds.PLAYBACK_NETWORK,
-                SettingsSearchFocusIds.PLAYBACK_DATA_SAVER,
-                SettingsSearchFocusIds.PLAYBACK_INTERACTION,
-            )
+            PlaybackSettingsPage.PLAYBACK -> playbackSettingsSectionKeys
             PlaybackSettingsPage.FULLSCREEN -> listOf(SettingsSearchFocusIds.PLAYBACK_FULLSCREEN)
-            PlaybackSettingsPage.COMMENTS -> listOf(SettingsSearchFocusIds.PLAYBACK_INTERACTION)
+            PlaybackSettingsPage.COMMENTS -> listOf(SettingsSearchFocusIds.PLAYBACK_COMMENTS)
             PlaybackSettingsPage.DECODER -> listOf(SettingsSearchFocusIds.PLAYBACK_DECODER)
             PlaybackSettingsPage.DIAGNOSTICS -> listOf(SettingsSearchFocusIds.PLAYBACK_DEBUG)
         }.flatMap { listOf(it + "_title", it) }
@@ -1247,16 +1238,29 @@ SettingsItemAnchor("playback.data_saver_mode") {
             }
             }
 
-            if (page == PlaybackSettingsPage.PLAYBACK || page == PlaybackSettingsPage.COMMENTS) {
+            if (page == PlaybackSettingsPage.PLAYBACK) {
                 item(key = SettingsSearchFocusIds.PLAYBACK_INTERACTION + "_title") {
-                    AppPreferenceSectionTitle(if (page == PlaybackSettingsPage.PLAYBACK) "字幕与连播" else "评论与内容")
+                    AppPreferenceSectionTitle("字幕与连播")
                 }
                 item(key = SettingsSearchFocusIds.PLAYBACK_INTERACTION) {
                     PlaybackInteractionSettingsSection(
                         context = context,
                         state = state,
                         viewModel = viewModel,
-                        playbackControls = page == PlaybackSettingsPage.PLAYBACK,
+                        playbackControls = true,
+                    )
+                }
+            }
+            if (page == PlaybackSettingsPage.PLAYBACK || page == PlaybackSettingsPage.COMMENTS) {
+                item(key = SettingsSearchFocusIds.PLAYBACK_COMMENTS + "_title") {
+                    AppPreferenceSectionTitle("互动与评论")
+                }
+                item(key = SettingsSearchFocusIds.PLAYBACK_COMMENTS) {
+                    PlaybackInteractionSettingsSection(
+                        context = context,
+                        state = state,
+                        viewModel = viewModel,
+                        playbackControls = false,
                     )
                 }
             }
@@ -1294,6 +1298,8 @@ private fun PlaybackInteractionSettingsSection(
     //  [新增] 自动播放下一个
     val autoPlayEnabled by com.android.purebilibili.core.store.SettingsManager
         .getAutoPlay(context).collectAsStateWithLifecycle(initialValue = true)
+    val nextWatchHintEnabled by SettingsManager.getNextWatchHintEnabled(context)
+        .collectAsStateWithLifecycle(initialValue = true)
     val externalPlaylistAutoContinueEnabled by com.android.purebilibili.core.store.SettingsManager
         .getExternalPlaylistAutoContinue(context).collectAsStateWithLifecycle(initialValue = true)
     val resumePlaybackPromptEnabled by com.android.purebilibili.core.store.SettingsManager
@@ -1418,6 +1424,19 @@ private fun PlaybackInteractionSettingsSection(
                         com.android.purebilibili.core.store.SettingsManager
                             .setSpacePlayedVideoLocatePromptEnabled(context, it)
                     }
+                },
+                iconTint = iOSTeal
+            )
+        }
+        AppPreferenceDivider()
+        SettingsItemAnchor("playback.next_watch_hint_enabled") {
+            AppSwitchPreference(
+                icon = rememberSettingsSemanticIcon(SettingsIconRole.AUTO_PLAY_NEXT),
+                title = playbackSettingTitle("playback.next_watch_hint_enabled"),
+                subtitle = "最后 5 秒提示下一集或相关推荐，关闭不影响自动续播",
+                checked = nextWatchHintEnabled,
+                onCheckedChange = { enabled ->
+                    scope.launch { SettingsManager.setNextWatchHintEnabled(context, enabled) }
                 },
                 iconTint = iOSTeal
             )

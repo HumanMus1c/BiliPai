@@ -2,7 +2,9 @@ package com.android.purebilibili.feature.settings
 
 internal fun settingItemPath(item: PlaybackSettingItem): String {
     val owner = when (item.page) {
-        SettingsRootCategory.VIDEO_DECODER -> SettingsRootCategory.PLAYBACK_QUALITY.title
+        SettingsRootCategory.VIDEO_DECODER,
+        SettingsRootCategory.COMMENTS_CONTENT,
+        SettingsRootCategory.FULLSCREEN_GESTURE -> SettingsRootCategory.PLAYBACK_QUALITY.title
         SettingsRootCategory.PLAYER_DIAGNOSTICS -> SettingsRootCategory.SYSTEM_ABOUT.title
         SettingsRootCategory.GLASS_ADVANCED -> SettingsRootCategory.APPEARANCE_THEME.title
         else -> item.page.title
@@ -11,6 +13,7 @@ internal fun settingItemPath(item: PlaybackSettingItem): String {
         item.page == SettingsRootCategory.GLASS_ADVANCED -> "玻璃高级调节"
         item.page == SettingsRootCategory.PLAYER_DIAGNOSTICS -> "问题排查"
         item.target == SettingsSearchTarget.ANIMATION -> "动画与触感"
+        item.target == SettingsSearchTarget.PLAYBACK -> "播放设置"
         else -> null
     }
     val section = when (item.sectionKey) {
@@ -20,6 +23,9 @@ internal fun settingItemPath(item: PlaybackSettingItem): String {
         SettingsSearchFocusIds.PLAYBACK_NETWORK -> "网络与画质"
         SettingsSearchFocusIds.PLAYBACK_DATA_SAVER -> "省流量"
         SettingsSearchFocusIds.PLAYBACK_DEBUG -> "播放器"
+        SettingsSearchFocusIds.PLAYBACK_INTERACTION -> "字幕与连播"
+        SettingsSearchFocusIds.PLAYBACK_COMMENTS -> "互动与评论"
+        SettingsSearchFocusIds.PLAYBACK_FULLSCREEN -> "全屏与手势"
         "appearance_display_mode" -> "界面与效果"
         "appearance_theme_color" -> "主题与色彩"
         "appearance_text_size" -> "文字与大小"

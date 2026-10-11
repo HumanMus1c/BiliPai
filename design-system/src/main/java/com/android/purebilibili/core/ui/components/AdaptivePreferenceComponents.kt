@@ -1594,6 +1594,7 @@ fun AdaptiveSearchFieldRenderer(
         }
     }
     val fieldModifier = modifier
+        .appSearchElasticPress()
         .fillMaxWidth()
         .focusRequester(resolvedFocusRequester)
 
@@ -1687,6 +1688,7 @@ fun AppSearchEntry(
             modifier = modifier
                 .fillMaxWidth()
                 .heightIn(min = rememberAdaptiveListComponentVisualSpec().searchBarHeightDp.dp)
+                .appSearchElasticPress()
                 .clip(androidx.compose.foundation.shape.CircleShape)
                 .background(if (uiStyle == AppUiStyle.MIUIX) miuixContainerColor
                     else if (containerColor != Color.Unspecified) containerColor
@@ -1710,7 +1712,7 @@ fun AppSearchEntry(
             onSearch = { onClick() },
             expanded = false,
             onExpandedChange = { if (it) onClick() },
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.appSearchElasticPress().fillMaxWidth(),
             label = placeholder,
             color = miuixContainerColor,
         )
@@ -1731,7 +1733,7 @@ fun AppSearchEntry(
             textFieldState = textFieldState,
             searchBarState = searchBarState,
             onSearch = { onClick() },
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier.appSearchElasticPress().fillMaxWidth(),
             placeholder = { Text(placeholder) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             colors = if (containerColor == Color.Unspecified) {

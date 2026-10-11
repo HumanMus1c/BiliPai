@@ -104,6 +104,7 @@ internal fun AdaptiveAlertDialog(
                 decorFitsSystemWindows = false,
             ),
         ) {
+            com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
             HingeSafeOverlayHost(
                 regionProvider = hingeSafeRegions,
                 modifier = Modifier.fillMaxSize().imePadding(),
@@ -161,6 +162,7 @@ internal fun AdaptiveAlertDialog(
                 insideMargin = DpSize(0.dp, 0.dp),
                 cornerRadius = 0.dp,
             ) {
+                com.android.purebilibili.core.ui.ModalWindowBlurBehindEffect()
                 AppPopupSurface(
                     type = AppPopupSurfaceType.DIALOG,
                     modifier = modifier
@@ -182,7 +184,10 @@ internal fun AdaptiveAlertDialog(
                 icon = icon,
                 title = title,
                 text = text,
-                confirmButton = { confirmButton?.invoke() ?: Spacer(modifier = Modifier) },
+                confirmButton = {
+                    ModalWindowBlurBehindEffect()
+                    confirmButton?.invoke() ?: Spacer(modifier = Modifier)
+                },
                 dismissButton = dismissButton,
                 properties = properties,
                 shape = shape ?: MaterialTheme.shapes.extraLarge,

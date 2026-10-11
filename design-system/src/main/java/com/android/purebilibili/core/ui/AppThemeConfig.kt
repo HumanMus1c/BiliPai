@@ -69,6 +69,9 @@ fun resolveComponentMotionEnabled(
 
 val LocalComponentMotionEnabled = compositionLocalOf { true }
 
+/** System accessibility preference, independent of card and navigation animation switches. */
+val LocalSystemReduceMotion = compositionLocalOf { false }
+
 private object DisabledAppHapticFeedback : HapticFeedback {
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) = Unit
 }

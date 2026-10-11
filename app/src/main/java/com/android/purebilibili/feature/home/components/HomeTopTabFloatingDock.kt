@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.home.components
+import com.android.purebilibili.core.ui.components.appElasticPress
+
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -75,11 +77,12 @@ internal fun shouldUseOfficialMiuixHomeTopTabs(
     liquidGlassEnabled: Boolean,
 ): Boolean = uiStyle == AppUiStyle.MIUIX && !liquidGlassEnabled
 
-/** Uses the exact home bottom-bar width contract, including its screen-edge inset. */
+/** Uses shared dock width policy with the top shell's own corner geometry. */
 internal fun resolveHomeTopTabFloatingDockWidth(
     containerWidth: Dp,
     itemCount: Int,
     labelMode: Int,
+    shellHeight: Dp = resolveHomeTopDockShellHeight(isFloatingStyle = true),
 ): Dp = resolveBiliPaiFloatingBottomBarWidth(
     containerWidth = containerWidth,
     itemCount = itemCount,
@@ -88,7 +91,7 @@ internal fun resolveHomeTopTabFloatingDockWidth(
         darkTheme = false,
     ).outerHorizontalPaddingDp.dp,
     labelMode = labelMode,
-    cornerRadius = resolveBiliPaiBottomBarDockHeight(searchExpanded = false) / 2,
+    cornerRadius = shellHeight / 2,
 )
 
 /** Top category navigation matching the active bottom-bar renderer contract. */
@@ -104,6 +107,7 @@ internal fun HomeTopTabFloatingDock(
     showText: Boolean,
     iconFamily: AppSemanticIconFamily,
     itemWidth: Dp?,
+    dockHeight: Dp,
     labelFontSize: TextUnit,
     liquidGlassEffectsEnabled: Boolean,
     backdropBlurEnabled: Boolean = liquidGlassEffectsEnabled,
@@ -118,6 +122,8 @@ internal fun HomeTopTabFloatingDock(
     indicatorPositionProvider: (() -> Float)?,
     isScrollInProgressProvider: () -> Boolean,
     modifier: Modifier = Modifier,
+    scrollState: androidx.compose.foundation.ScrollState? = null,
+    horizontalPadding: Dp = AppSpacingTokens.ExtraSmall,
 ) {
     if (categories.isEmpty()) return
     val fontScale = LocalDensity.current.fontScale.coerceAtLeast(0.01f)
@@ -167,17 +173,18 @@ internal fun HomeTopTabFloatingDock(
                         showIcon && showText && selected -> FilledTonalButton(
                             onClick = onClick,
                             contentPadding = PaddingValues(horizontal = 16.dp),
+                            modifier = Modifier.appElasticPress(),
                         ) {
                             icon()
                             Spacer(modifier = Modifier.width(AppSpacingTokens.Small))
                             AppText(text = label, maxLines = 1, tapToCopyEnabled = false)
                         }
-                        showIcon && selected -> FilledTonalIconButton(onClick = onClick) { icon() }
-                        showIcon -> IconButton(onClick = onClick) { icon() }
-                        selected -> FilledTonalButton(onClick = onClick) {
+                        showIcon && selected -> FilledTonalIconButton(onClick = onClick, modifier = Modifier.appElasticPress()) { icon() }
+                        showIcon -> IconButton(onClick = onClick, modifier = Modifier.appElasticPress()) { icon() }
+                        selected -> FilledTonalButton(onClick = onClick, modifier = Modifier.appElasticPress()) {
                             AppText(text = label, maxLines = 1, tapToCopyEnabled = false)
                         }
-                        else -> TextButton(onClick = onClick) {
+                        else -> TextButton(onClick = onClick, modifier = Modifier.appElasticPress()) {
                             AppText(text = label, maxLines = 1, tapToCopyEnabled = false)
                         }
                     }
@@ -193,7 +200,6 @@ internal fun HomeTopTabFloatingDock(
         }
         return
     }
-    val dockHeight = resolveBiliPaiBottomBarDockHeight(searchExpanded = false)
     val isDarkTheme = resolveBottomBarDarkTheme(AppSurfaceTokens.background())
     val isBlurActive = liquidGlassEffectsEnabled || (miuixBackdrop != null)
     val bottomBarTuning = resolveAndroidNativeBottomBarTuning(
@@ -233,13 +239,13 @@ internal fun HomeTopTabFloatingDock(
         itemWidth = itemWidth,
         height = dockHeight,
         geometryMode = FloatingBottomBarGeometryMode.TopNavigation,
-        indicatorHeight = resolveBiliPaiBottomBarIndicatorHeight(dockHeight),
+        indicatorHeight = (dockHeight - AppSpacingTokens.ExtraSmall * 2).coerceAtLeast(0.dp),
         labelFontSize = labelFontSize,
-        containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
+        containerHorizontalPadding = horizontalPadding,
         containerVerticalPadding = AppSpacingTokens.ExtraSmall,
         liquidGlassEffectsEnabled = liquidGlassEffectsEnabled,
         dragSelectionEnabled = true,
-        longPressDragSelectionEnabled = false,
+        longPressDragSelectionEnabled = scrollState != null,
         miuixBackdrop = miuixBackdrop,
         containerColorOverride = shellColor,
         selectedTextColorOverride = selectedContentColor,
@@ -249,6 +255,7 @@ internal fun HomeTopTabFloatingDock(
         onIndicatorPositionChanged = null,
         liquidGlassTuningOverride = liquidGlassTuning,
         onItemReselected = onReselected,
+        scrollState = scrollState,
         itemContent = { index, label, selected ->
             val contentColor = LocalFloatingBottomBarContentColor.current
             val selectionScale = LocalFloatingBottomBarItemSelectionScale.current

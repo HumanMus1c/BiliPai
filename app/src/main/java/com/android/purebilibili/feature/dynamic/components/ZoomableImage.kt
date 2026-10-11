@@ -16,8 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
@@ -75,6 +78,9 @@ fun ZoomableImage(
     var imageSize by remember { mutableStateOf(IntSize.Zero) }
     // 容器尺寸
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    // The preview surface moves/scales while dragging. Keep dismiss deltas in the root frame,
+    // rather than feeding its own animated local coordinates back into the next pointer event.
+    val inputCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     LaunchedEffect(containerSize, imageSize, scale, offsetX, offsetY, displayRectTrackingEnabled) {
         if (displayRectTrackingEnabled) {
             latestOnDisplayRectChange(
@@ -160,6 +166,7 @@ fun ZoomableImage(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { containerSize = it }
+            .onGloballyPositioned { inputCoordinates[0] = it }
             .pointerInput(gesturesEnabled) {
                 if (!gesturesEnabled) return@pointerInput
                 detectTapGestures(
@@ -184,132 +191,176 @@ fun ZoomableImage(
                     var lastVerticalDragTimeMs = 0L
                     var verticalDragVelocityY = 0f
                     
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    fun rootPosition(position: Offset): Offset = inputCoordinates[0]
+                        ?.takeIf { it.isAttached }?.localToRoot(position) ?: position
+                    val rootPositions = mutableMapOf(down.id to rootPosition(down.position))
                     
-                    do {
-                        val event = awaitPointerEvent()
-                        val canceled = event.changes.any { it.isConsumed }
-                        if (canceled) {
-                            gestureCanceled = true
-                            break
-                        }
+                    try {
+                        do {
+                            // Decide the image gesture before Pager/tap handlers process movement.
+                            // Horizontal/undecided movement remains unconsumed for the Pager.
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.changes.none { it.pressed }) {
+                                if (verticalDismissStarted) event.changes.forEach { it.consume() }
+                                break
+                            }
+                            // Once vertical dismissal owns this stream, another recognizer's
+                            // consumed flag cannot revoke it; actual cancellation uses finally.
+                            val canceled = !verticalDismissStarted && event.changes.any { it.isConsumed }
+                            if (canceled) {
+                                gestureCanceled = true
+                                break
+                            }
 
-                        if (event.changes.size > 1) {
-                            isMultiTouch = true
-                        }
+                            if (event.changes.size > 1) {
+                                isMultiTouch = true
+                            }
 
-                        val zoomChange = event.calculateZoom()
-                        val panChange = event.calculatePan()
+                            val currentRootPositions = event.changes.filter { it.pressed }
+                                .associate { it.id to rootPosition(it.position) }
+                            val rootDeltas = currentRootPositions.mapNotNull { (id, position) ->
+                                rootPositions[id]?.let { position - it }
+                            }
+                            val rootPanChange = if (rootDeltas.isEmpty()) Offset.Zero else
+                                rootDeltas.fold(Offset.Zero) { sum, delta -> sum + delta } / rootDeltas.size.toFloat()
+                            rootPositions.clear()
+                            rootPositions.putAll(currentRootPositions)
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
 
-                        if (!pastTouchSlop) {
-                            zoom *= zoomChange
-                            pan += panChange
+                            if (!pastTouchSlop || gestureMode == ZoomableImageGestureMode.UNDECIDED) {
+                                zoom *= zoomChange
+                                pan += rootPanChange
 
-                            val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                            val zoomMotion = abs(1 - zoom) * centroidSize
-                            val panMotion = pan.getDistance()
+                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                val zoomMotion = abs(1 - zoom) * centroidSize
+                                val panMotion = pan.getDistance()
 
-                            if (zoomMotion > touchSlop || panMotion > touchSlop) {
-                                pastTouchSlop = true
-                                gestureMode = resolveZoomableImageGestureMode(
-                                    isMultiTouch = isMultiTouch,
-                                    scale = scale,
-                                    panX = pan.x,
-                                    panY = pan.y
-                                )
+                                if (zoomMotion > touchSlop || panMotion > touchSlop) {
+                                    pastTouchSlop = true
+                                    gestureMode = resolveZoomableImageGestureMode(
+                                        isMultiTouch = isMultiTouch,
+                                        scale = scale,
+                                        panX = pan.x,
+                                        panY = pan.y
+                                    )
 
-                                if (gestureMode == ZoomableImageGestureMode.VERTICAL_DISMISS) {
-                                    verticalDismissStarted = true
-                                    latestOnDragStart()
+                                    if (gestureMode == ZoomableImageGestureMode.VERTICAL_DISMISS) {
+                                        verticalDismissStarted = true
+                                        latestOnDragStart()
+                                    }
                                 }
                             }
-                        }
 
-                        if (pastTouchSlop) {
-                            when (gestureMode) {
-                                ZoomableImageGestureMode.VERTICAL_DISMISS -> {
-                                    if (panChange != Offset.Zero) {
-                                        // 双轴跟随：竖滑退出时手指横向漂移也实时传给宿主
-                                        latestOnDrag(panChange)
-                                    }
-                                    val moveTimeMs = event.changes.firstOrNull()?.uptimeMillis ?: 0L
-                                    if (lastVerticalDragTimeMs != 0L && moveTimeMs > lastVerticalDragTimeMs) {
-                                        val instantVelocityY = panChange.y / (moveTimeMs - lastVerticalDragTimeMs) * 1000f
-                                        verticalDragVelocityY = if (verticalDragVelocityY == 0f) {
-                                            instantVelocityY
-                                        } else {
-                                            verticalDragVelocityY * 0.6f + instantVelocityY * 0.4f
-                                        }
-                                    }
-                                    lastVerticalDragTimeMs = moveTimeMs
-                                    event.changes.forEach {
-                                        if (it.position != it.previousPosition) {
-                                            it.consume()
-                                        }
-                                    }
+                            if (isMultiTouch && gestureMode != ZoomableImageGestureMode.IMAGE_INTERACTION) {
+                                if (verticalDismissStarted) {
+                                    verticalDismissStarted = false
+                                    latestOnDragCancel()
                                 }
-                                ZoomableImageGestureMode.IMAGE_INTERACTION -> {
-                                    val centroid = event.calculateCentroid(useCurrent = false)
-                                    if (zoomChange != 1f || panChange != Offset.Zero) {
-                                        val oldScale = scale
-                                        val maxScale = resolveZoomableImageScaleLimits(
-                                            imageWidth = imageSize.width,
-                                            imageHeight = imageSize.height,
-                                            containerWidth = containerSize.width,
-                                            containerHeight = containerSize.height
-                                        ).maxScale
-                                        scale = (scale * zoomChange).coerceIn(1f, maxScale)
+                                gestureMode = ZoomableImageGestureMode.IMAGE_INTERACTION
+                            }
 
-                                        if (oldScale != scale) {
-                                            val zoomFactor = scale / oldScale
-                                            val dx = (1 - zoomFactor) * (centroid.x - containerSize.width / 2f - offsetX)
-                                            val dy = (1 - zoomFactor) * (centroid.y - containerSize.height / 2f - offsetY)
-                                            offsetX += dx
-                                            offsetY += dy
+                            if (pastTouchSlop) {
+                                when (gestureMode) {
+                                    ZoomableImageGestureMode.VERTICAL_DISMISS -> {
+                                        if (rootPanChange != Offset.Zero) {
+                                            latestOnDrag(rootPanChange)
                                         }
-
-                                        offsetX += panChange.x
-                                        offsetY += panChange.y
-
-                                        if (containerSize != IntSize.Zero && imageSize != IntSize.Zero) {
-                                            val fitScale = min(
-                                                containerSize.width.toFloat() / imageSize.width,
-                                                containerSize.height.toFloat() / imageSize.height
-                                            )
-
-                                            val displayWidth = imageSize.width * fitScale * scale
-                                            val displayHeight = imageSize.height * fitScale * scale
-
-                                            val maxOffsetX = max(0f, (displayWidth - containerSize.width) / 2f)
-                                            val maxOffsetY = max(0f, (displayHeight - containerSize.height) / 2f)
-
-                                            offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX)
-                                            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY)
+                                        val moveTimeMs = event.changes.firstOrNull()?.uptimeMillis ?: 0L
+                                        if (lastVerticalDragTimeMs != 0L && moveTimeMs > lastVerticalDragTimeMs) {
+                                            val instantVelocityY = rootPanChange.y / (moveTimeMs - lastVerticalDragTimeMs) * 1000f
+                                            verticalDragVelocityY = if (verticalDragVelocityY == 0f) {
+                                                instantVelocityY
+                                            } else {
+                                                verticalDragVelocityY * 0.6f + instantVelocityY * 0.4f
+                                            }
                                         }
-
-                                        latestOnZoomChange(scale)
-                                    }
-
-                                    if (isMultiTouch || scale > 1.01f) {
+                                        lastVerticalDragTimeMs = moveTimeMs
                                         event.changes.forEach {
                                             if (it.position != it.previousPosition) {
                                                 it.consume()
                                             }
                                         }
                                     }
+                                    ZoomableImageGestureMode.IMAGE_INTERACTION -> {
+                                        val centroid = event.calculateCentroid(useCurrent = false)
+                                        if (zoomChange != 1f || panChange != Offset.Zero) {
+                                            val oldScale = scale
+                                            val maxScale = resolveZoomableImageScaleLimits(
+                                                imageWidth = imageSize.width,
+                                                imageHeight = imageSize.height,
+                                                containerWidth = containerSize.width,
+                                                containerHeight = containerSize.height
+                                            ).maxScale
+                                            scale = (scale * zoomChange).coerceIn(1f, maxScale)
+
+                                            if (oldScale != scale) {
+                                                val zoomFactor = scale / oldScale
+                                                val dx = (1 - zoomFactor) * (centroid.x - containerSize.width / 2f - offsetX)
+                                                val dy = (1 - zoomFactor) * (centroid.y - containerSize.height / 2f - offsetY)
+                                                offsetX += dx
+                                                offsetY += dy
+                                            }
+
+                                            offsetX += panChange.x
+                                            offsetY += panChange.y
+
+                                            if (containerSize != IntSize.Zero && imageSize != IntSize.Zero) {
+                                                val fitScale = min(
+                                                    containerSize.width.toFloat() / imageSize.width,
+                                                    containerSize.height.toFloat() / imageSize.height
+                                                )
+
+                                                val displayWidth = imageSize.width * fitScale * scale
+                                                val displayHeight = imageSize.height * fitScale * scale
+
+                                                val maxOffsetX = max(0f, (displayWidth - containerSize.width) / 2f)
+                                                val maxOffsetY = max(0f, (displayHeight - containerSize.height) / 2f)
+
+                                                offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX)
+                                                offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY)
+                                            }
+
+                                            latestOnZoomChange(scale)
+                                        }
+
+                                        if (isMultiTouch || scale > 1.01f) {
+                                            event.changes.forEach {
+                                                if (it.position != it.previousPosition) {
+                                                    it.consume()
+                                                }
+                                            }
+                                        }
+                                    }
+                                    ZoomableImageGestureMode.HORIZONTAL_PAGER,
+                                    ZoomableImageGestureMode.UNDECIDED -> Unit
                                 }
-                                ZoomableImageGestureMode.HORIZONTAL_PAGER,
-                                ZoomableImageGestureMode.UNDECIDED -> Unit
+                            }
+                            val ownsMovement = gestureMode == ZoomableImageGestureMode.VERTICAL_DISMISS ||
+                                (gestureMode == ZoomableImageGestureMode.IMAGE_INTERACTION &&
+                                    (isMultiTouch || scale > 1.01f))
+                            val finalEvent = awaitPointerEvent(PointerEventPass.Final)
+                            if (!ownsMovement && finalEvent.changes.any {
+                                    it.isConsumed && it.position != it.previousPosition
+                                }) {
+                                gestureCanceled = true
+                                break
+                            }
+                        } while (!gestureCanceled && event.changes.any { it.pressed })
+
+                        if (verticalDismissStarted) {
+                            verticalDismissStarted = false
+                            if (gestureCanceled) {
+                                latestOnDragCancel()
+                            } else {
+                                latestOnDragEnd(verticalDragVelocityY)
                             }
                         }
-                    } while (!gestureCanceled && event.changes.any { it.pressed })
-
-                    if (verticalDismissStarted) {
-                        if (gestureCanceled) {
-                            latestOnDragCancel()
-                        } else {
-                            latestOnDragEnd(verticalDragVelocityY)
-                        }
+                    } finally {
+                        // Node disposal or pointerInput cancellation must also restore the host
+                        // drag state; otherwise Pager can remain disabled after an interrupted swipe.
+                        if (verticalDismissStarted) latestOnDragCancel()
                     }
                 }
             }

@@ -19,10 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -51,7 +51,6 @@ import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.skeleton.ContentCategoryGridSkeleton
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -176,8 +175,7 @@ fun LiveAreaScreen(
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                ,
+                .fillMaxSize(),
         ) {
         when {
             isLoading -> ContentCategoryGridSkeleton(
@@ -211,14 +209,11 @@ fun LiveAreaScreen(
             areas.isNotEmpty() -> {
                 HorizontalPager(
                     state = pagerState,
-                    userScrollEnabled = false,
+                    userScrollEnabled = true,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .verticalPriorityHorizontalPagerSwipe(
-                            state = pagerState,
-                            enabled = true,
-                        )
+
                 ) { page ->
                     val selectedArea = areas.getOrNull(page)
                     if (selectedArea != null) {
@@ -288,6 +283,8 @@ private fun LiveAreaParentTabRow(
     val uiStyle = LocalAppUiStyle.current
     val effectiveHorizontalPadding = if (uiStyle == AppUiStyle.MATERIAL3) 0.dp else horizontalPadding
     AppThemeAdaptiveTabRow(
+        role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
+        centerContent = false,
         options = options,
         selectedValue = safeSelectedTab,
         onSelectionChange = onTabSelected,

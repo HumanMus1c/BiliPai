@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.LocalAppUiStyle
@@ -197,6 +197,14 @@ fun DynamicDetailScreen(
     var pendingReport by remember { mutableStateOf<DynamicManageAction.Report?>(null) }
     var editingAction by remember { mutableStateOf<DynamicManageAction.Edit?>(null) }
     var pendingMessageShare by remember { mutableStateOf<DynamicItem?>(null) }
+    var reactionItem by remember(dynamicId) { mutableStateOf<DynamicItem?>(null) }
+    reactionItem?.let { item ->
+        com.android.purebilibili.feature.dynamic.components.DynamicReactionSheet(
+            item = item,
+            onDismiss = { reactionItem = null },
+            onUserClick = onUserClick,
+        )
+    }
     var forwardCountDelta by remember(dynamicId) { mutableIntStateOf(0) }
     var subReplyCoveredBlurProgress by remember { mutableFloatStateOf(0f) }
     val detailListState = rememberLazyListState()
@@ -431,6 +439,7 @@ fun DynamicDetailScreen(
                     item(key = "dynamic_detail_comment_header") {
                         DynamicInlineCommentHeader(
                             totalCount = commentTotalCount,
+                            onShowReactions = { reactionItem = state.item },
                             sortMode = commentSortMode,
                             onSortModeChange = interactionViewModel::setDynamicCommentSortMode,
                         )

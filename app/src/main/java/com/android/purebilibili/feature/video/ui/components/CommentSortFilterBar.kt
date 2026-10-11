@@ -6,7 +6,6 @@ import com.android.purebilibili.core.ui.components.AppSegmentOption
 import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppThemeAdaptiveTabRow
-import com.android.purebilibili.core.ui.components.AppTabRowIndicatorPresentation
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -161,7 +160,7 @@ fun CommentSortHeader(
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     AppThemeAdaptiveTabRow(
-indicatorPresentation = AppTabRowIndicatorPresentation.TONAL_PILL,
+                        role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                         options = sortModes.map { AppSegmentOption(it, it.label) },
                         selectedValue = sortMode,
                         onSelectionChange = onSortModeChange,

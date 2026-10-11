@@ -973,6 +973,8 @@ private fun PopularSubCategorySegmentedControl(
             // MD3 非玻璃下 4 项会触发 size>3 的可滚动启发式而靠左;
             // 本行是页面级分类,等宽居中(与首页顶 Tab 一致),MIUIX 保持原启发式。
             forceEqualWidth = LocalAppUiStyle.current == AppUiStyle.MATERIAL3,
+            // Four-character labels fit the cell but not Tab's extra 16dp text padding.
+            allowNativeLabelOverflow = LocalAppUiStyle.current == AppUiStyle.MATERIAL3,
             containerHorizontalPadding = AppSpacingTokens.ExtraSmall,
             containerVerticalPadding = AppSpacingTokens.ExtraSmall,
             miuixBackdrop = null,

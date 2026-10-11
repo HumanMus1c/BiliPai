@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.pager.HorizontalPager
+import com.android.purebilibili.core.ui.components.AppHorizontalPager as HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -90,7 +90,6 @@ import coil3.request.ImageRequest
 import com.android.purebilibili.core.ui.adaptive.adaptiveCardHoverEffect
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
-import com.android.purebilibili.core.ui.common.verticalPriorityHorizontalPagerSwipe
 import com.android.purebilibili.core.ui.components.AppSurface
 import com.android.purebilibili.core.ui.LocalAnimatedVisibilityScope
 import com.android.purebilibili.core.ui.LocalSharedTransitionEnabled
@@ -182,17 +181,14 @@ internal fun HomeHeroCarousel(
                 resolveHomeHeroCarouselItemKey(videos, page, VideoItem::bvid)
             },
             pageSpacing = 10.dp,
-            userScrollEnabled = false,
+            userScrollEnabled = videos.size > 1,
             beyondViewportPageCount = 1,
             contentPadding = PaddingValues(horizontal = horizontalPeekPadding),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(carouselHeight + reflectionHeight)
                 .align(Alignment.Center)
-                .verticalPriorityHorizontalPagerSwipe(
-                    state = pagerState,
-                    enabled = videos.size > 1,
-                )
+
         ) { page ->
             val video = resolveHomeHeroCarouselItemOrNull(videos, page)
                 ?: return@HorizontalPager

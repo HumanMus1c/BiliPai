@@ -509,7 +509,7 @@ class TopTabStylePolicyTest {
                 itemCount = 4,
                 minEdgePadding = 20.dp,
                 labelMode = 0,
-                cornerRadius = FloatingBottomBarDefaultShellHeight / 2,
+                cornerRadius = resolveHomeTopDockShellHeight(isFloatingStyle = true) / 2,
             ),
             resolveHomeTopTabFloatingDockWidth(
                 containerWidth = 360.dp,

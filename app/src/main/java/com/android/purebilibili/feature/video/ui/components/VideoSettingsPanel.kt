@@ -1,5 +1,7 @@
 // 文件路径: feature/video/ui/components/VideoSettingsPanel.kt
 package com.android.purebilibili.feature.video.ui.components
+import com.android.purebilibili.feature.video.screen.AudioModeSleepTimerDialog
+import com.android.purebilibili.core.ui.components.AppTextButton
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.motion.folmeExpandEnterTransition
 import com.android.purebilibili.core.ui.motion.folmeExpandExitTransition
@@ -13,7 +15,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.android.purebilibili.core.ui.components.AppLazyColumn as LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1558,6 +1560,15 @@ private fun SleepTimerOptions(
     currentMinutes: Int?,
     onSelect: (Int?) -> Unit
 ) {
+    var showCustomTimer by remember { mutableStateOf(false) }
+    if (showCustomTimer) {
+        AudioModeSleepTimerDialog(
+            currentMinutes = currentMinutes,
+            onDismiss = { showCustomTimer = false },
+            onSelectPreset = { onSelect(it); showCustomTimer = false },
+            onConfirmCustom = { onSelect(it); showCustomTimer = false },
+        )
+    }
     val spec = rememberVideoSettingsPanelVisualSpec()
     val options = listOf(
         null to "关闭",
@@ -1591,6 +1602,9 @@ private fun SleepTimerOptions(
                     )
                 }
             }
+        }
+        AppTextButton(onClick = { showCustomTimer = true }) {
+            AppText("自定义")
         }
     }
 }

@@ -1,4 +1,5 @@
 package com.android.purebilibili.feature.video.ui.overlay
+import com.android.purebilibili.core.ui.components.appElasticPress
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -230,23 +231,27 @@ private fun InteractionButton(
     val interactionSource = remember { MutableInteractionSource() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = if (onLongClick != null) {
-            Modifier.pointerInput(onClick, onLongClick, onPressRelease) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() },
-                    onPress = {
-                        tryAwaitRelease()
-                        onPressRelease?.invoke()
+        modifier = Modifier
+            .appElasticPress(dragEnabled = onLongClick == null)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.pointerInput(onClick, onLongClick, onPressRelease) {
+                        detectTapGestures(
+                            onTap = { onClick() },
+                            onLongPress = { onLongClick() },
+                            onPress = {
+                                tryAwaitRelease()
+                                onPressRelease?.invoke()
+                            }
+                        )
                     }
-                )
-            }
-        } else {
-            Modifier.clickable(
-                indication = null,
-                interactionSource = interactionSource
-            ) { onClick() }
-        }
+                } else {
+                    Modifier.clickable(
+                        indication = null,
+                        interactionSource = interactionSource,
+                    ) { onClick() }
+                }
+            )
     ) {
         Box(
             modifier = Modifier
