@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.login
 
+import com.android.purebilibili.core.ui.AppContentColors
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -15,9 +17,17 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import com.android.purebilibili.core.ui.components.AppTextButton
+import com.android.purebilibili.core.ui.components.AppOutlinedButton
+import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -55,6 +65,9 @@ fun BiliPaiTransferScanner(
     singleShot: Boolean = false,
     acceptAnyQr: Boolean = false,
     onError: (String) -> Unit = {},
+    // Explicit opt-in: authorization places actions below the preview; existing
+    // session-transfer callers retain their overlay layout and original sizing.
+    previewModifier: Modifier? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -118,7 +131,7 @@ fun BiliPaiTransferScanner(
     if (!granted) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                androidx.compose.material3.Text("需要摄像头权限才能扫描二维码", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.material3.Text("需要摄像头权限才能扫描二维码", color = AppContentColors.secondaryText())
                 AppTextButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
                     androidx.compose.material3.Text("允许使用摄像头")
                 }
@@ -138,7 +151,7 @@ fun BiliPaiTransferScanner(
     // SurfaceView renders on a separate window layer that ignores view bounds clipping,
     // so the camera preview bleeds over surrounding text. TextureView (COMPATIBLE) clips.
     previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-    // NagramX-style viewfinder: spring-in appearance, corner brackets, recognition pulse.
+    // Viewfinder with spring-in appearance, corner brackets and a recognition pulse.
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     val pulse = remember { androidx.compose.animation.core.Animatable(0f) }
     var cameraControl by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
@@ -198,7 +211,7 @@ fun BiliPaiTransferScanner(
                                             if (!active.get()) return@execute
                                             if (singleShot) {
                                                 // Recognition pulse before handing the code over,
-                                                // mirroring NagramX's lock-on feedback.
+                                                // providing lock-on feedback.
                                                 coroutineScope.launch {
                                                     pulse.animateTo(
                                                         1f,
@@ -252,29 +265,67 @@ fun BiliPaiTransferScanner(
             executor.shutdown()
         }
     }
-    androidx.compose.foundation.layout.Box(
-        modifier = modifier
-            // Defense in depth: never let the camera layer paint outside the slot.
-            .clipToBounds()
-    ) {
-        AndroidView(factory = { previewView }, modifier = Modifier.matchParentSize())
-        ScannerViewfinderOverlay(appear = appear.value, pulse = pulse.value)
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+    val previewContent: @Composable (Modifier) -> Unit = { cameraModifier ->
+        Box(
+            modifier = cameraModifier
+                // Never let the camera layer paint outside the preview slot.
+                .clipToBounds()
         ) {
-            AppTextButton(onClick = { launchGalleryPicker() }) {
-                androidx.compose.material3.Text("从相册识别")
+            AndroidView(factory = { previewView }, modifier = Modifier.matchParentSize())
+            ScannerViewfinderOverlay(appear = appear.value, pulse = pulse.value)
+            if (previewModifier == null) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AppTextButton(onClick = { launchGalleryPicker() }) {
+                        androidx.compose.material3.Text("从相册识别")
+                    }
+                    if (cameraControl != null) {
+                        AppTextButton(onClick = {
+                            val next = !torchEnabled
+                            torchEnabled = next
+                            cameraControl?.enableTorch(next)
+                        }) {
+                            androidx.compose.material3.Text(if (torchEnabled) "关闭手电筒" else "手电筒")
+                        }
+                    }
+                }
             }
-            if (cameraControl != null) {
-                AppTextButton(onClick = {
-                    val next = !torchEnabled
-                    torchEnabled = next
-                    cameraControl?.enableTorch(next)
-                }) {
-                    androidx.compose.material3.Text(if (torchEnabled) "关闭手电筒" else "手电筒")
+        }
+    }
+    if (previewModifier == null) {
+        previewContent(modifier)
+    } else {
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            previewContent(previewModifier)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppOutlinedButton(
+                    onClick = { launchGalleryPicker() },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                ) {
+                    AppText("相册识别", style = MaterialTheme.typography.labelLarge)
+                }
+                AppOutlinedButton(
+                    onClick = {
+                        val next = !torchEnabled
+                        torchEnabled = next
+                        cameraControl?.enableTorch(next)
+                    },
+                    enabled = cameraControl != null,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                ) {
+                    AppText(
+                        if (torchEnabled) "关闭手电筒" else "手电筒",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
         }
@@ -282,7 +333,7 @@ fun BiliPaiTransferScanner(
 }
 
 /**
- * NagramX-inspired viewfinder: a centered square (short edge / 1.5) with 50% black
+ * Viewfinder: a centered square (short edge / 1.5) with 50% black
  * mask outside, white rounded corner brackets that spring in on appear, and a
  * pulse that thickens the brackets and darkens the mask when a code is recognized.
  */
@@ -321,7 +372,7 @@ private fun ScannerViewfinderOverlay(appear: Float, pulse: Float) {
             join = androidx.compose.ui.graphics.StrokeJoin.Round,
         )
 
-        // Bracket with an arc bend at the corner, like NagramX's rounded corner path.
+        // Bracket with a rounded arc bend at the corner.
         val bendRadius = minOf(stroke * 1.5f, cornerLen / 2f)
         fun cornerPath(corner: Offset, dx: Float, dy: Float) = androidx.compose.ui.graphics.Path().apply {
             moveTo(corner.x + dx * cornerLen, corner.y + dy * half)

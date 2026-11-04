@@ -7,6 +7,22 @@ import kotlin.test.assertTrue
 class SettingsSearchPolicyTest {
 
     @Test
+    fun dynamicCommentPreviewTitleAndAliasesOpenHomeCategory() {
+        listOf("显示动态评论提示", "动态评论摘要", "动态评论预览", "相关评论").forEach { query ->
+            val result = resolveSettingsSearchResults(query)
+                .first { it.settingId == "home.dynamic_comment_preview_visible" }
+
+            assertEquals(SettingsSearchTarget.HOME_FEED, result.target)
+            assertEquals(SettingsRootCategory.HOME_RECOMMENDATION, result.page)
+            assertEquals("home_options", result.focusId)
+            assertEquals(
+                com.android.purebilibili.navigation3.BiliPaiNavKey.SettingsCategory(SettingsRootCategory.HOME_RECOMMENDATION),
+                resolveSettingsSearchNavigation(result),
+            )
+        }
+    }
+
+    @Test
     fun blankQuery_returnsEmptyList() {
         val results = resolveSettingsSearchResults("   ")
 
@@ -147,11 +163,11 @@ class SettingsSearchPolicyTest {
     }
 
     @Test
-    fun queryByAndroidNativeLiquidGlass_focusesAppearanceThemeSection() {
+    fun queryByAndroidNativeLiquidGlass_focusesAnimationGlassSection() {
         val result = resolveSettingsSearchResults("安卓原生液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
-        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
+        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
+        assertEquals("animation_glass", result?.focusId)
     }
 
     @Test
@@ -179,24 +195,24 @@ class SettingsSearchPolicyTest {
     fun queryByBottomBarLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("底栏液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
-        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
+        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
+        assertEquals("animation_glass", result?.focusId)
     }
 
     @Test
     fun queryByTopDockLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("顶部dock栏液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
-        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
+        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
+        assertEquals("animation_glass", result?.focusId)
     }
 
     @Test
     fun queryByHomeSearchLiquidGlass_focusesGlobalAppearanceEntry() {
         val result = resolveSettingsSearchResults("首页搜索框液态玻璃").firstOrNull()
 
-        assertEquals(SettingsSearchTarget.APPEARANCE, result?.target)
-        assertEquals(SettingsSearchFocusIds.APPEARANCE_THEME, result?.focusId)
+        assertEquals(SettingsSearchTarget.ANIMATION, result?.target)
+        assertEquals("animation_glass", result?.focusId)
     }
 
     @Test

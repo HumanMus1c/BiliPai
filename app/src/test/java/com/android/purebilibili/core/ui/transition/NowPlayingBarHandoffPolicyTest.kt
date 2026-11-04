@@ -4,6 +4,31 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NowPlayingBarHandoffPolicyTest {
+    @Test
+    fun `live bar takes pixels before outgoing entry disposal and reverses with gesture`() {
+        var depth = 0.02f
+        val handoff = NowPlayingBarHandoffState.Returning(
+            targetBvid = "BV123",
+            isSourceOwner = true,
+            morphDepthProvider = { depth },
+        )
+        assertEquals(0f, resolveNowPlayingBarReturnVisibility(handoff, "BV123"), 0.001f)
+        depth = 0.01f
+        assertEquals(0.5f, resolveNowPlayingBarReturnVisibility(handoff, "BV123"), 0.001f)
+        depth = 0f
+        assertEquals(1f, resolveNowPlayingBarReturnVisibility(handoff, "BV123"), 0.001f)
+        depth = 0.02f
+        assertEquals(0f, resolveNowPlayingBarReturnVisibility(handoff, "BV123"), 0.001f)
+    }
+
+    @Test
+    fun capsuleCornerTracksActualHeightAndCompactWidth() {
+        assertEquals(28, resolveNowPlayingBarSourceCornerDp(900f, 168f, 3f))
+        assertEquals(32, resolveNowPlayingBarSourceCornerDp(900f, 192f, 3f))
+        assertEquals(20, resolveNowPlayingBarSourceCornerDp(120f, 192f, 3f))
+        assertEquals(0, resolveNowPlayingBarSourceCornerDp(900f, 192f, 0f))
+    }
+
 
     @Test
     fun `idle handoff leaves the bar fully visible`() {

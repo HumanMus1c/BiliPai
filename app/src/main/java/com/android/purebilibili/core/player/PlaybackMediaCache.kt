@@ -76,18 +76,28 @@ internal object PlaybackMediaCache {
         context: Context,
         upstreamFactory: DataSource.Factory
     ): DataSource.Factory {
-        val monitoredUpstreamFactory = DataSource.Factory {
-            CdnPlaybackDataSource(upstreamFactory.createDataSource()).apply {
-                addTransferListener(upstreamTransferListener)
+        val appContext = context.applicationContext
+        // Building a player during entry must not open the disk cache. Resolve the
+        // shared cache only when playback/prefetch first asks for a data source.
+        val delegate: DataSource.Factory by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            val monitoredUpstreamFactory = DataSource.Factory {
+                CdnPlaybackDataSource(upstreamFactory.createDataSource()).apply {
+                    addTransferListener(upstreamTransferListener)
+                }
+            }
+            val cache = getOrCreateCache(appContext)
+            if (cache == null) {
+                monitoredUpstreamFactory
+            } else {
+                CacheDataSource.Factory()
+                    .setCache(cache)
+                    .setUpstreamDataSourceFactory(monitoredUpstreamFactory)
+                    .setCacheKeyFactory(playbackCacheKeyFactory)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                    .setEventListener(cacheEventListener)
             }
         }
-        val cache = getOrCreateCache(context) ?: return monitoredUpstreamFactory
-        return CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(monitoredUpstreamFactory)
-            .setCacheKeyFactory(playbackCacheKeyFactory)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-            .setEventListener(cacheEventListener)
+        return DataSource.Factory { delegate.createDataSource() }
     }
 
     /**
@@ -157,16 +167,16 @@ internal object PlaybackMediaCache {
             .sumOf { it.length() }
     }
 
-    fun clear(context: Context) {
+    fun clear(context: Context): Result<Unit> =
         runCatching {
             simpleCache?.release()
             simpleCache = null
-            cacheDir(context).deleteRecursively()
+            val directory = cacheDir(context)
+            check(!directory.exists() || directory.deleteRecursively()) { "部分媒体分片缓存无法清理" }
             Logger.d(TAG, "播放器媒体缓存已清理")
         }.onFailure { error ->
             Logger.w(TAG, "播放器媒体缓存清理失败: ${error.message}")
         }
-    }
 
     fun snapshotStats(): PlaybackMediaCacheStats {
         return PlaybackMediaCacheStats(

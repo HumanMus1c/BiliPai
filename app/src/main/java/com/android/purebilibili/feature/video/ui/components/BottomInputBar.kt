@@ -1,5 +1,10 @@
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.ui.components.appActionClickable
+import com.android.purebilibili.core.ui.components.appActionWithFeedback
+
+import com.android.purebilibili.core.ui.AppContentColors
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -7,7 +12,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -134,6 +139,7 @@ internal fun shouldShowBottomInputBarActionButtons(
 fun BottomInputBar(
     modifier: Modifier = Modifier,
     isLiked: Boolean,
+    likeStatusKnown: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
     onLikeClick: () -> Unit,
@@ -210,6 +216,7 @@ fun BottomInputBar(
                     modifier = Modifier,
                     backdrop = backdrop,
                     isLiked = isLiked,
+                    likeStatusKnown = likeStatusKnown,
                     isFavorited = isFavorited,
                     isCoined = isCoined,
                     onLikeClick = onLikeClick,
@@ -227,6 +234,7 @@ fun BottomInputBar(
                     hazeState = hazeState,
                     frostedBottomBar = frostedBottomBar,
                     isLiked = isLiked,
+                    likeStatusKnown = likeStatusKnown,
                     isFavorited = isFavorited,
                     isCoined = isCoined,
                     onLikeClick = onLikeClick,
@@ -248,6 +256,7 @@ private fun DockedSolidBottomInputBar(
     hazeState: HazeState?,
     frostedBottomBar: Boolean,
     isLiked: Boolean,
+    likeStatusKnown: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
     onLikeClick: () -> Unit,
@@ -267,8 +276,8 @@ private fun DockedSolidBottomInputBar(
     val inputContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest
     val inputTextColor = resolveBottomInputBarPlaceholderTextColor(
         inputContainerColor = inputContainerColor,
-        onSurfaceColor = MaterialTheme.colorScheme.onSurface,
-        onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+        onSurfaceColor = AppContentColors.primaryText(),
+        onSurfaceVariantColor = AppContentColors.secondaryText()
     )
 
     AppSurface(
@@ -295,6 +304,7 @@ private fun DockedSolidBottomInputBar(
             inputContainerColor = inputContainerColor,
             inputTextColor = inputTextColor,
             isLiked = isLiked,
+                    likeStatusKnown = likeStatusKnown,
             isFavorited = isFavorited,
             isCoined = isCoined,
             onLikeClick = onLikeClick,
@@ -309,10 +319,40 @@ private fun DockedSolidBottomInputBar(
 }
 
 @Composable
+internal fun CommentEntryBarContent(
+    textColor: Color,
+    iconSize: Dp,
+    iconSpacing: Dp,
+    textStyle: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(iconSpacing),
+    ) {
+        AppIcon(
+            imageVector = Icons.Outlined.Edit,
+            contentDescription = null,
+            tint = textColor,
+            modifier = Modifier.size(iconSize),
+        )
+        AppText(
+            text = "发评论",
+            color = textColor,
+            style = textStyle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun FloatingLiquidBottomInputBar(
     modifier: Modifier,
     backdrop: Backdrop?,
     isLiked: Boolean,
+    likeStatusKnown: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
     onLikeClick: () -> Unit,
@@ -328,8 +368,8 @@ private fun FloatingLiquidBottomInputBar(
         val shellShape = resolveSharedBottomBarCapsuleShape()
         val inputTextColor = resolveBottomInputBarPlaceholderTextColor(
             inputContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            onSurfaceColor = MaterialTheme.colorScheme.onSurface,
-            onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+            onSurfaceColor = AppContentColors.primaryText(),
+            onSurfaceVariantColor = AppContentColors.secondaryText()
         )
         val navigationBarBottomPadding = WindowInsets.navigationBars
             .asPaddingValues()
@@ -373,28 +413,16 @@ private fun FloatingLiquidBottomInputBar(
                     shellLensIntensity = resolveFloatingDockGeometryScale(44f),
                     isScrollInProgressProvider = isScrollInProgressProvider,
                 ) {
-                    Row(
+                    CommentEntryBarContent(
+                        textColor = inputTextColor,
+                        iconSize = 20.dp,
+                        iconSpacing = 6.dp,
+                        textStyle = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable(role = Role.Button) { onCommentClick() }
+                            .appActionClickable(role = Role.Button) { onCommentClick() }
                             .padding(horizontal = if (showActionButtons) 12.dp else 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        AppIcon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = null,
-                            tint = inputTextColor,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        AppText(
-                            text = "发评论",
-                            color = inputTextColor,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    )
                 }
 
                 if (showActionButtons) {
@@ -424,6 +452,7 @@ private fun FloatingLiquidBottomInputBar(
                             likeFilledIcon = rememberAppLikeFilledIcon(),
                             shareIcon = rememberAppShareIcon(),
                             isLiked = isLiked,
+                    likeStatusKnown = likeStatusKnown,
                             isFavorited = isFavorited,
                             isCoined = isCoined,
                             onLikeClick = onLikeClick,
@@ -445,6 +474,7 @@ private fun BottomInputBarContentRow(
     inputContainerColor: Color,
     inputTextColor: Color,
     isLiked: Boolean,
+    likeStatusKnown: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
     onLikeClick: () -> Unit,
@@ -473,28 +503,16 @@ private fun BottomInputBarContentRow(
                     .appElasticPress()
                     .clip(AppShapes.container(ContainerLevel.Card))
                     .background(inputContainerColor)
-                    .clickable(role = Role.Button) { onCommentClick() }
+                    .appActionClickable(role = Role.Button) { onCommentClick() }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AppIcon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = null,
-                        tint = inputTextColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    AppText(
-                        text = "发评论",
-                        color = inputTextColor,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                CommentEntryBarContent(
+                    textColor = inputTextColor,
+                    iconSize = 18.dp,
+                    iconSpacing = 8.dp,
+                    textStyle = MaterialTheme.typography.bodySmall,
+                )
             }
 
             if (showActionButtons) {
@@ -507,6 +525,7 @@ private fun BottomInputBarContentRow(
                     likeFilledIcon = likeFilledIcon,
                     shareIcon = shareIcon,
                     isLiked = isLiked,
+                    likeStatusKnown = likeStatusKnown,
                     isFavorited = isFavorited,
                     isCoined = isCoined,
                     onLikeClick = onLikeClick,
@@ -534,6 +553,7 @@ private fun BottomInputBarActionButtons(
     likeFilledIcon: ImageVector,
     shareIcon: ImageVector,
     isLiked: Boolean,
+    likeStatusKnown: Boolean,
     isFavorited: Boolean,
     isCoined: Boolean,
     onLikeClick: () -> Unit,
@@ -552,9 +572,9 @@ private fun BottomInputBarActionButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconActionButton(
-            icon = if (isLiked) likeFilledIcon else likeIcon,
-            label = "点赞",
-            tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            icon = if (likeStatusKnown && isLiked) likeFilledIcon else likeIcon,
+            label = if (likeStatusKnown) "点赞" else "点赞状态待确认",
+            tint = if (likeStatusKnown && isLiked) AppContentColors.accent() else AppContentColors.primaryText(),
             onClick = onLikeClick,
             itemSize = itemSize,
             elasticFeedbackEnabled = elasticFeedbackEnabled,
@@ -564,7 +584,7 @@ private fun BottomInputBarActionButtons(
         IconActionButton(
             icon = coinIcon,
             label = "投币",
-            tint = if (isCoined) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            tint = if (isCoined) AppContentColors.accent() else AppContentColors.primaryText(),
             onClick = onCoinClick,
             itemSize = itemSize,
             elasticFeedbackEnabled = elasticFeedbackEnabled,
@@ -574,7 +594,7 @@ private fun BottomInputBarActionButtons(
         IconActionButton(
             icon = favoriteIcon,
             label = "收藏",
-            tint = if (isFavorited) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            tint = if (isFavorited) AppContentColors.accent() else AppContentColors.primaryText(),
             onClick = onFavoriteClick,
             onLongClick = onFavoriteLongClick,
             itemSize = itemSize,
@@ -582,16 +602,18 @@ private fun BottomInputBarActionButtons(
             iconSize = iconSize,
             showLabel = false
         )
-        IconActionButton(
-            icon = shareIcon,
-            label = "分享",
-            tint = MaterialTheme.colorScheme.onSurface,
-            onClick = onShareClick,
-            itemSize = itemSize,
-            elasticFeedbackEnabled = elasticFeedbackEnabled,
-            iconSize = iconSize,
-            showLabel = false
-        )
+        com.android.purebilibili.feature.video.share.VideoShareActionAnchor(onShareClick) { anchoredShare ->
+            IconActionButton(
+                icon = shareIcon,
+                label = "分享",
+                tint = AppContentColors.primaryText(),
+                onClick = anchoredShare,
+                itemSize = itemSize,
+                elasticFeedbackEnabled = elasticFeedbackEnabled,
+                iconSize = iconSize,
+                showLabel = false
+            )
+        }
     }
 }
 
@@ -606,6 +628,7 @@ private fun IconActionButton(
     iconSize: Dp,
     showLabel: Boolean = false,
     elasticFeedbackEnabled: Boolean = true,
+    enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
 ) {
     com.android.purebilibili.core.ui.components.ProvideAppElasticFeedback {
@@ -615,18 +638,19 @@ private fun IconActionButton(
             modifier = Modifier
                 .sizeIn(minWidth = itemSize, minHeight = itemSize)
                 .appElasticPress(
-                    enabled = elasticFeedbackEnabled,
+                    enabled = elasticFeedbackEnabled && enabled,
                     dragEnabled = onLongClick == null,
                 )
                 .then(
                     if (onLongClick != null) {
                         Modifier.combinedClickable(
+                            enabled = enabled,
                             role = Role.Button,
-                            onClick = onClick,
+                            onClick = appActionWithFeedback(onClick),
                             onLongClick = onLongClick,
                         )
                     } else {
-                        Modifier.clickable(role = Role.Button, onClick = onClick)
+                        Modifier.appActionClickable(enabled = enabled, role = Role.Button, onClick = onClick)
                     }
                 )
                 .padding(4.dp)

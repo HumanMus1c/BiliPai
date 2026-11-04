@@ -186,7 +186,8 @@ object CommentRepository {
         page: Int,
         ps: Int,
         mode: Int,
-        paginationOffset: String? = null
+        paginationOffset: String? = null,
+        cursorNext: Long? = null,
     ): ReplyResponse {
         return when (mode) {
             1 -> {
@@ -218,7 +219,7 @@ object CommentRepository {
                 params["ps"] = ps.toString()
                 params["plat"] = "1"
                 params["web_location"] = "1315875"
-                params.putAll(resolveCommentMainListPaginationParameters(page, paginationOffset))
+                params.putAll(resolveCommentMainListPaginationParameters(page, paginationOffset, cursorNext))
 
                 val wbiKeys = getWbiKeysOrNull(apiClient)
                 if (wbiKeys != null) {
@@ -452,7 +453,10 @@ object CommentRepository {
                     page = page,
                     mode = mode,
                     paginationOffset = paginationOffset
-                )
+                ) &&
+                // gRPC 刚刚失败过（TTL 内）就直接走 REST，省掉一次注定失败的往返。
+                // 只减少请求、不增加并发；成功后记忆立刻清除。
+                !commentReadRouteMemo.shouldSkipGrpcAttempt()
             ) {
                 val grpcResult = CommentGrpcRepository.getMainList(
                     oid = oid,
@@ -461,6 +465,7 @@ object CommentRepository {
                     nextOffset = paginationOffset
                 )
                 if (grpcResult.isSuccess) {
+                    commentReadRouteMemo.recordGrpcSuccess()
                     val grpcData = grpcResult.getOrNull()
                     if (
                         shouldFallbackHotCommentReadOnEmptySuccess(
@@ -488,6 +493,7 @@ object CommentRepository {
                         )
                     }
                 } else {
+                    commentReadRouteMemo.recordGrpcFailure()
                     CoreDataLog.w(
                         "CommentRepo",
                         "getComments gRPC fallback to REST: oid=$oid, type=$type, page=$page, mode=$mode, error=${grpcResult.exceptionOrNull()?.message}"
@@ -579,9 +585,9 @@ object CommentRepository {
                     CoreDataLog.w("CommentRepo", "getComments REST failed with code ${finalResponse.code}, restoring valid gRPC payload")
                     return@withContext fallbackGrpcResult
                 }
-                val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
+                val error = CommentReadException(finalResponse.code, finalResponse.message)
                 android.util.Log.e("CommentRepo", " getComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
-                Result.failure(Exception(errorMsg))
+                Result.failure(error)
             }
         } catch (e: Exception) {
             if (fallbackGrpcResult != null) {
@@ -589,6 +595,118 @@ object CommentRepository {
                 return@withContext fallbackGrpcResult
             }
             android.util.Log.e("CommentRepo", " getComments exception: oid=$oid, type=$type, ${e.message}", e)
+            Result.failure(e)
+        }
+    }.map { filterGoodsRepliesIfEnabled(it) }
+
+    /**
+     * 手机主评论通过独立排序字段与服务端 offset 分页。分页来源随缓存保存，
+     * 中途失败保留原 offset 重试，不将 gRPC 游标交给 REST。
+     */
+    suspend fun getMobileCommentsForSubject(
+        oid: Long,
+        type: Int,
+        page: Int,
+        ps: Int = 20,
+        mode: Int = 3,
+        continuation: CommentMainListContinuation? = null,
+        fallbackOnMissingLocation: Boolean = false,
+        expectedCount: Int = 0,
+    ): Result<ReplyData> = recoverEmptyCommentFirstPage(page, expectedCount) {
+        readMobileCommentsForSubject(oid, type, page, ps, mode, continuation, fallbackOnMissingLocation)
+    }.map { filterGoodsRepliesIfEnabled(it) }
+
+    private suspend fun readMobileCommentsForSubject(
+        oid: Long,
+        type: Int,
+        page: Int,
+        ps: Int,
+        mode: Int,
+        continuation: CommentMainListContinuation?,
+        fallbackOnMissingLocation: Boolean,
+    ): Result<ReplyData> = withContext(Dispatchers.IO) {
+        try {
+            require(page <= 1 || continuation != null) { "评论缺少分页游标，请刷新后重试" }
+            BuvidManager.ensureBuvid3()
+            val supportsGrpc = mode == CommentGrpcRepository.MODE_TIME || mode == CommentGrpcRepository.MODE_HOT
+            val useGrpc = continuation?.route == CommentMainListRoute.GRPC ||
+                (page <= 1 && supportsGrpc && !commentReadRouteMemo.shouldSkipGrpcAttempt())
+            if (useGrpc) {
+                val result = CommentGrpcRepository.getMainList(
+                    oid = oid, type = type, mode = mode, nextOffset = continuation?.offset,
+                )
+                currentCoroutineContext().ensureActive()
+                val data = result.getOrNull()
+                val missingCursor = data != null && !data.cursor.isEnd &&
+                    data.mainListContinuation?.offset.isNullOrBlank()
+                val needsFirstPageFallback = page <= 1 && (missingCursor ||
+                    shouldFallbackHotCommentReadOnEmptySuccess(page, mode, 0, data) ||
+                    shouldFallbackCommentReadOnEmptyRenderableSuccess(0, data))
+                if (data != null && !needsFirstPageFallback) {
+                    commentReadRouteMemo.recordGrpcSuccess()
+                    requireAdvancingMobileCommentCursor(data, continuation)
+                    // IP 属地仅作为补充，不替换 gRPC 排序、游标、控制项和投票卡片。
+                    val supplements = if (fallbackOnMissingLocation && shouldFallbackGrpcCommentReadOnMissingLocation(data)) {
+                        withTimeoutOrNull(4_500L) {
+                            fetchMobileRestCommentPage(oid, type, 1, ps, mode, null).getOrNull()
+                        }
+                    } else null
+                    currentCoroutineContext().ensureActive()
+                    return@withContext Result.success(if (supplements != null) {
+                        mergeCommentReplyLocations(data, collectReplyLocationCandidates(supplements))
+                    } else data)
+                }
+                // 已开始的分页绝不能换接口；刷新才允许重新选择读取来源。
+                if (page > 1) return@withContext Result.failure(
+                    result.exceptionOrNull() ?: IllegalStateException("评论分页响应异常，请重试"),
+                )
+                if (result.isFailure) commentReadRouteMemo.recordGrpcFailure()
+            }
+            fetchMobileRestCommentPage(oid, type, page, ps, mode, continuation)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private suspend fun fetchMobileRestCommentPage(
+        oid: Long, type: Int, page: Int, ps: Int, mode: Int,
+        continuation: CommentMainListContinuation?,
+    ): Result<ReplyData> {
+        return try {
+            val plan = resolveCommentReadPlan(!com.android.purebilibili.core.store.TokenManager.sessDataCache.isNullOrEmpty())
+            suspend fun fetch(identity: CommentReadApiMode): ReplyResponse {
+                val client = resolveReadApi(identity)
+                if (continuation?.route == CommentMainListRoute.REST_LEGACY) {
+                    val sort = when (mode) { 1 -> 2; 2 -> 0; else -> 1 }
+                    return client.getReplyListLegacy(oid = oid, type = type, pn = page, ps = ps, sort = sort)
+                }
+                return fetchCommentsByApi(
+                    client, oid, type, page, ps, mode,
+                    paginationOffset = continuation?.offset, cursorNext = continuation?.next,
+                )
+            }
+            var response = fetch(plan.primary)
+            if (response.code != 0 && shouldFallbackCommentRead(response.code)) {
+                plan.fallback?.let { response = fetch(it) }
+            }
+            if (page <= 1 && (shouldFallbackHotCommentReadOnEmptySuccess(page, mode, response.code, response.data) ||
+                    shouldFallbackCommentReadOnEmptyRenderableSuccess(response.code, response.data))) {
+                response = fetchCommentEmptySuccessFallback(plan, oid, type, page, ps, mode, null)
+            }
+            currentCoroutineContext().ensureActive()
+            if (response.code != 0) return Result.failure(CommentReadException(response.code, response.message))
+            val rawData = response.data ?: return Result.failure(Exception("评论响应缺少数据，请重试"))
+            require(continuation == null || continuation.route == mobileRestCommentRoute(rawData)) {
+                "评论分页接口发生变化，请刷新后重试"
+            }
+            val data = resolveMobileRestCommentPage(rawData, page, ps)
+            requireAdvancingMobileCommentCursor(data, continuation)
+            Result.success(data)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
@@ -603,7 +721,7 @@ object CommentRepository {
             if (response.code == 0) {
                 Result.success(response.data?.count ?: 0)
             } else {
-                Result.failure(Exception(resolveCommentReadErrorMessage(response.code)))
+                Result.failure(CommentReadException(response.code, response.message))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -631,7 +749,8 @@ object CommentRepository {
         rootId: Long,
         mode: Int,
         paginationOffset: String? = null,
-        targetReplyId: Long = 0L
+        targetReplyId: Long = 0L,
+        supplementLocations: Boolean = true,
     ): Result<ReplyData> = withContext(Dispatchers.IO) {
         try {
             require(mode == CommentGrpcRepository.MODE_TIME || mode == CommentGrpcRepository.MODE_HOT)
@@ -646,13 +765,39 @@ object CommentRepository {
             )
             currentCoroutineContext().ensureActive()
             val data = result.getOrNull() ?: return@withContext result
-            Result.success(supplementSortedSubReplyLocations(oid, type, data))
+            Result.success(if (supplementLocations) supplementSortedSubReplyLocations(oid, type, data) else data)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
+    }.map { filterGoodsRepliesIfEnabled(it) }
+
+    /** 手机详情校验分页完整性；TV 沿用原入口及默认行为。 */
+    suspend fun getMobileSortedSubCommentsForSubject(
+        oid: Long,
+        type: Int,
+        rootId: Long,
+        mode: Int,
+        paginationOffset: String? = null,
+        targetReplyId: Long = 0L,
+        supplementLocations: Boolean = true,
+    ): Result<ReplyData> = withContext(Dispatchers.IO) {
+        try {
+            val result = getSortedSubCommentsForSubject(
+                oid, type, rootId, mode, paginationOffset, targetReplyId,
+                supplementLocations = false,
+            )
+            currentCoroutineContext().ensureActive()
+            val data = result.getOrNull() ?: return@withContext result
+            requireAdvancingSubReplyCursor(data, paginationOffset)
+            Result.success(if (supplementLocations) supplementSortedSubReplyLocations(oid, type, data) else data)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }.map { filterGoodsRepliesIfEnabled(it) }
 
     private suspend fun supplementSortedSubReplyLocations(
         oid: Long,
@@ -782,9 +927,7 @@ object CommentRepository {
                     return@withContext fallbackGrpcResult
                 }
                 android.util.Log.e("CommentRepo", " getSubComments failed: oid=$oid, type=$type, ${finalResponse.code} - ${finalResponse.message}")
-                val errorMsg = resolveCommentReadErrorMessage(finalResponse.code)
-                    .replace("评论", "回复")
-                Result.failure(Exception(errorMsg))
+                Result.failure(CommentReadException(finalResponse.code, finalResponse.message))
             }
         } catch (e: Exception) {
             if (fallbackGrpcResult != null) {
@@ -794,7 +937,7 @@ object CommentRepository {
             android.util.Log.e("CommentRepo", " getSubComments exception: oid=$oid, type=$type, ${e.message}", e)
             Result.failure(e)
         }
-    }
+    }.map { filterGoodsRepliesIfEnabled(it) }
 
     suspend fun getDialogCommentsForSubject(
         oid: Long,
@@ -816,14 +959,18 @@ object CommentRepository {
                 dialog = dialogId,
                 nextOffset = paginationOffset
             )
+            currentCoroutineContext().ensureActive()
+            grpcResult.getOrNull()?.let { requireAdvancingSubReplyCursor(it, paginationOffset) }
             if (grpcResult.isSuccess) {
                 CoreDataLog.d("CommentRepo", " getDialogComments (gRPC DialogList): oid=$oid, type=$type, root=$rootId, dialog=$dialogId, page=$page")
             }
             grpcResult
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
+    }.map { filterGoodsRepliesIfEnabled(it) }
 
     /**
      * 获取表情包映射
@@ -894,6 +1041,8 @@ object CommentRepository {
                 }
                 Result.failure(Exception(errorMsg))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             CoreDataLog.e("CommentRepo", "searchMentionUsers exception: keyword=$keyword", e)
             Result.failure(e)
@@ -993,13 +1142,15 @@ object CommentRepository {
     suspend fun uploadCommentImage(
         fileName: String,
         mimeType: String,
-        bytes: ByteArray
+        bytes: ByteArray,
+        biz: String = "new_dyn",
     ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
         val mediaType = mimeType.toMediaType()
         uploadCommentImagePart(
             fileName = fileName.ifBlank { "comment_image.jpg" },
             mimeType = mimeType,
-            fileBody = bytes.toRequestBody(mediaType)
+            fileBody = bytes.toRequestBody(mediaType),
+            biz = biz,
         )
     }
 
@@ -1012,7 +1163,8 @@ object CommentRepository {
         fileName: String,
         mimeType: String,
         resolver: ContentResolver,
-        uri: Uri
+        uri: Uri,
+        biz: String = "new_dyn",
     ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
         val size = queryContentImageSize(resolver, uri)
         if (size == null) {
@@ -1025,7 +1177,8 @@ object CommentRepository {
             uploadCommentImage(
                 fileName = fileName,
                 mimeType = mimeType,
-                bytes = bytes
+                bytes = bytes,
+                biz = biz,
             )
         } else {
             if (size <= 0L) return@withContext Result.failure(Exception("图片内容为空"))
@@ -1040,7 +1193,8 @@ object CommentRepository {
                     uri = uri,
                     mediaType = mimeType.toMediaType(),
                     contentLength = size
-                )
+                ),
+                biz = biz,
             )
         }
     }
@@ -1048,7 +1202,8 @@ object CommentRepository {
     private suspend fun uploadCommentImagePart(
         fileName: String,
         mimeType: String,
-        fileBody: RequestBody
+        fileBody: RequestBody,
+        biz: String,
     ): Result<ReplyPicture> = withContext(Dispatchers.IO) {
         try {
             val csrf = com.android.purebilibili.core.store.TokenManager.csrfCache
@@ -1063,7 +1218,7 @@ object CommentRepository {
             )
             val textMedia = "text/plain".toMediaType()
             val categoryBody = "daily".toRequestBody(textMedia)
-            val bizBody = "new_dyn".toRequestBody(textMedia)
+            val bizBody = biz.toRequestBody(textMedia)
             val csrfBody = csrf.toRequestBody(textMedia)
 
             val response = api.uploadCommentImage(
@@ -1167,7 +1322,8 @@ object CommentRepository {
 
     internal fun resolveCommentMainListPaginationParameters(
         page: Int,
-        paginationOffset: String?
+        paginationOffset: String?,
+        cursorNext: Long? = null,
     ): Map<String, String> {
         if (page <= 1) {
             return mapOf("pagination_str" to """{"offset":""}""")
@@ -1177,7 +1333,7 @@ object CommentRepository {
                 "pagination_str" to commentJson.encodeToString(mapOf("offset" to paginationOffset))
             )
         }
-        return mapOf("next" to page.toString())
+        return mapOf("next" to (cursorNext ?: page.toLong()).toString())
     }
 
     internal fun resolveCommentMainListMode(mode: Int): Int {

@@ -9,6 +9,13 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     // Compose 预组合兼容补丁：guard LayoutNodeSubcompositionsState 的 detached-root owner 查找
     id("com.android.bilipai.compose-detached-owner-guard")
+    // 弹窗退出后可能仍收到锚点布局回调，不再更新已移除的窗口。
+    id("com.android.bilipai.compose-popup-window-guard")
+    // Foundation 拖拽兼容补丁：在进入拖拽状态前过滤不受支持的输入类型。
+    id("com.android.bilipai.compose-drag-start-guard")
+    // 导航分发器被父级级联释放后，容忍子页面重复清理及延后的启用状态更新。
+    id("com.android.bilipai.navigationevent-disposal-guard")
+    id("com.android.bilipai.workmanager-namespace-guard")
     // Room 数据库编译插件
     id("com.google.devtools.ksp")
     // 🔥 Firebase 相关插件
@@ -16,13 +23,21 @@ plugins {
     // id("com.google.firebase.crashlytics")
 }
 
-abstract class PrepareKspGeneratedDirsTask : org.gradle.api.DefaultTask() {
-    @get:org.gradle.api.tasks.OutputDirectories
-    abstract val outputDirs: org.gradle.api.file.ConfigurableFileCollection
+// 发布使用已保存的规则；交互采集仅通过显式生成任务执行。
+// 采集结果独立写入 generated/baselineProfiles，不覆盖 main/baseline-prof.txt 的热点补充。
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    saveInSrc = true
+    mergeIntoMain = true
+}
+
+abstract class PrepareKspGeneratedDirTask : org.gradle.api.DefaultTask() {
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDir: org.gradle.api.file.DirectoryProperty
 
     @org.gradle.api.tasks.TaskAction
     fun prepare() {
-        outputDirs.files.forEach { it.mkdirs() }
+        outputDir.get().asFile.mkdirs()
     }
 }
 
@@ -110,6 +125,11 @@ val buildReleaseTag = providers.gradleProperty("bili.build.releaseTag")
 
 android {
     namespace = "com.android.purebilibili"
+    androidResources {
+        generateLocaleConfig = true
+        // localeFilters is forwarded to aapt2's -c option; use Android resource qualifier syntax.
+        localeFilters += listOf("en", "zh-rCN", "zh-rTW")
+    }
     compileSdk {
         version = release(37) {
             minorApiLevel = 0
@@ -122,8 +142,8 @@ android {
         targetSdk = 37
         // 版本名按发行计划确定；versionCode 每次发布单调 +1
         // 规范：docs/wiki/VERSIONING.md · 更新日志：CHANGELOG.md
-        versionCode = 450
-        versionName = "0.3.4"
+        versionCode = 549
+        versionName = "0.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -150,8 +170,22 @@ android {
         }
     }
 
+    val releaseStoreFile = providers.environmentVariable("BILI_RELEASE_STORE_FILE").orNull
+    val releaseStorePassword = providers.environmentVariable("BILI_RELEASE_STORE_PASSWORD").orNull
+    val releaseKeyAlias = providers.environmentVariable("BILI_RELEASE_KEY_ALIAS").orNull
+    val releaseKeyPassword = providers.environmentVariable("BILI_RELEASE_KEY_PASSWORD").orNull
+    if (listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }) {
+        signingConfigs.create("officialRelease") {
+            storeFile = file(requireNotNull(releaseStoreFile))
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("officialRelease")
             // Disable PNG crunching to avoid AAPT errors
             isCrunchPngs = false
             buildConfigField("boolean", "ALLOW_HARDCODED_DNS_FALLBACK", "false")
@@ -252,6 +286,33 @@ android {
     lint {
         baseline = file("lint-baseline.xml")
         abortOnError = true
+        checkDependencies = true
+        // CI profiles separate performance contracts from informational style findings.
+        val ciChecks = providers.gradleProperty("bili.ciChecks").orNull
+        if (ciChecks != null) {
+            val styleIssues = setOf(
+                "BiliPaiHardcodedColor",
+                "BiliPaiHardcodedDimension",
+                "BiliPaiHardcodedTypography",
+                "BiliPaiHardcodedShape",
+                "BiliPaiHardcodedMotion",
+                "BiliPaiHardcodedSurface",
+            )
+            val selectedIssues = when (ciChecks) {
+                "performance" -> setOf("BiliPaiFrameBlurAllocation", "BiliPaiModelStability")
+                "style" -> styleIssues
+                else -> throw GradleException("bili.ciChecks must be performance or style")
+            }
+            // Never let a platform baseline or style warnings hide a broken checker.
+            baseline = null
+            val checkerFailures = setOf("LintError", "ObsoleteLintCustomCheck")
+            fatal += checkerFailures
+            checkOnly += selectedIssues
+            checkOnly += checkerFailures
+            if (ciChecks == "style") {
+                warning += styleIssues
+            }
+        }
     }
 }
 
@@ -311,33 +372,31 @@ ksp {
     arg("room.generateKotlin", "true")
 }
 
-val prepareKspGeneratedVariants = listOf(
-    "debug",
-    "debugUnitTest",
-    "release",
-    "releaseUnitTest",
-    "dev",
-    "devUnitTest"
-)
-
-val prepareKspGeneratedDirs by tasks.registering(PrepareKspGeneratedDirsTask::class) {
-    outputDirs.from(
-        prepareKspGeneratedVariants.map { variantName ->
-            layout.buildDirectory.dir("generated/ksp/$variantName")
+// 每个 KSP 任务仅准备自己的目录；其他构建类型的生成文件不参与本任务的输出检查。
+val prepareKspGeneratedDirsByTaskName = listOf("debug", "release", "dev", "smooth")
+    .flatMap { buildType ->
+        listOf("", "UnitTest", "AndroidTest").map { suffix -> "$buildType$suffix" }
+    }
+    .associate { variantName ->
+        val capitalizedVariantName = variantName.replaceFirstChar { it.uppercaseChar() }
+        val prepareTask = tasks.register<PrepareKspGeneratedDirTask>(
+            "prepare${capitalizedVariantName}KspGeneratedDir"
+        ) {
+            outputDir.set(layout.buildDirectory.dir("generated/ksp/$variantName"))
         }
-    )
-}
+        "ksp${capitalizedVariantName}Kotlin" to prepareTask
+    }
 
 tasks.matching { task ->
-    task.name.startsWith("ksp") && task.name.endsWith("Kotlin")
+    task.name in prepareKspGeneratedDirsByTaskName
 }.configureEach {
-    dependsOn(prepareKspGeneratedDirs)
+    dependsOn(prepareKspGeneratedDirsByTaskName.getValue(name))
 }
 
 composeCompiler {
-    // 稳定性配置无条件生效。data/model 下的模型类构造后不再修改（由
-    // ModelImmutabilityGuardTest 守卫），但 List 是接口、编译器无法自行证明——
-    // 不声明的话 VideoCard 永远不是 skippable，首页每次祖先重组都会重建所有可见卡片。
+    // 稳定性配置无条件生效。data/model 的属性约束由 BiliPaiModelStability Lint
+    // 跨模块检查；List 是只读接口，不等于深度不可变，需要调用方保持所有权约定。
+    // 错误的稳定性承诺仍会导致本该发生的重组被跳过。
     // 详细理由见 compose_stability.conf 的文件头。
     stabilityConfigurationFiles.add(
         rootProject.layout.projectDirectory.file("compose_stability.conf")
@@ -357,6 +416,7 @@ composeCompiler {
 }
 
 dependencies {
+    lintChecks(project(":ci-lint"))
     implementation(project(":brand-motion"))
     val material3Version = "1.5.0-alpha29"
     val material3AdaptiveVersion = "1.3.0"
@@ -384,6 +444,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.appcompat:appcompat:1.7.1")  // 🚀 For AppCompatDelegate night mode
+    implementation("androidx.webkit:webkit:1.18.0")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -412,7 +473,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     // Official converter since Retrofit 2.10; binary-compatible with Retrofit 3
     implementation("com.squareup.retrofit2:converter-kotlinx-serialization:3.0.0")
-    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.4.0")
     // 🔥 Brotli Decompression (for Bilibili Live Danmaku ProtoVer=3)
@@ -426,7 +487,7 @@ dependencies {
     
     // --- 3.1 Palette (颜色提取 - 动态取色) ---
     implementation("androidx.palette:palette-ktx:1.0.0")
-    implementation("com.materialkolor:material-kolor:4.1.1")
+    implementation("com.materialkolor:material-kolor-material3:6.0.0-beta01")
     implementation("com.github.skydoves:colorpicker-compose:1.1.4")
     
     // --- 3.2 Lottie (动画效果) ---
@@ -455,12 +516,17 @@ dependencies {
     
     // --- 3.7 Startup (应用初始化) ---
     implementation("androidx.startup:startup-runtime:1.2.0")
+
+    // Offline article extraction; no WebView or website JavaScript execution.
+    implementation("net.dankito.readability4j:readability4j:1.0.8")
+    implementation("org.jsoup:jsoup:1.23.2")
     
     // --- 4. Player (视频播放器 Media3) ---
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")  // 🔥 HLS 直播流支持
     implementation("androidx.media3:media3-ui:$media3Version")
+    implementation("androidx.media3:media3-extractor:$media3Version")
     implementation("androidx.media3:media3-datasource:$media3Version")
     implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
     implementation("androidx.media3:media3-session:$media3Version")
@@ -473,6 +539,8 @@ dependencies {
     // 注：FFmpegKit 已于 2025 年停止维护，改用 ExoPlayer 直接播放分离音视频
 
     // --- 6. Database (Room 数据库) ---
+    implementation("androidx.collection:collection:1.5.0")
+    implementation("androidx.paging:paging-common:3.4.2")
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
@@ -536,6 +604,8 @@ dependencies {
     // --- 12. Testing (测试框架) ---
     // JUnit 4 (兼容旧测试)
     testImplementation("junit:junit:4.13.2")
+    // Codec and CDN tests require real Android Base64/Uri, not returnDefaultValues stubs.
+    testImplementation("org.robolectric:robolectric:4.17")
     // 真实 org.json 实现：android.jar 的 org.json 在单测里是桩（returnDefaultValues 下
     // 静默返回空值），CommandDanmakuPolicy 等生产解析路径需要真实实现才能单测。
     testImplementation("org.json:json:20240303")
@@ -544,6 +614,7 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     // JUnit 4 兼容层 (允许 JUnit 5 运行 JUnit 4 测试)
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     // AGP 9 使用内建 Kotlin 2.4；JUnit Platform 下必须使用同版本的 JUnit 5
     // 适配层，否则 kotlin.test.Test 不会落到 JVM 测试注解。
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
@@ -555,6 +626,7 @@ dependencies {
     testImplementation("app.cash.turbine:turbine:1.0.0")
     
     // --- 13. Android Instrumented Tests ---
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -589,10 +661,14 @@ tasks.register("installFastRelease") {
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")
-    tasks.matching { task ->
-        task.name.startsWith("uploadCrashlyticsMappingFile")
-    }.configureEach {
-        // 本地构建不上传 mapping，避免 release/dev 在离线环境失败。
-        enabled = false
+    // Offline/local builds stay opt-in. The release workflow explicitly supplies this flag.
+    val uploadReleaseMapping = providers.gradleProperty("bili.firebase.uploadMapping")
+        .map { it.toBoolean() }
+        .getOrElse(false)
+    android.buildTypes.configureEach {
+        val uploadMappingForBuildType = name == "release" && uploadReleaseMapping
+        configure<com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension> {
+            mappingFileUploadEnabled = uploadMappingForBuildType
+        }
     }
 }

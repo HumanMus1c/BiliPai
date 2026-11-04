@@ -1,10 +1,26 @@
 package com.android.purebilibili.feature.download
+
+import com.android.purebilibili.core.util.responsiveContentWidth
+
+import com.android.purebilibili.core.ui.components.AppTextButton as TextButton
+
+import com.android.purebilibili.core.util.rememberHapticFeedback
+import com.android.purebilibili.core.util.HapticType
+
+import com.android.purebilibili.core.ui.AppContentColors
 import com.android.purebilibili.core.ui.components.appElasticPress
 
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import com.android.purebilibili.core.ui.components.AppCheckbox
+import com.android.purebilibili.core.ui.components.AppTextButton
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
-import com.android.purebilibili.core.ui.animation.jiggleOnDissolve
 import com.android.purebilibili.core.ui.components.VideoListLayoutToggle
 import com.android.purebilibili.core.ui.components.resolveVideoListColumns
 import com.android.purebilibili.core.ui.components.rememberVideoListLayoutControl
@@ -20,12 +36,13 @@ import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.AppSpacingTokens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import com.android.purebilibili.core.ui.components.appActionClickable
+import com.android.purebilibili.core.ui.components.appActionWithFeedback
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import com.android.purebilibili.core.ui.components.AppLazyVerticalGrid as LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 //  Material Icons
 import androidx.compose.material.icons.Icons
@@ -73,6 +90,11 @@ fun DownloadListScreen(
 ) {
     val context = LocalContext.current
     val actionScope = rememberCoroutineScope()
+    val deleteDialogExitDelayMs = if (com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled) {
+        com.android.purebilibili.core.ui.AppGlassPopupMotionSpec.UnanchoredExitMillis.toLong()
+    } else 0L
+    var deletingTaskId by remember { mutableStateOf<String?>(null) }
+    val downloadHaptic = rememberHapticFeedback(com.android.purebilibili.core.ui.AppHapticScene.REFRESH)
     val listLayout = rememberVideoListLayoutControl(defaultSingleColumn = true)
     val gridState = rememberLazyGridState()
     val columns = resolveVideoListColumns(
@@ -87,6 +109,26 @@ fun DownloadListScreen(
     val taskList = remember(tasks) { tasks.values.toList().sortedByDescending { it.createdAt } }
     var pendingDeleteTask by remember { mutableStateOf<com.android.purebilibili.feature.download.DownloadTask?>(null) }
     var dissolvingTaskIds by remember { mutableStateOf(setOf<String>()) }
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedTaskIds by remember { mutableStateOf(emptySet<String>()) }
+    var pendingBatchDeleteIds by remember { mutableStateOf(emptySet<String>()) }
+    var deletingBatch by remember { mutableStateOf(false) }
+    val completedTaskIds = remember(taskList, dissolvingTaskIds) {
+        taskList.filter { it.isComplete && it.id !in dissolvingTaskIds }.map { it.id }.toSet()
+    }
+    val selectedCompletedIds = selectedTaskIds.intersect(completedTaskIds)
+    val exitSelection = {
+        selectionMode = false
+        selectedTaskIds = emptySet<String>()
+        pendingBatchDeleteIds = emptySet<String>()
+    }
+    BackHandler(enabled = selectionMode) {
+        if (!deletingBatch) exitSelection()
+    }
+    LaunchedEffect(completedTaskIds) {
+        selectedTaskIds = selectedTaskIds.intersect(completedTaskIds)
+        if (completedTaskIds.isEmpty() && !deletingBatch) exitSelection()
+    }
     val currentDir = resolveDisplayedDownloadLocation(
         defaultManagedPath = remember(context) { SettingsManager.getDefaultDownloadPath(context) },
         customManagedPath = customDownloadPath,
@@ -124,17 +166,30 @@ fun DownloadListScreen(
     AppScaffold(
         topBar = {
             AppTopBar(
-                title = "离线缓存",
+                title = if (selectionMode) "已选 ${selectedCompletedIds.size} 项" else "离线缓存",
                 navigationIcon = {
-                    AppIconButton(onClick = onBack) {
+                    AppIconButton(onClick = {
+                        if (selectionMode) {
+                            if (!deletingBatch) exitSelection()
+                        } else onBack()
+                    }) {
                         AppIcon(rememberAppBackIcon(), contentDescription = "返回")
                     }
                 },
                 actions = {
                     val hasActive = taskList.any(::shouldPauseAllInclude)
                     val hasResumable = taskList.any(::shouldContinueAllInclude)
-                    if (hasActive || hasResumable) {
-                        androidx.compose.material3.TextButton(onClick = {
+                    if (selectionMode) {
+                        AppTextButton(onClick = exitSelection, enabled = !deletingBatch) {
+                            AppText("完成")
+                        }
+                    } else if (completedTaskIds.isNotEmpty()) {
+                        AppTextButton(onClick = { selectionMode = true }) {
+                            AppText("管理")
+                        }
+                    }
+                    if (!selectionMode && (hasActive || hasResumable)) {
+                        TextButton(onClick = {
                             actionScope.launch {
                                 if (hasActive) {
                                     taskList.filter(::shouldPauseAllInclude).forEach {
@@ -150,7 +205,7 @@ fun DownloadListScreen(
                             AppText(
                                 text = if (hasActive) "暂停全部" else "继续全部",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = AppContentColors.accent()
                             )
                         }
                     }
@@ -191,13 +246,14 @@ fun DownloadListScreen(
                 )
             }
         } else {
+            val alignRows = columns > 1 && !com.android.purebilibili.core.ui.LocalFullVideoCardContentVisible.current
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
-                    .fillMaxSize()
-                    ,
+                    .then(if (columns == 1) Modifier.responsiveContentWidth(com.android.purebilibili.core.util.resolveSingleColumnFeedMaxWidth()) else Modifier)
+                    .fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
@@ -212,33 +268,75 @@ fun DownloadListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(taskList, key = { it.id }) { task ->
+                if (selectionMode) {
+                    item(key = "batch_management", span = { GridItemSpan(maxLineSpan) }) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppTextButton(
+                                enabled = !deletingBatch && completedTaskIds.isNotEmpty(),
+                                onClick = {
+                                    selectedTaskIds = if (selectedCompletedIds == completedTaskIds) {
+                                        emptySet()
+                                    } else completedTaskIds
+                                },
+                            ) {
+                                AppText(if (selectedCompletedIds == completedTaskIds) "取消全选" else "全选")
+                            }
+                            Spacer(Modifier.weight(1f))
+                            AppTextButton(
+                                enabled = !deletingBatch && selectedCompletedIds.isNotEmpty(),
+                                onClick = { pendingBatchDeleteIds = selectedCompletedIds.toSet() },
+                            ) {
+                                AppText(if (deletingBatch) "删除中…" else "删除 (${selectedCompletedIds.size})")
+                            }
+                        }
+                    }
+                }
+                val taskKeys = taskList.map { it.id }
+                val renderTask: @Composable (Int, Modifier) -> Unit = { index, cardModifier ->
+                    val task = taskList[index]
                     val isDissolving = task.id in dissolvingTaskIds
-                    AnimatedVideoListItem(modifier = videoListItemModifier(), enabled = true, useLookaheadBounds = false) {
+                    AnimatedVideoListItem(modifier = cardModifier, enabled = true, useLookaheadBounds = false) {
                     com.android.purebilibili.core.ui.animation.MaybeDissolvableVideoCard(
                         isDissolving = isDissolving,
                         onDissolveComplete = {
-                            dissolvingTaskIds = dissolvingTaskIds - task.id
                             actionScope.launch {
-                                DownloadManager.removeTask(task.id)
-                                pendingDeleteTask = null
+                                try {
+                                    DownloadManager.removeTask(task.id)
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (error: Exception) {
+                                    android.util.Log.e("DownloadList", "Failed to delete cache task ${task.id}", error)
+                                    Toast.makeText(context, "删除失败，请重试", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    dissolvingTaskIds = dissolvingTaskIds - task.id
+                                    deletingTaskId = null
+                                }
                             }
                         },
                         cardId = task.id,
                         preset = com.android.purebilibili.core.ui.animation.DissolveAnimationPreset.TELEGRAM_FAST,
-                        modifier = Modifier.jiggleOnDissolve(
-                            cardId = task.id,
-                            isCurrentCardDissolving = isDissolving,
-                        ),
+                        // 删除只作用于当前卡片，避免相邻内容在磨砂背景中持续抖动。
+                        publishGlobalDissolveState = false,
+                        keepInvisibleAfterDissolve = true,
                     ) {
                         val playableOffline = remember(task.filePath, task.status) {
                             isDownloadTaskPlayableOffline(task)
                         }
                         DownloadTaskItem(
                             task = task,
+                            modifier = if (alignRows) Modifier.fillMaxHeight() else Modifier,
                             stacked = columns > 1,
                             onClick = {
-                                when (resolveDownloadTaskClickTarget(task, isNetworkAvailable = isNetworkAvailable)) {
+                                if (selectionMode) {
+                                    if (!deletingBatch && task.id in completedTaskIds) {
+                                        selectedTaskIds = if (task.id in selectedTaskIds) {
+                                            selectedTaskIds - task.id
+                                        } else selectedTaskIds + task.id
+                                    }
+                                } else when (resolveDownloadTaskClickTarget(task, isNetworkAvailable = isNetworkAvailable)) {
                                     DownloadTaskClickTarget.OfflinePlayer -> onOfflineVideoClick(task.id)
                                     DownloadTaskClickTarget.OnlinePlayer -> {
                                         Toast.makeText(
@@ -253,16 +351,24 @@ fun DownloadListScreen(
                             },
                             onPauseResume = {
                                 actionScope.launch {
-                                    if (task.isDownloading) {
+                                    val currentTask = DownloadManager.tasks.value[task.id] ?: return@launch
+                                    if (currentTask.isDownloading) {
                                         DownloadManager.pauseDownload(task.id)
-                                    } else if (task.canResume) {
+                                    } else if (currentTask.canResume) {
                                         DownloadManager.startDownload(task.id)
+                                    }
+                                    val updatedStatus = DownloadManager.tasks.value[task.id]?.status
+                                    if (updatedStatus != null && updatedStatus != currentTask.status) {
+                                        downloadHaptic(HapticType.LIGHT)
                                     }
                                 }
                             },
                             onDelete = {
-                                pendingDeleteTask = task
+                                if (deletingTaskId == null) pendingDeleteTask = task
                             },
+                            selectionMode = selectionMode,
+                            selected = task.id in selectedCompletedIds,
+                            selectionEnabled = !deletingBatch && task.id in completedTaskIds,
                             offlinePlayable = playableOffline,
                             speedBytesPerSecond = if (task.status == DownloadStatus.DOWNLOADING) {
                                 downloadSpeedsByTask[task.id] ?: 0L
@@ -272,6 +378,25 @@ fun DownloadListScreen(
                         )
                     }
                     }
+                }
+                if (!alignRows) {
+                    itemsIndexed(taskList, key = { _, task -> task.id }) { index, _ ->
+                        renderTask(index, videoListItemModifier())
+                    }
+                } else {
+                    com.android.purebilibili.feature.home.resolveHomeFeedAlignedRows(taskList.size, columns)
+                        .forEach { row ->
+                            item(key = "download_row_${taskKeys[row.first]}", span = { GridItemSpan(maxLineSpan) }) {
+                                com.android.purebilibili.feature.home.HomeAlignedVideoRow(
+                                    indices = row,
+                                    itemKeys = taskKeys,
+                                    columns = columns,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = videoListItemModifier().fillMaxWidth(),
+                                    content = renderTask,
+                                )
+                            }
+                        }
                 }
 
                 // [新增] 显示当前存储路径
@@ -287,19 +412,19 @@ fun DownloadListScreen(
                                 taskList.sumOf { it.fileSize.coerceAtLeast(0L) }
                             ),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = AppContentColors.secondaryText()
                         )
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
                             text = "存储位置",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = AppContentColors.secondaryText()
                         )
                         Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                         AppText(
                             text = currentDir,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            color = AppContentColors.secondaryText(),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                     }
@@ -307,6 +432,58 @@ fun DownloadListScreen(
             }
         }
         }
+    }
+
+    if (pendingBatchDeleteIds.isNotEmpty()) {
+        AppAlertDialog(
+            onDismissRequest = { pendingBatchDeleteIds = emptySet() },
+            title = { AppText("批量删除缓存") },
+            text = {
+                AppText("确定删除选中的 ${pendingBatchDeleteIds.size} 个已缓存视频吗？视频、音频、封面和弹幕文件将一并清除，此操作无法撤销。")
+            },
+            confirmButton = {
+                AppTextButton(enabled = !deletingBatch, onClick = {
+                    if (deletingBatch || pendingBatchDeleteIds.isEmpty()) return@AppTextButton
+                    val idsToDelete = pendingBatchDeleteIds.toSet()
+                    pendingBatchDeleteIds = emptySet()
+                    deletingBatch = true
+                    actionScope.launch {
+                        // 批量删除直接处理全部选中项，不依赖可见卡片的消散回调。
+                        withContext(NonCancellable) {
+                            var failedCount = 0
+                            try {
+                                delay(deleteDialogExitDelayMs)
+                                idsToDelete.forEach { id ->
+                                    if (DownloadManager.tasks.value[id]?.isComplete == true) {
+                                        try {
+                                            DownloadManager.removeTask(id)
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (error: Exception) {
+                                            android.util.Log.e("DownloadList", "Failed to delete cache task $id", error)
+                                            failedCount++
+                                        }
+                                    }
+                                }
+                                if (failedCount == 0) exitSelection()
+                                Toast.makeText(
+                                    context,
+                                    if (failedCount == 0) "已删除所选缓存" else "$failedCount 项删除失败，请重试",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } finally {
+                                deletingBatch = false
+                            }
+                        }
+                    }
+                }) {
+                    AppText("删除", color = AppContentColors.error())
+                }
+            },
+            dismissButton = {
+                AppTextButton(onClick = { pendingBatchDeleteIds = emptySet() }) { AppText("取消") }
+            },
+        )
     }
 
     // 删除确认：避免误触直接清掉已下载的文件
@@ -321,17 +498,23 @@ fun DownloadListScreen(
                 )
             },
             confirmButton = {
-                androidx.compose.material3.TextButton(
+                TextButton(
                     onClick = {
-                        // Dissolve first; the actual removal happens onDissolveComplete.
-                        dissolvingTaskIds = dissolvingTaskIds + taskToDelete.id
+                        if (deletingTaskId != null) return@TextButton
+                        deletingTaskId = taskToDelete.id
+                        pendingDeleteTask = null
+                        actionScope.launch {
+                            // 玻璃弹窗退场完成后再改变背景；原生弹窗关闭后直接开始。
+                            delay(deleteDialogExitDelayMs)
+                            dissolvingTaskIds = dissolvingTaskIds + taskToDelete.id
+                        }
                     }, modifier = Modifier.appElasticPress()
                 ) {
-                    AppText("删除", color = MaterialTheme.colorScheme.error)
+                    AppText("删除", color = AppContentColors.error())
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { pendingDeleteTask = null }, modifier = Modifier.appElasticPress()) {
+                TextButton(onClick = { pendingDeleteTask = null }, modifier = Modifier.appElasticPress()) {
                     AppText("取消")
                 }
             }
@@ -356,7 +539,7 @@ internal fun formatDownloadStorageBytes(bytes: Long): String {
 
 
 @Composable
-private fun DownloadTaskItem(
+internal fun DownloadTaskItem(
     task: DownloadTask,
     onClick: () -> Unit,
     onPauseResume: () -> Unit,
@@ -364,214 +547,224 @@ private fun DownloadTaskItem(
     stacked: Boolean = false,
     offlinePlayable: Boolean,
     speedBytesPerSecond: Long = 0L,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    selectionEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    // 与相关推荐/个人列表一致：复用全局横向卡骨架（顶对齐、共享封面宽度与信息区排版）。
-    HorizontalVideoCardFrame(
-        stacked = stacked,
-        coverAspectRatio = 16f / 9f,
-        coverModifier = Modifier.padding(top = AppSpacingTokens.Small),
+    val feedbackClick = appActionWithFeedback(onClick)
+    val typography = com.android.purebilibili.feature.home.components.cards.horizontalVideoCardTypography()
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(AppShapes.container(ContainerLevel.Card))
             .background(AppSurfaceTokens.cardContainer())
-            .clickable(onClick = onClick),
-        coverContent = {
-            // 🖼️ [修复] 优先使用本地封面（无网络时也能显示）
-            val localCoverFile = task.localCoverPath?.let { java.io.File(it) }
-            val coverSource = if (localCoverFile?.exists() == true) {
-                localCoverFile
-            } else {
-                val coverUrl = task.cover.let { url ->
-                    if (url.startsWith("http://")) url.replace("http://", "https://")
-                    else url
-                }
-                coil3.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                    .data(coverUrl)
-                    .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com").build())
-                    .crossfade(true)
-                    .build()
-            }
-
-            AsyncImage(
-                model = coverSource,
-                contentDescription = task.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+            .then(
+                if (selectionMode) Modifier.toggleable(
+                    value = selected,
+                    enabled = selectionEnabled,
+                    role = Role.Checkbox,
+                    onValueChange = { feedbackClick() },
+                ) else Modifier.appActionClickable(onClick = onClick)
             )
-        },
-        coverOverlayContent = {
-            // 进度/状态覆盖层
-            if (!task.isComplete) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when (task.status) {
-                        DownloadStatus.QUEUED -> {
-                            AppText("排队中", color = Color.White, style = MaterialTheme.typography.labelMedium)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // 封面旁只放视频信息；下载明细与操作使用下方通栏，避免挤在半宽信息区。
+        HorizontalVideoCardFrame(
+            stacked = stacked,
+            plainHorizontal = true,
+            horizontalCoverMaxWidthDp = com.android.purebilibili.feature.home.components.cards.WIDE_LIST_COVER_MAX_WIDTH_DP,
+            coverContent = {
+                val localCoverFile = task.localCoverPath?.let { java.io.File(it) }
+                val coverSource = if (localCoverFile?.exists() == true) {
+                    localCoverFile
+                } else {
+                    val coverUrl = task.cover.let { url ->
+                        if (url.startsWith("http://")) url.replace("http://", "https://")
+                        else url
+                    }
+                    coil3.request.ImageRequest.Builder(LocalContext.current)
+                        .data(coverUrl)
+                        .httpHeaders(NetworkHeaders.Builder().set("Referer", "https://www.bilibili.com").build())
+                        .crossfade(true)
+                        .build()
+                }
+                AsyncImage(
+                    model = coverSource,
+                    contentDescription = task.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            },
+            coverOverlayContent = {
+                if (!task.isComplete) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        when (task.status) {
+                            DownloadStatus.QUEUED -> {
+                                AppText("排队中", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            }
+                            DownloadStatus.DOWNLOADING, DownloadStatus.MERGING -> {
+                                AppCircularProgressIndicator(
+                                    progress = { resolveDownloadTaskProgress(task) },
+                                    modifier = Modifier.size(32.dp),
+                                    color = Color.White,
+                                    strokeWidth = 3.dp
+                                )
+                            }
+                            DownloadStatus.PAUSED -> {
+                                AppText("已暂停", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            }
+                            DownloadStatus.FAILED -> {
+                                AppText("失败", color = AppContentColors.error(), style = MaterialTheme.typography.labelMedium)
+                            }
+                            else -> {}
                         }
-                        DownloadStatus.DOWNLOADING, DownloadStatus.MERGING -> {
-                            AppCircularProgressIndicator(
-                                progress = { resolveDownloadTaskProgress(task) },
-                                modifier = Modifier.size(32.dp),
-                                color = Color.White,
-                                strokeWidth = 3.dp
-                            )
-                        }
-                        DownloadStatus.PAUSED -> {
-                            AppText("已暂停", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                        }
-                        DownloadStatus.FAILED -> {
-                            AppText("失败", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
-                        }
-                        else -> {}
                     }
                 }
-            }
-
-            // 画质标签
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(AppSpacingTokens.ExtraSmall)
-                    .background(
-                        Color.Black.copy(alpha = 0.7f),
-                        AppShapes.container(ContainerLevel.Tag)
-                    )
-                    .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
-            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(AppSpacingTokens.ExtraSmall)
+                        .background(
+                            Color.Black.copy(alpha = 0.7f),
+                            AppShapes.container(ContainerLevel.Tag)
+                        )
+                        .padding(horizontal = AppSpacingTokens.ExtraSmall, vertical = AppSpacingTokens.Micro)
+                ) {
+                    AppText(text = task.qualityDesc, color = Color.White, style = typography.statistic)
+                }
+            },
+            infoContent = {
                 AppText(
-                    text = task.qualityDesc,
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall
+                    text = task.title,
+                    style = typography.title,
+                    maxLines = com.android.purebilibili.core.ui.videoCardTitleMaxLines(),
+                    overflow = com.android.purebilibili.core.ui.videoCardTitleOverflow(),
+                    color = AppContentColors.primaryText()
                 )
-            }
-        },
-        infoContent = {
-            AppText(
-                text = task.title,
-                fontWeight = FontWeight.Medium,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-
-            resolveDownloadTaskSecondaryText(task)?.let { secondaryText ->
+            },
+            supportingContent = {
+                resolveDownloadTaskSecondaryText(task)?.let { secondaryText ->
+                    AppText(
+                        text = secondaryText,
+                        style = typography.author,
+                        color = AppContentColors.accent(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 AppText(
-                    text = secondaryText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    text = task.ownerName,
+                    style = typography.author,
+                    color = AppContentColors.secondaryText(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-            }
+            },
+        )
 
-            AppText(
-                text = task.ownerName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-
-            // 状态文字
-            val assetSummary = resolveDownloadAssetSummary(task)
-            val assetTexts = listOfNotNull(
-                assetSummary.videoText,
-                assetSummary.audioText,
-                assetSummary.danmakuText
-            )
-            val hasAssetSummary = assetTexts.isNotEmpty()
-            val statusText = when (task.status) {
-                DownloadStatus.QUEUED -> "排队中..."
-                DownloadStatus.PENDING -> "等待中..."
-                DownloadStatus.DOWNLOADING -> buildString {
-                    append("下载中 ${resolveDownloadTaskProgressPercent(task)}%")
-                    if (speedBytesPerSecond > 0L) {
-                        append(" · ")
-                        append(formatDownloadStorageBytes(speedBytesPerSecond))
-                        append("/s")
-                    }
+        val assetSummary = resolveDownloadAssetSummary(task)
+        val assetTexts = listOfNotNull(
+            assetSummary.videoText,
+            assetSummary.audioText,
+            assetSummary.danmakuText
+        )
+        val hasAssetSummary = assetTexts.isNotEmpty()
+        val statusText = when (task.status) {
+            DownloadStatus.QUEUED -> "排队中..."
+            DownloadStatus.PENDING -> "等待中..."
+            DownloadStatus.DOWNLOADING -> buildString {
+                append("下载中 ${resolveDownloadTaskProgressPercent(task)}%")
+                if (speedBytesPerSecond > 0L) {
+                    append(" · ")
+                    append(formatDownloadStorageBytes(speedBytesPerSecond))
+                    append("/s")
                 }
-                DownloadStatus.MERGING -> "处理中..."
-                // 已完成时资产行（视频/音频/弹幕完成）信息重复，仅在其缺席时显示
-                DownloadStatus.COMPLETED -> if (hasAssetSummary) null else "已完成"
-                DownloadStatus.PAUSED -> "已暂停"
-                DownloadStatus.FAILED -> task.errorMessage ?: "下载失败"
             }
+            DownloadStatus.MERGING -> "处理中..."
+            DownloadStatus.COMPLETED -> if (hasAssetSummary) null else "已完成"
+            DownloadStatus.PAUSED -> "已暂停"
+            DownloadStatus.FAILED -> task.errorMessage ?: "下载失败"
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             if (statusText != null) {
                 AppText(
                     text = statusText,
-                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = typography.statistic,
                     color = when (task.status) {
                         DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.secondary
-                        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.primary
-                    }
+                        DownloadStatus.FAILED -> AppContentColors.error()
+                        else -> AppContentColors.accent()
+                    },
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-
             if (hasAssetSummary) {
-                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
-                // 单行省略：小横卡信息区宽度有限，折行会截断成“弹幕完/成”
                 AppText(
                     text = assetTexts.joinToString(" · "),
-                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = typography.statistic,
                     color = MaterialTheme.colorScheme.secondary,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
             if (task.isComplete && !offlinePlayable) {
-                Spacer(modifier = Modifier.height(AppSpacingTokens.ExtraSmall))
                 AppText(
                     text = if (!task.exportedFileUri.isNullOrBlank()) {
                         "已导出到自定义目录，当前列表不直接离线播放"
                     } else {
                         "本地缓存文件不可用"
                     },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = typography.statistic,
+                    color = AppContentColors.secondaryText(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-        },
-        trailingContent = {
-            Column(
-                modifier = Modifier.align(Alignment.BottomEnd),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // 暂停/继续
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selectionMode) {
+                AppCheckbox(
+                    checked = selected,
+                    onCheckedChange = null,
+                    enabled = selectionEnabled,
+                    modifier = Modifier.size(48.dp),
+                )
+            } else {
                 if (task.isDownloading || task.canResume) {
-                    AppIconButton(onClick = onPauseResume) {
+                    AppIconButton(onClick = onPauseResume, modifier = Modifier.size(48.dp)) {
                         AppIcon(
                             imageVector = if (task.isDownloading) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                             contentDescription = if (task.isDownloading) "暂停" else "继续",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = AppContentColors.accent()
                         )
                     }
                 }
-
-                // 删除
-                AppIconButton(onClick = onDelete) {
+                AppIconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
                     AppIcon(
                         imageVector = Icons.Outlined.Delete,
                         contentDescription = "删除",
-                        tint = MaterialTheme.colorScheme.error
+                        tint = AppContentColors.error()
                     )
                 }
             }
-        },
-    )
+        }
+    }
 }

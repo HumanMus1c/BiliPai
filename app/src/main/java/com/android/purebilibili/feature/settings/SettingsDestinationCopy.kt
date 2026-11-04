@@ -13,34 +13,34 @@ data class SettingsDestinationCopy(
 )
 
 internal fun settingsDestinationCopy(target: SettingsSearchTarget): SettingsDestinationCopy = when (target) {
-    // 场景级分组（分类页聚合入口）
+    // 场景级分组（分类页聚合入口）:标题与根分类名保持一致,子页另用更具体的名称
     SettingsSearchTarget.INTERFACE_THEME -> SettingsDestinationCopy(
-        title = "界面与主题",
-        summary = "界面风格、颜色、字体和启动画面",
+        title = "外观与动画",
+        summary = "主题、文字大小、图标、动画与振动",
     )
     SettingsSearchTarget.NAVIGATION -> SettingsDestinationCopy(
-        title = "导航与标签",
-        summary = "调整底栏、分类标签和侧边栏",
+        title = "导航布局",
+        summary = "底栏、首页分类栏、搜索分类和平板侧边栏",
     )
     SettingsSearchTarget.PLAYBACK_QUALITY -> SettingsDestinationCopy(
-        title = "播放与画质",
-        summary = "画质、倍速、字幕和连续播放",
+        title = "播放设置",
+        summary = "画质、倍速、字幕、连播、小窗和后台播放",
     )
     SettingsSearchTarget.DATA_BACKUP -> SettingsDestinationCopy(
-        title = "存储与备份",
-        summary = "保存位置、缓存、设置分享和云备份",
+        title = "下载与备份",
+        summary = "保存位置、缓存、设置分享和 WebDAV 备份",
     )
     SettingsSearchTarget.PRIVACY_PERMISSION -> SettingsDestinationCopy(
         title = "隐私与权限",
         summary = "历史记录、系统权限和屏蔽名单",
     )
     SettingsSearchTarget.DIAGNOSTICS -> SettingsDestinationCopy(
-        title = "问题排查",
+        title = "诊断与日志",
         summary = "记录和导出信息，帮助排查问题",
     )
     SettingsSearchTarget.ABOUT_SUPPORT -> SettingsDestinationCopy(
-        title = "关于与支持",
-        summary = "版本更新、使用帮助和官方渠道",
+        title = "帮助与关于",
+        summary = "使用帮助、问题排查、更新和应用信息",
     )
 
     // 目的地页面与行入口
@@ -49,7 +49,7 @@ internal fun settingsDestinationCopy(target: SettingsSearchTarget): SettingsDest
         summary = "选择界面风格、颜色、字体、显示大小和启动画面",
     )
     SettingsSearchTarget.PLAYBACK -> SettingsDestinationCopy(
-        title = "播放设置",
+        title = "播放器与画质",
         summary = "调整解码、清晰度、倍速、小窗和全屏操作",
     )
     SettingsSearchTarget.BOTTOM_BAR -> SettingsDestinationCopy(
@@ -71,6 +71,14 @@ internal fun settingsDestinationCopy(target: SettingsSearchTarget): SettingsDest
     SettingsSearchTarget.HOME_FEED -> SettingsDestinationCopy(
         title = "首页与推荐",
         summary = "卡片布局、首页壁纸、推荐内容和动态",
+    )
+    SettingsSearchTarget.LOGIN_ACTIVITY -> SettingsDestinationCopy(
+        title = "登录设备与记录",
+        summary = "查看设备、时间、IP 与地区",
+    )
+    SettingsSearchTarget.SPACE_PRIVACY -> SettingsDestinationCopy(
+        title = "空间公开范围",
+        summary = "管理空间内容的公开范围",
     )
     SettingsSearchTarget.PERMISSION -> SettingsDestinationCopy(
         title = "权限管理",
@@ -142,7 +150,7 @@ internal fun settingsDestinationCopy(target: SettingsSearchTarget): SettingsDest
     )
     SettingsSearchTarget.DONATE -> SettingsDestinationCopy(
         title = "打赏作者",
-        summary = "自愿支持项目后续持续开发和维护",
+        summary = "支持项目后续持续开发和维护",
     )
     SettingsSearchTarget.TELEGRAM -> SettingsDestinationCopy(
         title = "Telegram 频道 / 交流群",
@@ -155,5 +163,9 @@ internal fun settingsDestinationCopy(target: SettingsSearchTarget): SettingsDest
     SettingsSearchTarget.DISCLAIMER -> SettingsDestinationCopy(
         title = "发布渠道声明",
         summary = "GitHub · Telegram 频道与群组",
+    )
+    SettingsSearchTarget.NEARBY_HANDOFF -> SettingsDestinationCopy(
+        title = com.android.purebilibili.feature.nearby.NEARBY_TITLE,
+        summary = "局域网配对、加密接力与已信任设备",
     )
 }

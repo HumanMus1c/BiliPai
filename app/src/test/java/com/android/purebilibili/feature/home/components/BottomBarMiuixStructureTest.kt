@@ -115,7 +115,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(floating.contains("onSelected(index)"))
         assertFalse(floating.contains("horizontalDragGesture"))
         assertFalse(floating.contains("rememberDampedDragAnimationState"))
-        assertTrue(floating.contains("resolveLiquidGlassIndicatorChromaticAberration("))
+        assertTrue(floating.contains("homeIndicatorLens("))
         assertTrue(floating.contains("rememberGravityRotatedHighlight("))
 
         // Host must not re-implement the three-layer drawBackdrop path.
@@ -444,7 +444,7 @@ class BottomBarMiuixStructureTest {
         assertTrue(miuixRendererSource.indexOf("DockedBottomBarSkinContainer(") < miuixRendererSource.indexOf("AppPlatformNavigationBar("))
         assertTrue(miuixRendererSource.contains("AppPlatformNavigationBadge {"))
         assertTrue(miuixRendererSource.contains("indicatorColor = dockedIndicatorColor"))
-        assertTrue(miuixRendererSource.contains("modifier.height(resolveBottomBarSkinDockHeight())"))
+        assertTrue(miuixRendererSource.contains("Modifier.heightIn(min = resolveBottomBarSkinDockHeight())"))
         assertTrue(miuixDockedItemSource.contains("height(resolveMiuixDockedBottomBarItemHeight(skinIconPath != null))"))
         assertFalse(miuixDockedItemSource.contains("height(64.dp)"))
     }
@@ -481,7 +481,11 @@ class BottomBarMiuixStructureTest {
 
         assertTrue(
             officialToolbarSource.contains("HorizontalFloatingToolbar("),
-            "OfficialMd3FloatingToolbarContent must render HorizontalFloatingToolbar"
+            "OfficialMd3FloatingToolbarContent must render the official M3E FloatingToolbar on the plain surface"
+        )
+        assertTrue(
+            officialToolbarSource.contains("AppMaterial3Toolbar("),
+            "OfficialMd3FloatingToolbarContent keeps AppMaterial3Toolbar for the frosted blur shell"
         )
     }
 

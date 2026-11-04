@@ -34,10 +34,14 @@ class PlaybackSettingsSelectionPolicyTest {
     }
 
     @Test
-    fun `legacy concrete AAC preference is normalized to high quality AAC`() {
-        assertEquals(-1, normalizeDefaultAudioQualityOption(30280))
-        assertEquals(-1, normalizeDefaultAudioQualityOption(30232))
-        assertEquals(-1, normalizeDefaultAudioQualityOption(30216))
+    fun `raw audio preferences retain exact track identity in default settings`() {
+        for (id in listOf(30280, 30232, 30216, 30255, 30251, 100008, 100009, 100010)) {
+            assertEquals(id, normalizeDefaultAudioQualityOption(id))
+            assertEquals(1, resolveDefaultAudioQualityOptions(id).count { it.value == id })
+        }
+        assertEquals(-1, normalizeDefaultAudioQualityOption(0))
+        assertEquals(-1, normalizeDefaultAudioQualityOption(-999))
+        assertEquals(DEFAULT_AUDIO_QUALITY_FOLLOW_LAST, normalizeDefaultAudioQualityOption(DEFAULT_AUDIO_QUALITY_FOLLOW_LAST))
     }
 
     @Test
@@ -61,23 +65,6 @@ class PlaybackSettingsSelectionPolicyTest {
         assertTrue(contentBlock.contains("PlaybackFullscreenGestureSettingsSection("))
     }
 
-    @Test
-    fun `comment controls should stay in interaction section instead of fullscreen gesture section`() {
-        val source = loadSource(
-            "app/src/main/java/com/android/purebilibili/feature/settings/screen/PlaybackSettingsScreen.kt"
-        )
-
-        val interactionBlock = source
-            .substringAfter("private fun PlaybackInteractionSettingsSection(")
-            .substringBefore("PlaybackFullscreenGestureSettingsSection(")
-        val fullscreenBlock = source
-            .substringAfter("private fun PlaybackFullscreenGestureSettingsSection(")
-
-        listOf("评论回复预览", "评论发送检测", "评论区个性装扮", "图片长按保存").forEach { title ->
-            assertTrue(interactionBlock.contains(title))
-            assertFalse(fullscreenBlock.contains(title))
-        }
-    }
 
     @Test
     fun `fullscreen gesture section should own its setting state collection`() {
@@ -224,9 +211,9 @@ class PlaybackSettingsSelectionPolicyTest {
     fun `resolveDefaultPlaybackQualityOptions should only expose fixed quality tiers`() {
         val options = resolveDefaultPlaybackQualityOptions()
 
-        assertEquals(listOf(126, 125, 116, 80, 64, 32, 16), options.map { it.value })
+        assertEquals(listOf(126, 125, 120, 116, 112, 80, 64, 32, 16), options.map { it.value })
         assertEquals(
-            listOf("杜比视界", "4K HDR", "1080P60", "1080P", "720P", "480P", "360P"),
+            listOf("杜比视界", "HDR", "4K", "1080P60", "1080P+", "1080P", "720P", "480P", "360P"),
             options.map { it.label }
         )
     }

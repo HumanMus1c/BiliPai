@@ -1,4 +1,9 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.android.purebilibili.feature.settings.screen
+
+import com.android.purebilibili.feature.settings.SettingsFunctionIcon
+import com.android.purebilibili.core.ui.AppContentColors
 
 import coil3.request.crossfade
 
@@ -214,7 +219,7 @@ fun SkinCatalogScreen(
             ) {
                 AppText(
                     text = "装扮目录为空或加载失败",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = AppContentColors.secondaryText()
                 )
             }
             return@SettingsPageScaffold
@@ -241,7 +246,25 @@ fun SkinCatalogScreen(
                 ) {
                     AppText(
                         text = "没有找到相关装扮",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = AppContentColors.secondaryText()
+                    )
+                }
+            } else if (com.android.purebilibili.core.theme.LocalAppUiStyle.current == com.android.purebilibili.core.theme.AppUiStyle.MATERIAL3) {
+                val carouselState = androidx.compose.material3.carousel.rememberCarouselState { state.filteredThemes.size }
+                androidx.compose.material3.carousel.HorizontalUncontainedCarousel(
+                    state = carouselState,
+                    itemWidth = 240.dp,
+                    itemSpacing = 12.dp,
+                    contentPadding = PaddingValues(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) { index ->
+                    val entry = state.filteredThemes.getOrNull(index) ?: return@HorizontalUncontainedCarousel
+                    SkinCatalogCard(
+                        entry = entry,
+                        onClick = {
+                            stateHolder.openPreview(entry)
+                            preparePreview(entry)
+                        },
                     )
                 }
             } else {
@@ -345,12 +368,12 @@ private fun SkinCatalogCard(
                 if (entry.officialExample) {
                     AppSurface(
                         shape = AppShapes.container(ContainerLevel.Chip),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = AppContentColors.accent(),
                         modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
                     ) {
                         AppText(
                             text = "官方示例",
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = AppContentColors.onAccent(),
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
@@ -390,7 +413,7 @@ private fun SkinCatalogCard(
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
+                color = AppContentColors.primaryText()
             )
         }
     }
@@ -421,7 +444,10 @@ private fun SkinCatalogPreviewDialog(
 ) {
     com.android.purebilibili.core.ui.AppAlertDialog(
         onDismissRequest = { if (!installing) onDismiss() },
-        icon = { AppIcon(com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_brush_fill_24), contentDescription = null) },
+        icon = { SettingsFunctionIcon(
+            com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_brush_fill_24),
+            title = entry.displayName,
+        ) },
         title = { AppText(entry.displayName) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -431,23 +457,23 @@ private fun SkinCatalogPreviewDialog(
                         AppText("正在下载并准备预览…", style = MaterialTheme.typography.bodySmall)
                     }
                 } else if (error != null) {
-                    AppText(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    AppText(error, color = AppContentColors.error(), style = MaterialTheme.typography.bodySmall)
                 } else if (previewData != null) {
                     UiSkinCompositionPreview(data = previewData)
                     AppText(
                         text = "完整装扮使用通栏插画和大图标；实际显示会随导航布局调整。",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = AppContentColors.secondaryText()
                     )
                     AppText(
                         text = entry.licenseNote
                             ?: "素材来自 B 站官方付费/限定主题存档，仅供本地私用，不得作为社区包分发。",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = AppContentColors.secondaryText()
                     )
                 }
                 if (installError != null) {
-                    AppText(installError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    AppText(installError, color = AppContentColors.error(), style = MaterialTheme.typography.bodySmall)
                 }
             }
         },

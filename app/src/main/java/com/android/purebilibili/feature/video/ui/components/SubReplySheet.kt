@@ -1,6 +1,12 @@
 package com.android.purebilibili.feature.video.ui.components
 
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -51,7 +57,7 @@ fun SubReplySheet(
     onAvatarClick: ((String) -> Unit)? = null,
     onCoveredBlurProgressChange: ((Float) -> Unit)? = null,
 ) {
-    if (state.visible && state.rootReply != null) {
+    if (state.visible) {
         val rootReply = state.rootReply
         val backState = rememberNavigationEventState(NavigationEventInfo.None)
         val transition = backState.transitionState as? NavigationEventTransitionState.InProgress
@@ -62,7 +68,7 @@ fun SubReplySheet(
         )
         val threadDrag = rememberCommentThreadDrag(
             visible = state.visible,
-            rootReplyId = rootReply.rpid,
+            rootReplyId = rootReply?.rpid,
             onDismiss = onDismiss,
         )
         val coveredBlurProgress = resolveCommentThreadCoveredBlurProgress(
@@ -76,9 +82,17 @@ fun SubReplySheet(
                 onCoveredBlurProgressChange?.invoke(0f)
             }
         }
+        val panelColor = rememberVideoCommentAppearance().panelColor
         com.android.purebilibili.core.ui.AppModalBottomSheet(
             onDismissRequest = onDismiss,
             dismissOnBackPress = false,
+            // 外壳与内容安全区使用同一实色，避免底部露出下层页面材质。
+            containerColor = panelColor,
+            // 底部安全区由评论面板统一绘制，保留共享弹层与原生材质默认行为。
+            windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
+            sheetSurfaceModifier = Modifier
+                .background(panelColor)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)),
             modifier = Modifier.fillMaxHeight(maxHeightFraction)
                 .then(threadDrag.containerModifier)
                 .graphicsLayer {
@@ -93,6 +107,14 @@ fun SubReplySheet(
                     isBackEnabled = true,
                     onBackCompleted = onDismiss,
                 )
+                if (rootReply == null) {
+                    SubReplyInitialContent(
+                        isLoading = state.isLoading,
+                        error = state.error,
+                        onRetry = onLoadMore,
+                        onDismiss = onDismiss,
+                    )
+                } else {
                 SubReplyDetailContent(
                     headerDragModifier = threadDrag.headerModifier,
                     rootReply = rootReply,
@@ -104,6 +126,7 @@ fun SubReplySheet(
                     isLoading = state.isLoading,
                     isRefreshing = state.isRefreshing,
                     isEnd = state.isEnd,
+                    paginationPage = state.page,
                     emoteMap = emoteMap,
                     onLoadMore = onLoadMore,
                     onRefresh = onRefresh,
@@ -128,6 +151,7 @@ fun SubReplySheet(
                     onAvatarClick = onAvatarClick,
                     targetReplyId = state.targetReplyId
                 )
+                }
             }
         }
     }

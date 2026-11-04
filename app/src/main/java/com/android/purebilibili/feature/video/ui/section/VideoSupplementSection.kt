@@ -2,7 +2,10 @@
 
 package com.android.purebilibili.feature.video.ui.section
 
-import com.android.purebilibili.core.ui.components.AppIconButton
+import com.android.purebilibili.core.ui.AppContentColors
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -73,11 +76,17 @@ private fun SupplementEntryIcon(
     label: String,
     onClick: () -> Unit,
 ) {
-    AppIconButton(onClick = onClick) {
+    // 浮于统计行右上的紧凑入口：28dp 点击槽贴合统计行高度，不再借 40dp 按钮撑出空白。
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         androidx.compose.material3.Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = AppContentColors.secondaryText(),
             modifier = Modifier.size(18.dp),
         )
     }
@@ -201,7 +210,7 @@ private fun VideoNoteSheetFooter(
         AppText(
             text = "官方笔记编辑器需要登录 B 站账号",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppContentColors.secondaryText(),
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }

@@ -2,6 +2,11 @@
 
 package com.android.purebilibili.feature.plugin.js
 
+import com.android.purebilibili.core.player.withAppVideoDecoderDiagnostics
+import com.android.purebilibili.core.player.withAppVideoDecoderPreference
+
+import com.android.purebilibili.core.ui.AppContentColors
+
 import android.view.ViewGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -77,8 +82,11 @@ fun ExternalMediaPlayerScreen(
     }
     val player = remember(context, dataSourceFactory) {
         ExoPlayer.Builder(context)
+            .setRenderersFactory(
+                androidx.media3.exoplayer.DefaultRenderersFactory(context).withAppVideoDecoderPreference(context)
+            )
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-            .build()
+            .build().withAppVideoDecoderDiagnostics(context)
     }
 
     DisposableEffect(player) {
@@ -207,7 +215,7 @@ fun ExternalMediaPlayerScreen(
             ) {
                 AppText(
                     text = "播放请求已失效，请从插件内容重新打开",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = AppContentColors.secondaryText()
                 )
             }
             return@AppScaffold

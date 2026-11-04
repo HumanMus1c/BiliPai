@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.ui.AppContentColors
+
 import coil3.request.crossfade
 
 import com.android.purebilibili.core.ui.AppSpacingTokens
@@ -21,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppPressShiftContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import com.android.purebilibili.core.ui.components.AppText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -47,13 +52,13 @@ internal fun HomeTopAvatarContent(
     user: UserState,
     shape: Shape,
     fallbackBackgroundColor: Color,
-    fallbackTextColor: Color,
     modifier: Modifier = Modifier
 ) {
-    if (user.isLogin && user.face.isNotEmpty()) {
+    val displayFace = user.face
+    if (user.isLogin && displayFace.isNotEmpty()) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
-                .data(FormatUtils.fixImageUrl(user.face))
+                .data(FormatUtils.fixImageUrl(displayFace))
                 .size(128, 128)
                 .crossfade(true)
                 .build(),
@@ -71,11 +76,11 @@ internal fun HomeTopAvatarContent(
                 .background(fallbackBackgroundColor),
             contentAlignment = Alignment.Center
         ) {
-            AppText(
-                text = "未",
-                fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                fontWeight = FontWeight.Bold,
-                color = fallbackTextColor
+            AppIcon(
+                imageVector = Icons.Filled.Person,
+                contentDescription = if (user.isLogin) "用户头像" else "未登录，点击登录",
+                tint = AppContentColors.accent(),
+                modifier = Modifier.fillMaxSize(0.6f),
             )
         }
     }
@@ -89,6 +94,7 @@ internal fun HomeTopSearchPillContent(
     iconTextGap: Dp,
     modifier: Modifier = Modifier,
     pressed: Boolean = false,
+    searchIconOpticalScale: Float = 1f,
 ) {
     AppPressShiftContent(
         pressed = pressed,
@@ -103,7 +109,12 @@ internal fun HomeTopSearchPillContent(
                 imageVector = searchIcon,
                 contentDescription = "搜索",
                 tint = contentColor,
-                modifier = Modifier.size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                modifier = Modifier
+                    .size(AppSpacingTokens.Large + AppSpacingTokens.Micro)
+                    .graphicsLayer {
+                        scaleX = searchIconOpticalScale
+                        scaleY = searchIconOpticalScale
+                    }
             )
             Spacer(modifier = Modifier.width(iconTextGap))
             AppText(
@@ -132,7 +143,7 @@ internal fun HomeTopUnreadBadge(
                 minWidth = layout.minWidth,
                 minHeight = layout.minHeight
             )
-            .background(com.android.purebilibili.core.theme.iOSRed, CircleShape)
+            .background(AppContentColors.error(), CircleShape)
             .border(width = AppSpacingTokens.Micro / 2, color = borderColor, shape = CircleShape)
             .padding(
                 horizontal = layout.horizontalPadding,

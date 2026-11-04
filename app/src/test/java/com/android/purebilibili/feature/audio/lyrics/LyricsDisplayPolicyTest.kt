@@ -7,6 +7,47 @@ import kotlin.test.assertTrue
 
 class LyricsDisplayPolicyTest {
 
+    @Test
+    fun translationDisplayCanBeDisabledWithoutChangingPrimaryOrCachedSubtitles() {
+        val original = LyricDocument(
+            lines = listOf(LyricLine(
+                startTimeMs = 100L,
+                endTimeMs = 2000L,
+                text = "场面集锦足足长达三个小时",
+                translations = listOf("รวมคลิปฉากในตำนานยาวนานถึงสามชั่วโมงเต็ม"),
+                romanization = "secondary pronunciation",
+                spans = listOf(LyricSpan("场面", 100L, 300L)),
+            )),
+            offsetMs = 250L,
+            metadata = mapOf("source_type" to "ai_subtitle"),
+        )
+        val hidden = requireNotNull(resolveLyricsDisplayDocument(original, false))
+        assertTrue(hidden.lines.single().translations.isEmpty())
+        assertEquals(null, hidden.lines.single().romanization)
+        assertEquals(original.lines.single().copy(translations = emptyList(), romanization = null), hidden.lines.single())
+        assertEquals(original.metadata, hidden.metadata)
+        assertEquals(original.offsetMs, hidden.offsetMs)
+        assertEquals(original, resolveLyricsDisplayDocument(original, true))
+        assertTrue(original.lines.single().translations.isNotEmpty())
+        assertEquals(null, resolveLyricsDisplayDocument(null, false))
+    }
+
+    @Test
+    fun wrappedSubtitleNotesAreHiddenWithoutChangingWordTimingOrSource() {
+        val original = LyricDocument(lines = listOf(LyricLine(
+            startTimeMs = 100L,
+            endTimeMs = 900L,
+            text = "♪ 你好 ♪",
+            spans = listOf(LyricSpan("♪ 你", 100L, 400L), LyricSpan("好 ♪", 400L, 900L)),
+            translations = listOf("hello"),
+        )))
+        val displayed = requireNotNull(resolveLyricsDisplayDocument(original, true)).lines.single()
+        assertEquals("你好", displayed.text)
+        assertEquals(listOf(LyricSpan("你", 100L, 400L), LyricSpan("好", 400L, 900L)), displayed.spans)
+        assertEquals(listOf("hello"), displayed.translations)
+        assertEquals("♪ 你好 ♪", original.lines.single().text)
+    }
+
     private fun line(startMs: Long, endMs: Long, text: String = "歌词") = LyricLine(
         startTimeMs = startMs,
         endTimeMs = endMs,
@@ -65,5 +106,29 @@ class LyricsDisplayPolicyTest {
             showTranslation = true,
         )
         assertEquals(null, romanization)
+    }
+
+    @Test
+    fun `romanization visibility follows primary script and display toggle`() {
+        listOf(
+            "光になれ" to "hikari ni nare",
+            "사랑해" to "saranghae",
+        ).forEach { (primaryText, romanization) ->
+            val (_, visibleRomanization) = resolveDisplaySecondaryRows(
+                primaryText = primaryText,
+                translation = "Translation",
+                romanization = romanization,
+                showTranslation = true,
+            )
+            assertEquals(romanization, visibleRomanization)
+
+            val hiddenRows = resolveDisplaySecondaryRows(
+                primaryText = primaryText,
+                translation = "Translation",
+                romanization = romanization,
+                showTranslation = false,
+            )
+            assertEquals(null to null, hiddenRows)
+        }
     }
 }

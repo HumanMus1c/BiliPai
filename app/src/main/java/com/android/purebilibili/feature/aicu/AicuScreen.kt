@@ -1,5 +1,7 @@
 package com.android.purebilibili.feature.aicu
 
+import com.android.purebilibili.core.ui.AppContentColors
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -13,7 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
+import com.android.purebilibili.core.ui.common.AppSelectionContainer as SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -230,7 +232,7 @@ internal fun AicuScreen(
                                         AppTextButton(onClick = onCancel, modifier = Modifier.heightIn(min = 48.dp)) { AppText("取消") }
                                     }
                                 }
-                                state.error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
+                                state.error?.let { AppText(it, color = AppContentColors.error()) }
                                 if (state.loadState == AicuLoadState.ERROR || state.retrySeconds > 0) {
                                     AppTextButton(onClick = onRetry, enabled = state.retrySeconds == 0 && !state.busy, modifier = Modifier.heightIn(min = 48.dp)) {
                                         AppText(if (state.retrySeconds > 0) "${state.retrySeconds} 秒后可重试" else "重试")
@@ -288,7 +290,7 @@ internal fun AicuScreen(
                         AdaptiveLoadingIndicator()
                     }
                 }
-                else if (state.trendingError != null) AppText(state.trendingError, color = MaterialTheme.colorScheme.error)
+                else if (state.trendingError != null) AppText(state.trendingError, color = AppContentColors.error())
                 else Column(Modifier.verticalScroll(rememberScrollState())) {
                     state.trending.forEachIndexed { index, item ->
                         Row(
@@ -328,6 +330,8 @@ private fun AicuCategoryTabs(category: AicuCategory, liquidEnabled: Boolean, onS
             // Let the shared dock own its bounded fallback backdrop. Supplying a synthetic
             // gradient here separates the shell and moving indicator capture pipelines.
             AppThemeAdaptiveTabRow(
+                // Glass indicator fills the measured slot; native geometry keeps its defaults.
+                liquidGlassAdaptIndicatorToLabel = !com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled,
                 role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                 options = options,
                 selectedValue = category,
@@ -400,6 +404,8 @@ private fun AicuCommentModeDock(
         )
         if (useGlass) {
             AppThemeAdaptiveTabRow(
+                // Glass indicator fills the measured slot; native geometry keeps its defaults.
+                liquidGlassAdaptIndicatorToLabel = !com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled,
                 role = com.android.purebilibili.core.ui.components.AppTabRowRole.FILTER,
                 options = options,
                 selectedValue = selectedMode,
@@ -435,7 +441,7 @@ private fun AicuDisclaimerDialog(seconds: Int, saving: Boolean, error: String?, 
                 SelectionContainer {
                     AppText(AICU_DISCLAIMER_TEXT)
                 }
-                error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { AppText(it, color = AppContentColors.error()) }
             }
         },
         confirmButton = { AppTextButton(onClick = onAccept, enabled = seconds == 0 && !saving, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -466,7 +472,7 @@ private fun AicuRecordCard(
             RichCommentText(
                 text = record.text.ifBlank { "（正文缺失）" },
                 fontSize = MaterialTheme.typography.bodyLarge.fontSize,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = AppContentColors.primaryText(),
                 emoteMap = emoteMap,
             )
             if (target != null && category == AicuCategory.COMMENT && (record.objectType == 12 || (record.rank == 2 && record.rootId.toLongOrNull() == null))) {

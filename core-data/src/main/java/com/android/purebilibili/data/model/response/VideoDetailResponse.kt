@@ -68,7 +68,9 @@ data class ViewInfo(
     val honorReply: VideoHonorReply? = null,
     /** 新版简介分段:type=2 为 @提及,biz_id 是被@用户 mid,可跳空间。 */
     @SerialName("desc_v2")
-    val descV2: List<VideoDescSegment> = emptyList()
+    val descV2: List<VideoDescSegment> = emptyList(),
+    @SerialName("redirect_url")
+    val redirectUrl: String? = null
 ) {
     val isCooperation: Boolean
         get() = rights.isCooperation == 1 || staff.isNotEmpty()
@@ -169,7 +171,18 @@ data class Page(
     val page: Int = 0,
     val from: String = "",
     val part: String = "",
-    val duration: Long = 0
+    val duration: Long = 0,
+    @SerialName("first_frame") val firstFrame: String = "",
+    /** 分P尺寸；/x/player/pagelist 会返回，用于在播放信息加载前判断横竖屏。 */
+    val dimension: Dimension? = null,
+)
+
+/** /x/player/pagelist 的响应：只含分P列表，比 x/web-interface/view 轻量得多。 */
+@Serializable
+data class PageListResponse(
+    val code: Int = 0,
+    val message: String = "",
+    val data: List<Page>? = null
 )
 
 //  视频标签响应
@@ -235,8 +248,32 @@ data class UgcEpisode(
     val title: String = "",
     val arc: UgcEpisodeArc? = null,
     // 分 P 列表：合集接口按集返回，弹窗内的分 P chips 依赖此字段
-    val pages: List<Page> = emptyList()
-)
+    val pages: List<Page> = emptyList(),
+    @SerialName("is_upower_exclusive")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isUpowerExclusive: Boolean = false,
+    @SerialName("is_upower_exclusive_with_qa")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isUpowerExclusiveWithQa: Boolean = false,
+    @SerialName("is_charging_arc")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isChargingArc: Boolean = false,
+    @SerialName("elec_arc_type")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val elecArcType: Int = 0,
+    val rights: VideoRights? = null,
+    // 合集按集返回的封面角标独立于详情页权限字段，不能在解码时丢弃。
+    val badge: String? = null,
+) {
+    /** 只使用当前集的权限元数据，不从合集名称、播放权限或封面推断。 */
+    val accessLabel: String?
+        get() = resolveVideoStatusLabels(
+            charging = isUpowerExclusive || isUpowerExclusiveWithQa || isChargingArc || elecArcType == 1 ||
+                (rights?.ugcPay ?: 0) > 0 || (rights?.ugcPayPreview ?: 0) > 0 || arc?.isChargingExclusive == true,
+            paid = (rights?.pay ?: 0) > 0 || (rights?.arcPay ?: 0) > 0 || arc?.isPaid == true,
+            serverLabels = listOfNotNull(badge),
+        ).firstOrNull()
+}
 
 @Serializable
 data class UgcEpisodeArc(
@@ -246,5 +283,25 @@ data class UgcEpisodeArc(
     val pubdate: Long = 0,
     val ctime: Long = 0,
     val duration: Int = 0,
-    val stat: Stat? = null
-)
+    val stat: Stat? = null,
+    @SerialName("is_upower_exclusive")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isUpowerExclusive: Boolean = false,
+    @SerialName("is_upower_exclusive_with_qa")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isUpowerExclusiveWithQa: Boolean = false,
+    @SerialName("is_charging_arc")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isChargingArc: Boolean = false,
+    @SerialName("elec_arc_type")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val elecArcType: Int = 0,
+    val rights: VideoRights? = null,
+) {
+    val isChargingExclusive: Boolean
+        get() = isUpowerExclusive || isUpowerExclusiveWithQa || isChargingArc || elecArcType == 1 ||
+            (rights?.ugcPay ?: 0) > 0 || (rights?.ugcPayPreview ?: 0) > 0
+
+    val isPaid: Boolean
+        get() = (rights?.pay ?: 0) > 0 || (rights?.arcPay ?: 0) > 0
+}

@@ -192,6 +192,7 @@ data class VideoItem(
     val id: Long = 0,
     val bvid: String = "",
     val dynamicId: String = "", // Home Follow 动态卡片跳转详情用
+    val trackId: String = "", // 推荐流卡片追踪 ID（负反馈上报用）
     val aid: Long = 0,   // [修复] 新增 aid 字段，移动端推荐流可能只返回 aid
     val cid: Long = 0,   //  明确的 CID 字段，用于播放
     val title: String = "",
@@ -216,14 +217,62 @@ data class VideoItem(
     val recommendationFeedback: RecommendationFeedbackMetadata? = null,
     val contentType: String = "",
     val navigationUrl: String = "",
-)
+    @SerialName("is_union_video")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val isUnionVideo: Int = 0,
+    @SerialName("is_cooperation")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val cooperation: Boolean = false,
+    @SerialName("is_steins")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isSteins: Boolean = false,
+    @SerialName("is_lesson_video")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isLessonVideo: Boolean = false,
+    @SerialName("is_charging_arc")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isChargingArc: Boolean = false,
+    @SerialName("charging_pay")
+    val chargingPay: WatchLaterChargingPay? = null,
+    @SerialName("pgc_label")
+    val pgcLabel: String? = null,
+    val badges: List<VideoContentBadge> = emptyList(),
+    val recommendationReason: String = "",
+    val episodeId: Long = 0L,
+) {
+    val isCooperation: Boolean
+        get() = cooperation || isUnionVideo == 1 || rights?.isCooperation == 1
+
+    val statusLabels: List<String>
+        get() = resolveVideoStatusLabels(
+            cooperation = isCooperation,
+            interactive = isSteins || rights?.isSteinGate == 1,
+            course = isLessonVideo || contentType == "ketang",
+            charging = isChargingArc || chargingPay?.level != null ||
+                (rights?.ugcPay ?: 0) > 0 || (rights?.ugcPayPreview ?: 0) > 0,
+            paid = (rights?.pay ?: 0) > 0 || (rights?.arcPay ?: 0) > 0,
+            serverLabels = listOfNotNull(pgcLabel) + badges.map { it.text } +
+                when (contentType) {
+                    "live_room" -> listOf("直播")
+                    "picture" -> listOf("动态")
+                    "bangumi" -> listOf("番剧")
+                    else -> emptyList()
+                },
+        )
+}
 
 @Serializable
 data class RecommendationFeedbackMetadata(
     val goto: String = "",
     val param: String = "",
     val reasons: List<RecommendationFeedbackReason> = emptyList(),
-    val supportsServerSync: Boolean = false
+    val supportsServerSync: Boolean = false,
+    /** 推荐流卡片追踪 ID，服务端靠它把负反馈关联到具体那条推荐。 */
+    val trackId: String = "",
+    /** 来源页面标识，首页推荐固定 tm.recommend.0.0。 */
+    val spmid: String = "tm.recommend.0.0",
+    /** UP 主 mid，负反馈里作为 mid 字段上报。 */
+    val creatorMid: Long = 0L,
 )
 
 @Serializable
@@ -259,7 +308,13 @@ data class VideoRights(
     @SerialName("ugc_pay_preview")
     val ugcPayPreview: Int = 0,
     @SerialName("pay_free_watch")
-    val payFreeWatch: Int = 0
+    val payFreeWatch: Int = 0,
+    @SerialName("is_cooperation")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val isCooperation: Int = 0,
+    @SerialName("is_stein_gate")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val isSteinGate: Int = 0
 )
 
 @Serializable
@@ -325,18 +380,64 @@ data class RecommendItem(
     val tname: String = "",
     //  [新增] 视频尺寸信息 (用于判断竖屏视频)
     val dimension: Dimension? = null,
+    @SerialName("charging_pay") val chargingPay: WatchLaterChargingPay? = null,
+    @SerialName("pgc_label") val pgcLabel: String? = null,
+    val badges: List<VideoContentBadge> = emptyList(),
     val rights: VideoRights? = null,
     //  [新增] 是否已关注该 UP 主(推荐流过滤已关注豁免用; 接口返回 0/1 整数)
     @SerialName("is_followed")
     @Serializable(with = FlexibleBooleanSerializer::class)
-    val isFollowed: Boolean = false
+    val isFollowed: Boolean = false,
+    @SerialName("rcmd_reason")
+    @Serializable(with = RecommendationReasonSerializer::class)
+    val recommendationReason: String = "",
+    val param: String = "",
+    @SerialName("ad_info") val adInfo: kotlinx.serialization.json.JsonElement? = null,
+    /** 广告卡标记，官方 App 用 "cm" 表示商业推广。 */
+    @SerialName("card_type") val cardType: String = "",
+    /** 商业化信息，非空通常代表广告或推广内容。 */
+    @SerialName("business_info") val businessInfo: kotlinx.serialization.json.JsonElement? = null,
+    @SerialName("is_steins")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isSteins: Boolean = false,
+    @SerialName("is_lesson_video")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isLessonVideo: Boolean = false,
+    @SerialName("is_charging_arc")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isChargingArc: Boolean = false,
+    @SerialName("is_union_video")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val isUnionVideo: Int = 0,
+    @SerialName("is_cooperation")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val cooperation: Boolean = false
 ) {
+    /** 与 [MobileFeedItem.isSupportedRecommendation] 同口径：广告与非常规卡片一律丢弃。 */
+    val isSupportedRecommendation: Boolean
+        get() = adInfo == null &&
+            businessInfo == null &&
+            cardType != "cm" &&
+            goto.orEmpty().ifBlank { "av" } in setOf("av", "bangumi", "picture")
+
     fun toVideoItem(): VideoItem {
+        val type = goto.orEmpty().ifBlank { "av" }
+        val episode = if (type == "bangumi") recommendationEpisodeId(param, uri.orEmpty()) else 0L
+        val dynamic = if (type == "picture") recommendationDynamicId(param, uri.orEmpty()) else ""
         return VideoItem(
             id = id,
-            bvid = bvid ?: "",
-            aid = id,  // [修复] 填充 aid (id 通常就是 aid)
-            cid = cid ?: 0L,
+            bvid = when (type) {
+                "bangumi" -> episode.takeIf { it > 0 }?.let { "bangumi:$it" }.orEmpty()
+                "picture" -> dynamic.takeIf(String::isNotBlank)?.let { "dynamic:$it" }.orEmpty()
+                "av" -> bvid.orEmpty()
+                else -> ""
+            },
+            contentType = type,
+            navigationUrl = uri.orEmpty(),
+            episodeId = episode,
+            dynamicId = dynamic,
+            aid = if (type == "av") id else 0L,  // [修复] 填充 aid (id 通常就是 aid)
+            cid = if (type == "av") cid ?: 0L else 0L,
             title = title ?: "",
             pic = pic ?: "",
             owner = Owner(mid = owner?.mid ?: 0, name = owner?.name ?: "", face = owner?.face ?: ""),
@@ -348,11 +449,17 @@ data class RecommendItem(
             ),
             tid = tid,
             tname = tname,
-            duration = duration ?: 0,
+            duration = if (type == "picture") 0 else duration ?: 0,
             pubdate = pubdate ?: 0L,
             isVertical = dimension?.isVertical == true,
-            isFollowed = isFollowed,
-            rights = rights
+            isFollowed = isFollowed || isFollowedRecommendationReason(recommendationReason),
+            recommendationReason = recommendationReasonLabel(recommendationReason),
+            isSteins = isSteins,
+            isLessonVideo = isLessonVideo,
+            isChargingArc = isChargingArc,
+            isUnionVideo = isUnionVideo,
+            cooperation = cooperation,
+            rights = rights, chargingPay = chargingPay, pgcLabel = pgcLabel, badges = badges
         )
     }
     private fun requestStatConvert(num: Long?): Int = num?.toInt() ?: 0
@@ -400,7 +507,10 @@ data class PopularItem(
     val pubdate: Long = 0,
     val owner: Owner = Owner(),
     val stat: PopularStat = PopularStat(),
-    val rights: VideoRights? = null
+    val rights: VideoRights? = null,
+    @SerialName("charging_pay") val chargingPay: WatchLaterChargingPay? = null,
+    @SerialName("pgc_label") val pgcLabel: String? = null,
+    val badges: List<VideoContentBadge> = emptyList()
 ) {
     fun toVideoItem(): VideoItem {
         val resolvedAid = if (aid > 0) aid else cid
@@ -425,7 +535,7 @@ data class PopularItem(
             tname = tname,
             duration = duration,
             pubdate = pubdate,
-            rights = rights
+            rights = rights, chargingPay = chargingPay, pgcLabel = pgcLabel, badges = badges
         )
     }
 }
@@ -548,6 +658,9 @@ data class DynamicRegionItem(
     val pubdate: Long = 0,
     val owner: Owner = Owner(),
     val stat: DynamicRegionStat = DynamicRegionStat(),
+    @SerialName("charging_pay") val chargingPay: WatchLaterChargingPay? = null,
+    @SerialName("pgc_label") val pgcLabel: String? = null,
+    val badges: List<VideoContentBadge> = emptyList(),
     val rights: VideoRights? = null
 ) {
      fun toVideoItem(): VideoItem {
@@ -572,7 +685,7 @@ data class DynamicRegionItem(
             tname = tname,
             duration = duration,
             pubdate = pubdate,
-            rights = rights
+            rights = rights, chargingPay = chargingPay, pgcLabel = pgcLabel, badges = badges
         )
     }
 }
@@ -631,18 +744,63 @@ data class MobileFeedItem(
     val cover: String = "",
     val title: String = "",
     val duration: Long = 0,
+    val pubdate: Long = 0,
     val args: MobileFeedArgs? = null,
     @SerialName("player_args") val playerArgs: MobileFeedPlayerArgs? = null,
     @SerialName("three_point_v2") val threePointV2: List<MobileFeedThreePoint> = emptyList(),
     @SerialName("cover_left_text_1") val coverLeftText1: String = "",  // 播放量
-    @SerialName("cover_left_text_2") val coverLeftText2: String = ""   // 弹幕数
+    @SerialName("cover_left_text_2") val coverLeftText2: String = "",  // 弹幕数
+    @SerialName("cover_right_text") val coverRightText: String = "",
+    val rights: VideoRights? = null,
+    @SerialName("charging_pay") val chargingPay: WatchLaterChargingPay? = null,
+    val badges: List<VideoContentBadge> = emptyList(),
+    @SerialName("rcmd_reason")
+    @Serializable(with = RecommendationReasonSerializer::class)
+    val recommendationReason: String = "",
+    @SerialName("card_goto") val cardGoto: String = "",
+    // 推荐卡片的追踪 ID，负反馈要靠它关联到具体那条推荐。
+    @SerialName("track_id") val trackId: String = "",
+    @SerialName("ad_info") val adInfo: kotlinx.serialization.json.JsonElement? = null,
+    /** 广告卡标记，官方 App 用 "cm" 表示商业推广。 */
+    @SerialName("card_type") val cardType: String = "",
+    /** 商业化信息，非空通常代表广告或推广内容。 */
+    @SerialName("business_info") val businessInfo: kotlinx.serialization.json.JsonElement? = null,
+    @SerialName("desc_button") val descButton: MobileFeedDescButton? = null,
+    @SerialName("is_steins")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isSteins: Boolean = false,
+    @SerialName("is_lesson_video")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isLessonVideo: Boolean = false,
+    @SerialName("is_charging_arc")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val isChargingArc: Boolean = false,
+    @SerialName("is_union_video")
+    @Serializable(with = FlexibleIntSerializer::class)
+    val isUnionVideo: Int = 0,
+    @SerialName("is_cooperation")
+    @Serializable(with = FlexibleBooleanSerializer::class)
+    val cooperation: Boolean = false
 ) {
+    val recommendationType: String get() = cardGoto.ifBlank { goto }.ifBlank { "av" }
+    val isSupportedRecommendation: Boolean
+        get() = adInfo == null &&
+            businessInfo == null &&
+            cardType != "cm" &&
+            recommendationType in setOf("av", "bangumi", "picture")
+
     fun toVideoItem(): VideoItem {
+        val type = recommendationType
+        val episode = if (type == "bangumi") recommendationEpisodeId(param, uri) else 0L
+        val dynamic = if (type == "picture") recommendationDynamicId(param, uri) else ""
         // [修复] 改进 bvid 提取逻辑
         // 1. 优先从 uri 提取 (格式: bilibili://video/BV1xxx)
         // 2. 如果 param 以 "BV" 开头，使用 param
         // 3. 否则 bvid 置空，依赖 aid 回退
-        val extractedBvid = uri.substringAfterLast("/").takeIf { it.startsWith("BV") }
+        // uri 可能带 query（?player_width=...），必须先剥离再取路径末段，
+        // 否则 bvid 会被污染成 "BV1xx?player_width=1080&..."，后续所有接口请求都失效。
+        val extractedBvid = uri.substringAfterLast("/").substringBefore("?")
+            .takeIf { it.startsWith("BV") }
             ?: param.takeIf { it.startsWith("BV") }
             ?: ""
         
@@ -654,26 +812,56 @@ data class MobileFeedItem(
         
         return VideoItem(
             id = idx,
-            bvid = extractedBvid,
-            aid = extractedAid,  // [修复] 填充 aid，用于 bvid 为空时的回退
-            cid = playerArgs?.cid ?: 0L,
+            // Non-video keys remain distinct for feed diffing; never send them to the AV player.
+            bvid = when (type) {
+                "bangumi" -> episode.takeIf { it > 0 }?.let { "bangumi:$it" }.orEmpty()
+                "picture" -> dynamic.takeIf(String::isNotBlank)?.let { "dynamic:$it" }.orEmpty()
+                "av" -> extractedBvid.ifBlank { extractedAid.takeIf { it > 0 }?.let { "av$it" }.orEmpty() }
+                else -> ""
+            },
+            contentType = type,
+            navigationUrl = uri,
+            episodeId = episode,
+            dynamicId = dynamic,
+            trackId = trackId,
+            aid = if (type == "av") extractedAid else 0L,  // [修复] 填充 aid，用于 bvid 为空时的回退
+            cid = if (type == "av") playerArgs?.cid ?: 0L else 0L,
             title = title,
             pic = cover,
             owner = Owner(
                 mid = args?.upId ?: 0,
-                name = args?.upName ?: "",
+                name = if (type == "av") args?.upName.orEmpty() else descButton?.text.orEmpty().ifBlank { args?.upName.orEmpty() },
                 face = args?.upFace ?: ""
             ),
             stat = Stat(
+                like = parseRecommendationLikeCount(recommendationReason) ?: 0,
                 view = parseStatText(coverLeftText1),
                 danmaku = parseStatText(coverLeftText2)
             ),
             tid = args?.tid?.takeIf { it > 0 } ?: args?.rid ?: 0,
             tname = args?.let { it.tname.ifBlank { it.rname } }.orEmpty(),
-            duration = duration.toInt(),
+            duration = if (type == "picture") 0 else (playerArgs?.duration?.takeIf { it > 0 } ?: duration).toInt(),
+            pubdate = pubdate.takeIf { it > 0L } ?: 0L,
+            // App 端推荐的 uri 自带播放尺寸，列表阶段就能确定横竖屏；
+            // 详情页首帧据此直接进入正确布局，不必等播放器接口回包。
+            isVertical = resolveVerticalVideoFromFeedUri(uri) ?: false,
+            isSteins = isSteins,
+            isLessonVideo = isLessonVideo,
+            isChargingArc = isChargingArc,
+            isUnionVideo = isUnionVideo,
+            cooperation = cooperation,
+            rights = rights,
+            chargingPay = chargingPay,
+            // On AV cards this field is duration, not a badge. PiliPlus also gates it by goto.
+            pgcLabel = coverRightText.takeIf { type == "bangumi" && it.isNotBlank() },
+            badges = badges,
+            isFollowed = isFollowedRecommendationReason(recommendationReason),
+            recommendationReason = recommendationReasonLabel(recommendationReason),
             recommendationFeedback = RecommendationFeedbackMetadata(
-                goto = goto,
+                goto = type,
                 param = param,
+                trackId = trackId,
+                creatorMid = args?.upId ?: 0L,
                 reasons = threePointV2.flatMap { group ->
                     val type = when (group.type) {
                         "feedback" -> RecommendationFeedbackType.FEEDBACK
@@ -696,7 +884,7 @@ data class MobileFeedItem(
                         }
                     }
                 },
-                supportsServerSync = goto.isNotBlank() && param.isNotBlank()
+                supportsServerSync = type.isNotBlank() && param.isNotBlank()
             )
         )
     }
@@ -712,6 +900,9 @@ data class MobileFeedItem(
         } catch (_: NumberFormatException) { 0 }
     }
 }
+
+@Serializable
+data class MobileFeedDescButton(val text: String = "")
 
 @Serializable
 data class MobileFeedArgs(

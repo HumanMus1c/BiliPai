@@ -45,7 +45,10 @@ data class PlayUrlData(
     @SerialName("dolby_type")
     val dolbyType: Int? = null,
     @SerialName("ai_audio")
-    val aiAudio: AiAudioInfo? = null
+    val aiAudio: AiAudioInfo? = null,
+    // 校验响应可能只有此字段，不包含播放地址；不得按普通空流逐档重试。
+    @SerialName("v_voucher")
+    val vVoucher: String? = null
 ) {
     //  PiliPala 风格：提供便捷的访问方法
     val accept_quality: List<Int> get() = acceptQuality
@@ -115,8 +118,7 @@ data class DashVideo(
     val segmentBase: SegmentBase? = null,
     val codecid: Int? = null
 ) {
-    fun getValidUrl(): String = baseUrl.takeIf { it.isNotEmpty() }
-        ?: backupUrl?.firstOrNull { it.isNotEmpty() } ?: ""
+    fun getValidUrl(): String = preferredDashUrl(baseUrl, backupUrl)
     
     val decodeFormat: VideoDecodeFormat?
         get() = VideoDecodeFormat.fromCodecs(codecs)
@@ -146,8 +148,7 @@ data class DashAudio(
     val segmentBase: SegmentBase? = null,
     val codecid: Int? = null
 ) {
-    fun getValidUrl(): String = baseUrl.takeIf { it.isNotEmpty() }
-        ?: backupUrl?.firstOrNull { it.isNotEmpty() } ?: ""
+    fun getValidUrl(): String = preferredDashUrl(baseUrl, backupUrl)
 }
 
 @Serializable
@@ -291,44 +292,85 @@ private fun normalizedSelectionBandwidth(bandwidth: Int): Int {
 
 //  扩展函数：获取最佳音频流
 fun Dash.getBestAudio(preferQuality: Int = -1): DashAudio? {
-    if (audio.isNullOrEmpty()) {
-        com.android.purebilibili.core.network.CoreDataLog.d("VideoResponse", "ℹ️ getBestAudio: no audio streams")
-        return null
+    val validBaseAudio = audio.orEmpty().filter { it.id > 0 && it.getValidUrl().isNotBlank() }
+    if (preferQuality > 0) {
+        val returnedAudio = validBaseAudio +
+            dolby?.takeIf { it.type > 0 }?.audio.orEmpty()
+                .filter { it.id > 0 && it.getValidUrl().isNotBlank() } +
+            listOfNotNull(flac?.audio?.takeIf { it.id > 0 && it.getValidUrl().isNotBlank() })
+        returnedAudio.filter { it.id == preferQuality }
+            .maxByOrNull { it.bandwidth }
+            ?.let { return it }
     }
-    
-    val validAudios = audio.filter { it.getValidUrl().isNotEmpty() }
-    if (validAudios.isEmpty()) {
-        return audio.firstOrNull()
-    }
-    
-    // 如果指定了具体音质（如杜比/Hi-Res/特定码率），优先匹配
-    if (preferQuality != -1) {
-        // 1. 尝试精确匹配 ID
-        val exactMatch = validAudios.find { it.id == preferQuality }
-        if (exactMatch != null) return exactMatch
-        
-        // 2. 杜比/Hi-Res 特殊处理
-        if (preferQuality == 30250 && dolby?.audio?.isNotEmpty() == true) {
-             return dolby.audio.firstOrNull()
-        }
-        if (preferQuality == 30251 && flac?.audio != null) {
-            return flac.audio
-        }
-        
-        // 3. [统一策略] 使用 findClosestTarget：优先 <= 偏好的最高档，没有则取最近更高档
-        val closestId = validAudios.map { it.id }.findClosestTarget(
-            target = preferQuality,
-            fallback = ClosestTargetFallback.NEAREST_HIGHER
-        )
-        val closest = closestId?.let { targetId -> validAudios.find { it.id == targetId } }
-        if (closest != null) {
-            com.android.purebilibili.core.network.CoreDataLog.d("VideoResponse", " getBestAudio: exact match failed for $preferQuality, using closest match ${closest.id}")
-            return closest
-        }
-    }
-    
-    // 默认：最高带宽/码率 (Auto)
-    val selected = validAudios.maxByOrNull { it.bandwidth }
-    com.android.purebilibili.core.network.CoreDataLog.d("VideoResponse", " getBestAudio: selected id=${selected?.id}, bandwidth=${selected?.bandwidth}")
-    return selected
+    // AUTO and missing requests retain the best ordinary audio; never reinterpret a raw ID
+    // as an ordinal quality or silently enable a premium stream.
+    return validBaseAudio.filterNot { track ->
+        val codec = track.codecs.lowercase().replace("_", "-").replace(" ", "")
+        (codec.isBlank() && (track.id == 30250 || track.id == 30255 || track.id == 30251)) ||
+            codec == "flac" || codec.contains("ec-3") || codec.contains("e-ac-3") ||
+            codec.contains("eac3") || codec == "ec3"
+    }.maxByOrNull { it.bandwidth }
 }
+
+/**
+ * 判断是否是 PCDN 节点。
+ *
+ * PCDN 由用户设备互相供给带宽，画质与稳定性都不如常规 CDN，不少用户会在路由器或
+ * 防火墙里直接屏蔽它。屏蔽后如果只认 `baseUrl`，下载和播放都会直接失败。
+ *
+ * 判定口径与 app 模块的 `CdnOptimizationPolicy.isRiskyCdnHost` 对齐，覆盖这些形态：
+ *  - `*.mcdn.bilivideo.(com|cn|net)`（域名形态的 mcdn）
+ *  - 裸 IP 主机（mcdn 常见的另一种形态，如 `175.12.94.20:8080`）
+ *  - 常规镜像域名但带 `os=mcdn` 参数（upos-*-mirror*?os=mcdn）
+ *  - 已废弃的 `szbdyd.com` 线路
+ *  - 其它带 pcdn / gotcha 字样的主机
+ */
+internal fun isPcdnUrl(url: String): Boolean {
+    val lower = url.lowercase()
+    if (lower.contains("mcdn") || lower.contains("pcdn") || lower.contains("gotcha")) return true
+    if (lower.contains("os=mcdn")) return true
+    if (lower.contains("szbdyd.com")) return true
+    // 已知的第三方 PCDN 域名（B 站会动态下发，逐个补齐）
+    pcdnHostSuffixes.forEach { if (lower.contains(it)) return true }
+    val host = lower.substringAfter("://", "").substringBefore("/").substringBefore(":")
+    return host.matches(Regex("^\\d{1,3}(?:\\.\\d{1,3}){3}$"))
+}
+
+/**
+ * 已知的第三方 PCDN 域名后缀。
+ *
+ * B 站下发的地址里除 mcdn/gotcha 之外还有一批独立域名，同样属于 PCDN，
+ * 这里按后缀兜底匹配。
+ */
+private val pcdnHostSuffixes = listOf(
+    "szbdyd.com",
+    "mountaintoys.cn",
+    "qrstuvwxyzab.com",
+    "zhenidc.cn",
+)
+
+/**
+ * 选线：优先常规 CDN，全部候选都是 PCDN 时替换 host 兜底。
+ *
+ * 顺序保持稳定：按 baseUrl → backupUrl 的原始顺序挑第一个非 PCDN 的地址。
+ * 若整份响应里只有 PCDN 地址，则将 host 换成常规 CDN；
+ * upgcxcode 路径与签名在不同 host 之间通用，
+ * 这样即便 PCDN 全被屏蔽也仍然能下载/播放，而不是直接失败。
+ */
+internal fun preferredDashUrl(baseUrl: String, backupUrl: List<String>?): String {
+    val candidates = (listOf(baseUrl) + backupUrl.orEmpty()).filter { it.isNotEmpty() }
+    candidates.firstOrNull { !isPcdnUrl(it) }?.let { return it }
+
+    val pcdnUrl = candidates.firstOrNull() ?: return ""
+    val path = pcdnUrl.substringAfter("://", "").substringAfter("/", "")
+    if (path.isEmpty()) return pcdnUrl
+    return "https://${fallbackCdnHosts.first()}/$path"
+}
+
+/** 全 PCDN 时用来替换 host 的常规 CDN 线路。 */
+private val fallbackCdnHosts = listOf(
+    "upos-sz-mirrorali.bilivideo.com",
+    "upos-sz-mirrorcos.bilivideo.com",
+    "upos-sz-mirrorhw.bilivideo.com",
+    "upos-sz-mirroraliov.bilivideo.com",
+)

@@ -1,4 +1,6 @@
 package com.android.purebilibili.feature.settings
+
+import com.android.purebilibili.core.ui.AppContentColors
 import com.android.purebilibili.core.ui.components.appElasticPress
 
 
@@ -60,7 +62,7 @@ internal fun Material3AppUpdateDialog(
                     Text(
                         text = "版本 ${state.update.latestVersion}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppContentColors.secondaryText(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -139,6 +141,8 @@ private fun Material3UpdateContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // 容器高度受限时让出空间给下载渠道按钮，日志自身滚动。
+                .weight(1f, fill = false)
                 .heightIn(max = contentMaxHeightDp.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -187,7 +191,7 @@ private fun Material3VersionCard(
                 Text(
                     text = "安装包  $assetName",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppContentColors.secondaryText(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     softWrap = false,
@@ -208,13 +212,13 @@ private fun Material3VersionValue(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppContentColors.secondaryText(),
             maxLines = 1,
         )
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
-            color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            color = if (emphasized) AppContentColors.accent() else AppContentColors.primaryText(),
             fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -293,19 +297,19 @@ private fun Material3ReleaseNotes(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(text = "•", color = MaterialTheme.colorScheme.primary)
+                    Text(text = "•", color = AppContentColors.accent())
                     Text(
                         text = block.text,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppContentColors.secondaryText(),
                     )
                 }
                 AppUpdateReleaseNotesBlock.Divider -> androidx.compose.material3.HorizontalDivider()
                 is AppUpdateReleaseNotesBlock.Paragraph -> Text(
                     text = block.text,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppContentColors.secondaryText(),
                 )
             }
         }
@@ -321,7 +325,7 @@ private fun Material3DownloadChannels(
         Text(
             text = "其他下载渠道",
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppContentColors.secondaryText(),
         )
         Row(
             modifier = Modifier

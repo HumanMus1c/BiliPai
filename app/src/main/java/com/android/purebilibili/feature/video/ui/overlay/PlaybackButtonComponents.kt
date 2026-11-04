@@ -6,7 +6,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import com.android.purebilibili.core.ui.components.AppIcon
 import com.android.purebilibili.core.ui.components.AppIconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -26,7 +26,7 @@ internal fun OverlayPlaybackButton(
         AppIcon(
             imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (isPlaying) "暂停" else "播放",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = Color.White,
             modifier = Modifier.size(glyphSize)
         )
     }

@@ -1,6 +1,9 @@
 // 文件路径: core/store/SettingsManager.kt
 package com.android.purebilibili.core.store
 
+import com.android.purebilibili.core.store.home.HomeWallpaperSelection
+import com.android.purebilibili.core.ui.wallpaper.WallpaperTransform
+import com.android.purebilibili.core.ui.wallpaper.sanitizeWallpaperTransform
 import android.content.Context
 import com.android.purebilibili.BuildConfig
 import androidx.datastore.preferences.core.MutablePreferences
@@ -22,6 +25,8 @@ import com.android.purebilibili.core.ui.transition.VIDEO_SHARED_TRANSITION_CUSTO
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionSpeed
 import com.android.purebilibili.core.ui.transition.normalizeVideoSharedTransitionCustomDurationMillis
 import com.android.purebilibili.core.store.home.HomeSettingsStore
+import com.android.purebilibili.core.store.home.dynamicCommentPreviewVisiblePreferencesKey
+import com.android.purebilibili.core.store.home.glassPopupPalettePreferencesKey
 import com.android.purebilibili.core.store.home.liquidGlassReadabilityModePreferencesKey
 import com.android.purebilibili.core.store.navigation.NavigationSettingsStore
 import com.android.purebilibili.core.store.navigation.bottomBarItemLabelsPreferencesKey
@@ -39,6 +44,7 @@ import com.android.purebilibili.core.theme.AndroidNativeVariant
 import com.android.purebilibili.core.theme.AppUiStyle
 import com.android.purebilibili.core.theme.UiPreset
 import com.android.purebilibili.core.theme.normalizeThemeColorIndex
+import com.android.purebilibili.core.theme.resolveColorContrastPreference
 import com.android.purebilibili.core.theme.resolveColorSpecPreference
 import com.android.purebilibili.core.theme.resolvePaletteStylePreference
 import com.android.purebilibili.data.model.response.LiveFavoriteTagEntry
@@ -47,6 +53,8 @@ import com.android.purebilibili.feature.settings.share.SettingsShareEntryDefinit
 import com.android.purebilibili.feature.settings.share.SettingsShareSection
 import com.android.purebilibili.feature.settings.AppLanguage
 import com.android.purebilibili.feature.settings.AppThemeMode
+import com.android.purebilibili.feature.settings.DarkThemeSchedule
+import com.android.purebilibili.feature.settings.normalizeDarkThemeSchedule
 import com.android.purebilibili.feature.settings.DarkThemeStyle
 import com.android.purebilibili.feature.settings.Md3ColorSource
 import com.android.purebilibili.feature.settings.normalizeMd3CustomColorHex
@@ -68,9 +76,12 @@ import com.android.purebilibili.feature.video.ui.gesture.applyVerticalTwoFingerS
 import com.android.purebilibili.core.util.ENHANCED_DIAGNOSTIC_LOG_PREF_KEY
 import com.android.purebilibili.core.util.ENHANCED_DIAGNOSTIC_LOG_PREFS_NAME
 import com.android.purebilibili.core.util.isLargeScreenOrFoldableConfiguration
+import com.android.purebilibili.core.theme.SeedPaletteStyle
+import com.materialkolor.Contrast
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
@@ -391,7 +402,7 @@ enum class PlaybackCompletionBehavior(val value: Int, val label: String) {
 }
 
 enum class PortraitPlayerCollapseMode(val value: Int, val label: String, val description: String) {
-    OFF(0, "关闭", "关闭滚动缩小；暂停后仍可上滑评论隐藏视频"),
+    OFF(0, "关闭", "关闭播放时滚动缩小；暂停后仍可上滑简介或评论收起画面"),
     INTRO_ONLY(1, "竖屏", "竖屏视频评论区或简介上滑时缩小播放器"),
     COMMENT_ONLY(2, "横屏", "仅横屏视频详情页滚动时缩小播放器"),
     BOTH(3, "全部", "横屏和竖屏视频均可随浏览缩小"),
@@ -442,16 +453,32 @@ enum class FullscreenMode(val value: Int, val label: String, val description: St
 }
 
 enum class FullscreenAspectRatio(val value: Int, val label: String, val description: String) {
-    FIT(0, "适应", "完整显示画面，尽量不裁切"),
-    FILL(1, "填充", "填满屏幕，可能裁切边缘"),
+    FIT(0, "自动", "完整显示画面，尽量不裁切"),
+    FILL(1, "裁剪", "填满屏幕，可能裁切边缘"),
     RATIO_16_9(2, "16:9", "优先按 16:9 展示画面"),
     RATIO_4_3(3, "4:3", "优先按 4:3 展示画面"),
-    STRETCH(4, "拉伸", "铺满屏幕，可能导致画面变形");
+    STRETCH(4, "拉伸", "铺满屏幕，可能导致画面变形"),
+    FIT_WIDTH(5, "等宽", "保持源比例与播放器等宽"),
+    FIT_HEIGHT(6, "等高", "保持源比例与播放器等高"),
+    ORIGINAL(7, "原始", "按视频原始像素尺寸居中展示"),
+    SCALE_DOWN(8, "限制", "仅缩小超过播放器的画面，不放大小画面");
 
     companion object {
         fun fromValue(value: Int): FullscreenAspectRatio {
             return entries.find { it.value == value } ?: FIT
         }
+    }
+}
+
+/** 章节可视层的展示方式；隐藏时仍保留章节列表入口。 */
+enum class ChapterDisplayMode(val value: Int, val label: String, val description: String) {
+    HIDDEN(0, "彻底隐藏", "隐藏章节分段条和当前章节标题，仍可打开章节列表"),
+    WITH_CONTROLS(1, "随控制栏显示", "仅在控制栏展开时显示章节，收起后不遮挡画面字幕"),
+    PERSISTENT(2, "底部常驻", "横屏全屏收起控制栏后仍显示章节条，可能遮挡视频自带字幕");
+
+    companion object {
+        fun fromValue(value: Int): ChapterDisplayMode =
+            entries.find { it.value == value } ?: WITH_CONTROLS
     }
 }
 
@@ -471,6 +498,7 @@ enum class BottomProgressBehavior(
         }
     }
 }
+
 
 enum class PlayerProgressPlacement(
     val value: Int,
@@ -494,20 +522,14 @@ data class PlayerControlVisibilitySettings(
 )
 
 internal fun normalizeDanmakuDisplayArea(value: Float): Float {
-    val normalized = value.coerceIn(0.125f, 1.0f)
-    val supportedOptions = floatArrayOf(0.125f, 0.25f, 0.375f, 0.5f, 0.625f, 0.75f, 0.875f, 1.0f)
-    return supportedOptions.minByOrNull { abs(it - normalized) } ?: 0.5f
+    return if (value.isFinite()) value.coerceIn(0.1f, 1f) else 0.5f
 }
 
-internal fun normalizeDanmakuFontScale(value: Float): Float = value.coerceIn(0.3f, 2.0f)
+internal fun normalizeDanmakuFontScale(value: Float): Float =
+    if (value.isFinite()) value.coerceIn(0.5f, 2.5f) else 1f
 
-internal const val DEFAULT_HOME_REFRESH_COUNT = 20
-internal const val MIN_HOME_REFRESH_COUNT = 10
-internal const val MAX_HOME_REFRESH_COUNT = 30
-
-internal fun normalizeHomeRefreshCount(count: Int): Int {
-    return count.coerceIn(MIN_HOME_REFRESH_COUNT, MAX_HOME_REFRESH_COUNT)
-}
+/** 推荐流兜底条数；实际值由 HomeViewModel 按网格列数换算。 */
+internal const val DEFAULT_HOME_REFRESH_COUNT = 12
 
 enum class HomeFeedCardWidthPreset(
     val value: Int,
@@ -642,6 +664,7 @@ data class HomeSettings(
     val keepHomeTopSearchWithBottomSearch: Boolean = false,
     val listScopedSearchEnabled: Boolean = false,
     val linkedDockMergeOnScrollEnabled: Boolean = true,
+    val bottomBarScrollCompactEnabled: Boolean = true,
     val bottomBarSearchAutoExpandMode: BottomBarSearchAutoExpandMode =
         BottomBarSearchAutoExpandMode.EXPAND_AT_HOME_TOP,
     val bottomBarSearchLayoutMode: BottomBarSearchLayoutMode =
@@ -660,8 +683,10 @@ data class HomeSettings(
         CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY,
     val isHeaderCollapseEnabled: Boolean = true,
     val showPgcTimeline: Boolean = true,
-    val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-6=固定)——宽屏（折叠屏内屏/平板）
+    val gridColumnCount: Int = 0, // [New] 网格列数 (0=自动, 1-7=固定)——宽屏（折叠屏内屏/平板）
     val gridColumnCountCompact: Int = 0, // [New] 窄屏（折叠屏外屏/手机竖屏）独立列数记忆 (0=自动)
+    val gridColumnCustomizationEnabled: Boolean = true,
+    val gridColumnsSharedAcrossPages: Boolean = true,
     val pinchToChangeGridColumnsEnabled: Boolean = true, // [新增] 双指缩放切换网格列数
     val homeFeedCardWidthPreset: HomeFeedCardWidthPreset = HomeFeedCardWidthPreset.AUTO,
     val homeFeedCardStyle: HomeFeedCardStyle = HomeFeedCardStyle.BILIPAI,
@@ -714,13 +739,17 @@ internal fun resolveHomeCardFrostedGlassEnabled(
 data class AppThemeSettings(
     val uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
     val themeMode: AppThemeMode = AppThemeMode.FOLLOW_SYSTEM,
+    val darkThemeSchedule: DarkThemeSchedule = DarkThemeSchedule(),
     val darkThemeStyle: DarkThemeStyle = DarkThemeStyle.DEFAULT,
     val appLanguage: AppLanguage = AppLanguage.FOLLOW_SYSTEM,
     val md3ColorSource: Md3ColorSource = Md3ColorSource.FOLLOW_WALLPAPER,
     val md3CustomColorHex: String = "#007AFF",
     val themeRoleOverrides: ThemeRoleOverrides = ThemeRoleOverrides(),
+    val wallpaperPaletteOverrides: WallpaperPaletteOverrides = WallpaperPaletteOverrides(),
+    val seedPaletteStyle: SeedPaletteStyle = SeedPaletteStyle.Standard,
     val colorStyle: PaletteStyle = PaletteStyle.TonalSpot,
     val colorSpec: ColorSpec.SpecVersion = ColorSpec.SpecVersion.SPEC_2025,
+    val colorContrast: Contrast = Contrast.Default,
     val themeColorIndex: Int = 0,
     val appFontSizePreset: AppFontSizePreset = AppFontSizePreset.DEFAULT,
     val appFontWeightPreset: AppFontWeightPreset = AppFontWeightPreset.FOLLOW_THEME,
@@ -796,7 +825,7 @@ enum class HomeWallpaperEffectMode(val value: Int, val label: String) {
 
 enum class HomeWallpaperEffectScope(val value: Int, val label: String) {
     HOME_ONLY(0, "仅首页"),
-    GLOBAL(1, "首页与聊天");
+    GLOBAL(1, "全局页面");
 
     companion object {
         fun fromValue(value: Int): HomeWallpaperEffectScope =
@@ -834,7 +863,8 @@ enum class HomeHeaderCollapseMode(
     SEARCH_ONLY(0, "仅搜索", "浏览下方内容时只收起搜索框", true, false),
     TABS_ONLY(1, "仅标签", "浏览下方内容时只收起分类栏", false, true),
     BOTH(2, "都收起", "浏览下方内容时，搜索框和分类栏都收起", true, true),
-    OFF(3, "始终显示", "搜索框和分类栏始终显示", false, false);
+    OFF(3, "始终显示", "搜索框和分类栏始终显示", false, false),
+    SHOW_AT_TOP_ONLY(4, "仅回顶显示", "浏览下方内容时收起搜索框和分类栏，仅回到列表顶部时恢复", true, true);
 
     val hasAnyCollapse: Boolean
         get() = collapseSearch || collapseTabs
@@ -856,7 +886,7 @@ enum class HomeBarHideType(
     val label: String,
     val description: String
 ) {
-    SYNC(0, "同步", "顶栏高度跟随列表滑动，上滑展开、下滑收起"),
+    SYNC(0, "同步", "顶栏高度跟随手指滑动，向上滑动收起、反向下拉展开"),
     INSTANT(1, "即时", "识别滑动方向后，顶栏整段收起或展开");
 
     companion object {
@@ -923,11 +953,11 @@ enum class DanmakuPanelWidthMode(val value: Int, val label: String, val widthFra
 
 enum class PortraitDanmakuDisplayAreaMode(val value: Int, val label: String) {
     VIDEO_VIEWPORT(0, "视频画面"),
-    SCREEN_TOP(1, "屏幕顶部");
+    SCREEN_TOP(1, "视频上方");
 
     companion object {
         fun fromValue(value: Int): PortraitDanmakuDisplayAreaMode =
-            entries.find { it.value == value } ?: VIDEO_VIEWPORT
+            entries.find { it.value == value } ?: SCREEN_TOP
     }
 }
 
@@ -967,13 +997,13 @@ enum class DanmakuSettingsScope(
 ) {
     PORTRAIT(
         keyPrefix = "portrait",
-        badgeLabel = "竖屏专用",
-        subtitle = "开关、字号、行距和区域与横屏同步，其余样式独立"
+        badgeLabel = "非全屏专用",
+        subtitle = "开关、行距和区域与全屏同步，字号及其余样式独立"
     ),
     LANDSCAPE(
         keyPrefix = "landscape",
-        badgeLabel = "横屏专用",
-        subtitle = "开关、字号、行距和区域与竖屏同步，其余样式独立"
+        badgeLabel = "全屏专用",
+        subtitle = "开关、行距和区域与非全屏同步，字号及其余样式独立"
     )
 }
 
@@ -996,7 +1026,7 @@ data class DanmakuSettings(
     val staticDanmakuToScroll: Boolean = false,
     val massiveMode: Boolean = false,
     val mergeDuplicates: Boolean = true,
-    val duplicateMergeWindowMs: Int = 500,
+    val duplicateMergeWindowMs: Int = 15_000,
     val duplicateMergeCountThreshold: Int = 2,
     val allowScroll: Boolean = true,
     val allowTop: Boolean = true,
@@ -1008,7 +1038,7 @@ data class DanmakuSettings(
     val blockAttentionCommands: Boolean = false,
     val smartOcclusion: Boolean = false,
     val portraitDisplayAreaMode: PortraitDanmakuDisplayAreaMode =
-        PortraitDanmakuDisplayAreaMode.VIDEO_VIEWPORT,
+        PortraitDanmakuDisplayAreaMode.SCREEN_TOP,
     val fullscreenPanelWidthMode: DanmakuPanelWidthMode = DanmakuPanelWidthMode.THIRD,
     val blockRulesRaw: String = "",
     val blockRules: List<String> = emptyList()
@@ -1030,6 +1060,14 @@ data class AppNavigationSettings(
     val videoSharedReturnGestureFollowEnabled: Boolean = true,
     val videoSharedReturnGestureTranslationEnabled: Boolean = true,
     val videoReturnContentFollowProgressEnabled: Boolean = true,
+    val settingsContainerMorphEnabled: Boolean = true,
+    val settingsContainerRealtimeBlurEnabled: Boolean = false,
+    val liquidIndicatorWobbleEnabled: Boolean = true,
+    val liquidIndicatorDynamicLengthEnabled: Boolean = true,
+    // 编辑器保留原始配置，不能用运行时过滤后的可见项或生效策略反写用户选择。
+    val bottomBarOrder: List<String> = listOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE"),
+    val bottomBarVisibleTabs: Set<String> = setOf("HOME", "DYNAMIC", "HISTORY", "LISTEN_VIDEO", "PROFILE"),
+    val savedBottomBarVisibilityMode: SettingsManager.BottomBarVisibilityMode = bottomBarVisibilityMode,
 )
 
 internal data class BottomTabMigrationResult(
@@ -1106,12 +1144,10 @@ data class PlayerInteractionSettings(
     val pipNoDanmakuEnabled: Boolean = false,
     val seekForwardSeconds: Int = 10,
     val seekBackwardSeconds: Int = 10,
-    val inlineSwipeSeekSeconds: Int = 0,
-    val fullscreenSwipeSeekSeconds: Int = 0,
     val fullscreenSwipeSeekEnabled: Boolean = true,
     val fullscreenGestureReverse: Boolean = false,
     val hideVideoPageStatusBar: Boolean = false,
-    /** 竖屏详情横屏视频上下黑边动态模糊，默认开启。 */
+    /** 动态环境光开启后，是否在竖屏全屏上下留白显示光晕；保留原存储键与默认值。 */
     val portraitLetterboxAmbientHaze: Boolean = true,
     val tabletCommentPanelWidthPreset: TabletCommentPanelWidthPreset =
         TabletCommentPanelWidthPreset.STANDARD,
@@ -1357,6 +1393,9 @@ object SettingsManager {
     private val KEY_PLAYBACK_COMPLETION_BEHAVIOR = intPreferencesKey("playback_completion_behavior")
     private val KEY_HW_DECODE = booleanPreferencesKey("hw_decode")
     private val KEY_THEME_MODE = intPreferencesKey("theme_mode_v2")
+    private val KEY_DARK_SCHEDULE_ENABLED = booleanPreferencesKey("dark_theme_schedule_enabled")
+    private val KEY_DARK_SCHEDULE_START = intPreferencesKey("dark_theme_schedule_start_minute")
+    private val KEY_DARK_SCHEDULE_END = intPreferencesKey("dark_theme_schedule_end_minute")
     private val KEY_DARK_THEME_STYLE = intPreferencesKey("dark_theme_style_v1")
     private val KEY_APP_LANGUAGE = intPreferencesKey("app_language_v1")
     private val KEY_UI_PRESET = intPreferencesKey("ui_preset")
@@ -1374,15 +1413,20 @@ object SettingsManager {
     private val KEY_THEME_DARK_PRIMARY_TEXT = stringPreferencesKey("theme_dark_primary_text")
     private val KEY_THEME_DARK_SECONDARY_TEXT = stringPreferencesKey("theme_dark_secondary_text")
     private val KEY_THEME_DARK_CONTROL_ACCENT = stringPreferencesKey("theme_dark_control_accent")
+    private val KEY_SEED_PALETTE_STYLE = stringPreferencesKey("seed_palette_style")
     private val KEY_THEME_COLOR_STYLE = stringPreferencesKey("theme_color_style")
     private val KEY_THEME_COLOR_SPEC = stringPreferencesKey("theme_color_spec")
+    private val KEY_THEME_COLOR_CONTRAST = stringPreferencesKey("theme_color_contrast")
     private val KEY_SINGLE_CHOICE_PRESENTATION =
         stringPreferencesKey("single_choice_presentation")
     private val KEY_BG_PLAY = booleanPreferencesKey("bg_play")
     //  [新增] 触感反馈 (默认开启)
+    private val KEY_HAPTIC_SCENES_DISABLED = intPreferencesKey("haptic_scenes_disabled")
     private val KEY_HAPTIC_FEEDBACK_ENABLED = booleanPreferencesKey("haptic_feedback_enabled")
     private val KEY_GLOBAL_TEXT_TAP_COPY_ENABLED =
         booleanPreferencesKey("global_text_tap_copy_enabled")
+    // 「上次看到第 N P」提示开关（默认开启）
+    private val KEY_SHOW_CONTINUE_PART_NOTICE = booleanPreferencesKey("show_continue_part_notice")
     //  [新增] 手势灵敏度和主题色
     private val KEY_GESTURE_SENSITIVITY = floatPreferencesKey("gesture_sensitivity")
     private val KEY_SLIDE_VOLUME_BRIGHTNESS_ENABLED = booleanPreferencesKey("slide_volume_brightness_enabled")
@@ -1391,8 +1435,8 @@ object SettingsManager {
     private val KEY_DANMAKU_CLOUD_SYNC_ENABLED = booleanPreferencesKey("danmaku_cloud_sync_enabled")
     private val KEY_SHOW_PLAYER_CAST_BUTTON = booleanPreferencesKey("show_player_cast_button")
     private val KEY_SHOW_VIDEO_FOLLOW_BUTTON = booleanPreferencesKey("show_video_follow_button")
-    private val KEY_COMPACT_PLAYER_CHROME = booleanPreferencesKey("compact_player_chrome")
     private val KEY_PLAYER_PROGRESS_PLACEMENT = intPreferencesKey("player_progress_placement")
+    private val KEY_COMPACT_PLAYER_CHROME = booleanPreferencesKey("compact_player_chrome")
     private val KEY_SEARCH_HOT_SECTION_ENABLED = booleanPreferencesKey("search_hot_section_enabled")
     private val KEY_SEARCH_DISCOVER_SECTION_ENABLED = booleanPreferencesKey("search_discover_section_enabled")
     private val KEY_SEARCH_SUGGESTIONS_ENABLED = booleanPreferencesKey("search_suggestions_enabled")
@@ -1400,6 +1444,11 @@ object SettingsManager {
     private val KEY_DOUBLE_TAP_SEEK_ENABLED = booleanPreferencesKey("double_tap_seek_enabled")
     private val KEY_SEEK_FORWARD_SECONDS = intPreferencesKey("seek_forward_seconds")
     private val KEY_LIVE_QUALITY = intPreferencesKey("live_quality")
+    private val KEY_LIVE_CDN_HOST = stringPreferencesKey("live_cdn_host")
+    private val KEY_LIVE_WIFI_QUALITY = intPreferencesKey("live_wifi_quality")
+    private val KEY_LIVE_MOBILE_QUALITY = intPreferencesKey("live_mobile_quality")
+    private val KEY_LIVE_SUPER_CHAT_ENABLED = booleanPreferencesKey("live_super_chat_enabled")
+    private val KEY_LIVE_PREFERRED_STREAM = stringPreferencesKey("live_preferred_stream")
     private val KEY_SEEK_BACKWARD_SECONDS = intPreferencesKey("seek_backward_seconds")
     private val KEY_LONG_PRESS_SPEED_HINT_CLOSE_ENABLED =
         booleanPreferencesKey("long_press_speed_hint_close_enabled")
@@ -1459,12 +1508,11 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_DYNAMIC_TAB_VISIBLE_TABS = stringPreferencesKey("dynamic_tab_visible_tabs")
     private val KEY_DYNAMIC_TAB_ORDER = stringPreferencesKey("dynamic_tab_order")
     private val KEY_LOUDNESS_NORMALIZATION_ENABLED = booleanPreferencesKey("loudness_normalization_enabled")
+    private val KEY_AUDIO_SPECTRUM_ENABLED = booleanPreferencesKey("audio_spectrum_enabled")
     private val KEY_STARTUP_AUTO_PLAY_ENABLED = booleanPreferencesKey("startup_auto_play_enabled")
     private val KEY_DYNAMIC_IMAGE_PREVIEW_TEXT_VISIBLE =
         booleanPreferencesKey("dynamic_image_preview_text_visible")
     private val KEY_DYNAMIC_DETAIL_IMAGE_LAYOUT = intPreferencesKey("dynamic_detail_image_layout")
-    private val KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE =
-        booleanPreferencesKey("dynamic_all_tab_horizontal_user_list_visible")
     private val KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL =
         booleanPreferencesKey("dynamic_top_bar_collapse_on_scroll")
     private val KEY_DYNAMIC_TOP_ACTIONS_COLLAPSED =
@@ -1510,12 +1558,14 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     private const val DEFAULT_TOP_TAB_ORDER = "RECOMMEND,FOLLOW,POPULAR,LIVE,GAME"
     private const val DEFAULT_SEARCH_FILTER_TAB_ORDER =
+        "video,bili_user,media_bangumi,media_ft,live_room,live_user,article,topic,photo"
+    private const val LEGACY_DEFAULT_SEARCH_FILTER_TAB_ORDER =
         "video,media_bangumi,media_ft,live_room,live_user,bili_user,article,topic,photo"
     private const val DEFAULT_TOP_TAB_VISIBLE = "RECOMMEND,FOLLOW,POPULAR,LIVE,GAME"
     /** 首页顶部 dock 标签数量上限。 */
     const val MAX_TOP_TABS = 5
-    private const val DEFAULT_DYNAMIC_TAB_VISIBLE = "all,video,pgc,article,up"
-    private const val DEFAULT_DYNAMIC_TAB_ORDER = "all,video,pgc,article,up"
+    private const val DEFAULT_DYNAMIC_TAB_VISIBLE = "all,video,pgc,article"
+    private const val DEFAULT_DYNAMIC_TAB_ORDER = "all,video,pgc,article"
     //  [新增] 模糊效果开关
     private val KEY_HEADER_BLUR_ENABLED = booleanPreferencesKey("header_blur_enabled")
     private val KEY_HOME_HEADER_BLUR_MODE = intPreferencesKey("home_header_blur_mode")
@@ -1533,6 +1583,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED = booleanPreferencesKey("bottom_bar_liquid_glass_enabled")
     private val KEY_BOTTOM_BAR_SEARCH_ENABLED = booleanPreferencesKey("bottom_bar_search_enabled")
     private val KEY_KEEP_HOME_TOP_SEARCH = booleanPreferencesKey("keep_home_top_search_with_bottom_search")
+    private val KEY_BOTTOM_BAR_SCROLL_COMPACT_ENABLED = booleanPreferencesKey("bottom_bar_scroll_compact_enabled")
     private val KEY_LINKED_DOCK_MERGE_ON_SCROLL_ENABLED =
         booleanPreferencesKey("linked_dock_merge_on_scroll_enabled")
     private val KEY_LIST_SCOPED_SEARCH_ENABLED = booleanPreferencesKey("list_scoped_search_enabled")
@@ -1542,6 +1593,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         intPreferencesKey("bottom_bar_search_layout_mode")
     private val KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED =
         booleanPreferencesKey("android_native_liquid_glass_enabled")
+    private val KEY_LIQUID_CONTROLS_USE_THEME_COLOR = booleanPreferencesKey("liquid_controls_use_theme_color")
+    private val KEY_LIQUID_SWITCH_THUMB_MODE = stringPreferencesKey("liquid_switch_thumb_mode")
     private val KEY_LEGACY_ANDROID_NATIVE_TOP_TAB_LIQUID_GLASS_ENABLED =
         booleanPreferencesKey("android_native_top_tab_liquid_glass_enabled")
     //  Legacy shared Liquid Glass toggle, kept as migration fallback.
@@ -1562,6 +1615,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     //  [新增] 窄屏（折叠屏外屏/手机竖屏）独立列数记忆，与宽屏（内屏/平板）的
     //  KEY_GRID_COLUMN_COUNT 互不影响；0=Auto（外屏自动解析为 2 列）。
     private val KEY_GRID_COLUMN_COUNT_COMPACT = intPreferencesKey("grid_column_count_compact")
+    private val KEY_GRID_COLUMN_CUSTOMIZATION_ENABLED =
+        booleanPreferencesKey("grid_column_customization_enabled")
+    private val KEY_GRID_COLUMNS_SHARED_ACROSS_PAGES =
+        booleanPreferencesKey("grid_columns_shared_across_pages")
     private val KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED =
         booleanPreferencesKey("pinch_to_change_grid_columns_enabled")
     private val KEY_HOME_FEED_CARD_WIDTH_PRESET =
@@ -1577,15 +1634,15 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("maid_lottie_animation_enabled")
     //  [新增] 卡片过渡动画开关
     private val KEY_CARD_TRANSITION_ENABLED = booleanPreferencesKey("card_transition_enabled")
-    private val KEY_RELATED_VIDEO_TRANSITION_ENABLED =
-        booleanPreferencesKey("related_video_transition_enabled")
     // 实时画面转场：SDR 用 TextureView 一镜到底；HDR 仍 SurfaceView（不降画质），morph 走封面
     private val KEY_LIVE_SURFACE_CARD_TRANSITION_ENABLED =
         booleanPreferencesKey("live_surface_card_transition_enabled")
     // 直播间 SC 醒目留言浮层：默认开启；关闭弹幕时一律隐藏，此处提供独立开关
+    private val KEY_LIVE_SUPER_CHAT_PANEL_ENABLED = booleanPreferencesKey("live_super_chat_panel_enabled")
     private val KEY_LIVE_SUPER_CHAT_FLASH_ENABLED =
         booleanPreferencesKey("live_super_chat_flash_enabled")
     private val KEY_LIVE_DANMAKU_ENABLED = booleanPreferencesKey("live_danmaku_enabled")
+    private val KEY_LIVE_AUTO_MINI_PLAYER_ENABLED = booleanPreferencesKey("live_auto_mini_player_enabled")
     private val KEY_LIVE_SUPER_CHAT_PERSISTENT =
         booleanPreferencesKey("live_super_chat_persistent")
     private val KEY_LIVE_SUPER_CHAT_MAX_WIDTH_DP =
@@ -1601,6 +1658,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_VIDEO_SHARED_TRANSITION_CUSTOM_DURATION_MILLIS =
         intPreferencesKey("video_shared_transition_custom_duration_millis")
     //  [新增] 界面入场动画 master 开关(全 App 统一入场动效),默认开启
+    private val KEY_GLOBAL_DRAG_FEEDBACK_ENABLED = booleanPreferencesKey("global_drag_feedback_enabled")
     private val KEY_UI_ENTRANCE_ANIMATION_ENABLED =
         booleanPreferencesKey("ui_entrance_animation_enabled")
     // [New] 运行时视觉降级守卫开关
@@ -1617,6 +1675,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_HOME_CARD_BADGE_EFFECT_MODE = intPreferencesKey("home_card_badge_effect_mode")
     private val KEY_HOME_CARD_INFO_GLASS_MODE = intPreferencesKey("home_card_info_glass_mode")
     private val KEY_HOME_WALLPAPER_URI = stringPreferencesKey("home_wallpaper_uri")
+    private val KEY_HOME_WALLPAPER_SCALE_MOBILE = floatPreferencesKey("home_wallpaper_scale_mobile")
+    private val KEY_HOME_WALLPAPER_OFFSET_X_MOBILE = floatPreferencesKey("home_wallpaper_offset_x_mobile")
+    private val KEY_HOME_WALLPAPER_OFFSET_Y_MOBILE = floatPreferencesKey("home_wallpaper_offset_y_mobile")
+    private val KEY_HOME_WALLPAPER_SCALE_TABLET = floatPreferencesKey("home_wallpaper_scale_tablet")
+    private val KEY_HOME_WALLPAPER_OFFSET_X_TABLET = floatPreferencesKey("home_wallpaper_offset_x_tablet")
+    private val KEY_HOME_WALLPAPER_OFFSET_Y_TABLET = floatPreferencesKey("home_wallpaper_offset_y_tablet")
     private val KEY_HOME_WALLPAPER_EFFECT_MODE = intPreferencesKey("home_wallpaper_effect_mode")
     private val KEY_HOME_WALLPAPER_EFFECT_SCOPE = intPreferencesKey("home_wallpaper_effect_scope")
     private val KEY_HOME_UP_BADGES_VISIBLE = booleanPreferencesKey("home_up_badges_visible")
@@ -1675,10 +1739,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_AUTO_CACHE_CLEAR_INTERVAL = intPreferencesKey("auto_cache_clear_interval_days")
     private val KEY_AUTO_CACHE_CLEAR_THRESHOLD_GB = intPreferencesKey("auto_cache_clear_threshold_gb")
     private val KEY_LAST_AUTO_CACHE_CLEAR_AT = longPreferencesKey("last_auto_cache_clear_at")
+    private val KEY_COMMENT_AVATAR_PUSH_ENABLED =
+        booleanPreferencesKey("comment_avatar_push_enabled")
     private val KEY_COMMENT_MEMBER_DECORATIONS_ENABLED =
         booleanPreferencesKey("comment_member_decorations_enabled")
     private val KEY_DETAILED_COMMENT_TIME_ENABLED =
         booleanPreferencesKey("detailed_comment_time_enabled")
+    private val KEY_COMMENT_REPLY_PREVIEW_VISIBLE =
+        booleanPreferencesKey("comment_reply_preview_visible")
+
+    /** 偏好的调用方作用域之外落盘专用；进程存续期即作用域生命期。 */
+    private val commentPreferenceWriteScope =
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private val KEY_SUB_REPLY_LOADED_COUNT_ENABLED =
         booleanPreferencesKey("sub_reply_loaded_count_enabled")
     private val KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED =
@@ -1691,6 +1763,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_AUDIO_FOCUS_ENABLED = booleanPreferencesKey("audio_focus_enabled")
     private val KEY_AUDIO_MODE_AUTO_PIP_ENABLED = booleanPreferencesKey("audio_mode_auto_pip_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_ENABLED = booleanPreferencesKey("audio_now_playing_bar_enabled")
+    private val KEY_AUDIO_NOW_PLAYING_BAR_DELETE_BUTTON = booleanPreferencesKey("audio_now_playing_bar_delete_button")
     private val KEY_AUDIO_NOW_PLAYING_BAR_IMMERSIVE_ENABLED =
         booleanPreferencesKey("audio_now_playing_bar_immersive_enabled")
     private val KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE =
@@ -1780,6 +1853,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             isBottomBarSearchEnabled = preferences[KEY_BOTTOM_BAR_SEARCH_ENABLED] ?: false,
             keepHomeTopSearchWithBottomSearch = preferences[KEY_KEEP_HOME_TOP_SEARCH] ?: false,
             linkedDockMergeOnScrollEnabled = preferences[KEY_LINKED_DOCK_MERGE_ON_SCROLL_ENABLED] ?: true,
+            bottomBarScrollCompactEnabled = preferences[KEY_BOTTOM_BAR_SCROLL_COMPACT_ENABLED] ?: true,
             listScopedSearchEnabled = preferences[KEY_LIST_SCOPED_SEARCH_ENABLED] ?: false,
             bottomBarSearchAutoExpandMode = BottomBarSearchAutoExpandMode.fromValue(
                 preferences[KEY_BOTTOM_BAR_SEARCH_AUTO_EXPAND_MODE]
@@ -1810,6 +1884,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             showPgcTimeline = preferences[KEY_SHOW_PGC_TIMELINE] ?: true,
             gridColumnCount = preferences[KEY_GRID_COLUMN_COUNT] ?: 0,
             gridColumnCountCompact = preferences[KEY_GRID_COLUMN_COUNT_COMPACT] ?: 0,
+            gridColumnCustomizationEnabled = preferences[KEY_GRID_COLUMN_CUSTOMIZATION_ENABLED] ?: true,
+            gridColumnsSharedAcrossPages = preferences[KEY_GRID_COLUMNS_SHARED_ACROSS_PAGES] ?: true,
             pinchToChangeGridColumnsEnabled =
                 preferences[KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED] ?: true,
             homeFeedCardWidthPreset = HomeFeedCardWidthPreset.fromValue(
@@ -1919,12 +1995,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             pipNoDanmakuEnabled = preferences[KEY_PIP_NO_DANMAKU] ?: false,
             seekForwardSeconds = (preferences[KEY_SEEK_FORWARD_SECONDS] ?: 10).coerceIn(1, 60),
             seekBackwardSeconds = (preferences[KEY_SEEK_BACKWARD_SECONDS] ?: 10).coerceIn(1, 60),
-            inlineSwipeSeekSeconds = normalizeInlineSwipeSeekSeconds(
-                preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 0
-            ),
-            fullscreenSwipeSeekSeconds = normalizeFullscreenSwipeSeekSeconds(
-                preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 0
-            ),
             fullscreenSwipeSeekEnabled = preferences[KEY_FULLSCREEN_SWIPE_SEEK_ENABLED] ?: true,
             fullscreenGestureReverse = preferences[KEY_FULLSCREEN_GESTURE_REVERSE] ?: false,
             hideVideoPageStatusBar = preferences[KEY_HIDE_VIDEO_PAGE_STATUS_BAR] ?: false,
@@ -2003,6 +2073,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setCompactPlayerChrome(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { it[KEY_COMPACT_PLAYER_CHROME] = enabled }
     }
+
 
     fun getPlayerProgressPlacement(context: Context): Flow<PlayerProgressPlacement> =
         context.settingsDataStore.data.map { preferences ->
@@ -2108,6 +2179,26 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     // --- Auto Play Next ---
+    private val KEY_RESILIENT_VIDEO_BUFFER = booleanPreferencesKey("resilient_video_buffer")
+    private const val CACHE_KEY_RESILIENT_VIDEO_BUFFER = "resilient_video_buffer"
+
+    fun getResilientVideoBuffer(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { it[KEY_RESILIENT_VIDEO_BUFFER] ?: false }
+        .onEach { enabled ->
+            context.getSharedPreferences("auto_play_cache", Context.MODE_PRIVATE)
+                .edit().putBoolean(CACHE_KEY_RESILIENT_VIDEO_BUFFER, enabled).apply()
+        }
+
+    suspend fun setResilientVideoBuffer(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_RESILIENT_VIDEO_BUFFER] = enabled }
+        context.getSharedPreferences("auto_play_cache", Context.MODE_PRIVATE)
+            .edit().putBoolean(CACHE_KEY_RESILIENT_VIDEO_BUFFER, enabled).apply()
+    }
+
+    fun getResilientVideoBufferSync(context: Context): Boolean =
+        context.getSharedPreferences("auto_play_cache", Context.MODE_PRIVATE)
+            .getBoolean(CACHE_KEY_RESILIENT_VIDEO_BUFFER, false)
+
     private val KEY_EXTERNAL_PLAYLIST_AUTO_CONTINUE =
         booleanPreferencesKey("external_playlist_auto_continue")
     private const val CACHE_KEY_EXTERNAL_PLAYLIST_AUTO_CONTINUE = "external_playlist_auto_continue"
@@ -2248,6 +2339,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             themeMode = resolveThemeModePreference(
                 preferences[KEY_THEME_MODE] ?: AppThemeMode.FOLLOW_SYSTEM.value
             ),
+            darkThemeSchedule = normalizeDarkThemeSchedule(
+                DarkThemeSchedule(
+                    enabled = preferences[KEY_DARK_SCHEDULE_ENABLED] ?: false,
+                    startMinute = preferences[KEY_DARK_SCHEDULE_START] ?: 22 * 60,
+                    endMinute = preferences[KEY_DARK_SCHEDULE_END] ?: 7 * 60,
+                ),
+            ),
             darkThemeStyle = resolveDarkThemeStylePreference(
                 darkThemeStyleValue = preferences[KEY_DARK_THEME_STYLE],
                 legacyThemeModeValue = preferences[KEY_THEME_MODE]
@@ -2258,6 +2356,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 legacyDynamicColorEnabled = preferences[KEY_DYNAMIC_COLOR]
             ),
             md3CustomColorHex = normalizeMd3CustomColorHex(preferences[KEY_MD3_CUSTOM_COLOR_HEX]),
+            wallpaperPaletteOverrides = readWallpaperPaletteOverrides(preferences),
             themeRoleOverrides = ThemeRoleOverrides(
                 enabled = preferences[KEY_THEME_ROLE_OVERRIDES_ENABLED] ?: false,
                 light = ThemeModeRoleOverrides(
@@ -2297,8 +2396,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     )
                 )
             ),
+            seedPaletteStyle = SeedPaletteStyle.fromStored(preferences[KEY_SEED_PALETTE_STYLE]),
             colorStyle = resolvePaletteStylePreference(preferences[KEY_THEME_COLOR_STYLE]),
             colorSpec = resolveColorSpecPreference(preferences[KEY_THEME_COLOR_SPEC]),
+            colorContrast = resolveColorContrastPreference(preferences[KEY_THEME_COLOR_CONTRAST]),
             themeColorIndex = normalizeThemeColorIndex(preferences[KEY_THEME_COLOR_INDEX] ?: 0),
             appFontSizePreset = AppFontSizePreset.fromValue(
                 preferences[KEY_APP_FONT_SIZE_PRESET] ?: AppFontSizePreset.DEFAULT.value
@@ -2341,9 +2442,42 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         )
     }
 
+    fun getCachedDarkThemeSchedule(context: Context): DarkThemeSchedule {
+        val prefs = context.getSharedPreferences("theme_cache", Context.MODE_PRIVATE)
+        return normalizeDarkThemeSchedule(
+            DarkThemeSchedule(
+                enabled = prefs.getBoolean("dark_theme_schedule_enabled", false),
+                startMinute = prefs.getInt("dark_theme_schedule_start_minute", 22 * 60),
+                endMinute = prefs.getInt("dark_theme_schedule_end_minute", 7 * 60),
+            ),
+        )
+    }
+
     fun getInitialAppThemeSettings(context: Context): AppThemeSettings {
         return AppThemeSettings(
-            appLanguage = getAppLanguageSync(context)
+            appLanguage = getAppLanguageSync(context),
+            darkThemeSchedule = getCachedDarkThemeSchedule(context),
+        )
+    }
+
+    fun getDarkThemeSchedule(context: Context): Flow<DarkThemeSchedule> =
+        getAppThemeSettings(context).map { it.darkThemeSchedule }.distinctUntilChanged()
+
+    suspend fun setDarkThemeSchedule(context: Context, schedule: DarkThemeSchedule) {
+        require(schedule.startMinute in 0..1439 && schedule.endMinute in 0..1439)
+        require(schedule.startMinute != schedule.endMinute)
+        editSettingsAndCommitPrefs(
+            context, "theme_cache",
+            editSettings = {
+                this[KEY_DARK_SCHEDULE_ENABLED] = schedule.enabled
+                this[KEY_DARK_SCHEDULE_START] = schedule.startMinute
+                this[KEY_DARK_SCHEDULE_END] = schedule.endMinute
+            },
+            editPrefs = {
+                putBoolean("dark_theme_schedule_enabled", schedule.enabled)
+                putInt("dark_theme_schedule_start_minute", schedule.startMinute)
+                putInt("dark_theme_schedule_end_minute", schedule.endMinute)
+            },
         )
     }
 
@@ -2495,7 +2629,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             resolveMd3ColorSourcePreference(
                 sourceValue = preferences[KEY_MD3_COLOR_SOURCE],
                 legacyDynamicColorEnabled = preferences[KEY_DYNAMIC_COLOR]
-            ) == Md3ColorSource.FOLLOW_WALLPAPER
+            ) != Md3ColorSource.CUSTOM
         }
 
     suspend fun setDynamicColor(context: Context, value: Boolean) {
@@ -2513,10 +2647,34 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             )
         }
 
-    suspend fun setMd3ColorSource(context: Context, source: Md3ColorSource) = context.settingsDataStore.edit { preferences ->
+    /** All color selection entrances commit source, seed and advanced control accents together. */
+    internal fun updateMd3ColorSelection(
+        preferences: MutablePreferences,
+        source: Md3ColorSource,
+        customHex: String? = null,
+        presetIndex: Int? = null,
+    ) {
+        val normalizedIndex = presetIndex?.let(::normalizeThemeColorIndex)
+        val selectedHex = if (normalizedIndex != null) {
+            com.android.purebilibili.core.theme.formatMd3CustomColorHex(
+                com.android.purebilibili.core.theme.ThemeColors[normalizedIndex]
+            )
+        } else customHex?.let { normalizeMd3CustomColorHex(it) }
         preferences[KEY_MD3_COLOR_SOURCE] = source.name
-        // 保持旧 key 同步，避免旧入口或导入旧配置时出现来源状态不一致。
-        preferences[KEY_DYNAMIC_COLOR] = source == Md3ColorSource.FOLLOW_WALLPAPER
+        preferences[KEY_DYNAMIC_COLOR] = source != Md3ColorSource.CUSTOM
+        if (normalizedIndex != null) preferences[KEY_THEME_COLOR_INDEX] = normalizedIndex
+        if (selectedHex != null) {
+            preferences[KEY_MD3_CUSTOM_COLOR_HEX] = selectedHex
+            if (preferences[KEY_THEME_ROLE_OVERRIDES_ENABLED] == true) {
+                preferences[KEY_THEME_LIGHT_CONTROL_ACCENT] = selectedHex
+                preferences[KEY_THEME_DARK_CONTROL_ACCENT] = selectedHex
+            }
+        }
+        // Wallpaper edits stay saved, but the endpoint resolver ignores them outside re-toning.
+    }
+
+    suspend fun setMd3ColorSource(context: Context, source: Md3ColorSource) = context.settingsDataStore.edit { preferences ->
+        updateMd3ColorSelection(preferences, source)
     }
 
     fun getMd3CustomColorHex(context: Context): Flow<String> = context.settingsDataStore.data.map {
@@ -2524,14 +2682,33 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     suspend fun setMd3CustomColorHex(context: Context, hex: String) = context.settingsDataStore.edit { preferences ->
-        preferences[KEY_MD3_CUSTOM_COLOR_HEX] = normalizeMd3CustomColorHex(hex)
+        updateMd3ColorSelection(preferences, Md3ColorSource.CUSTOM, customHex = hex)
     }
 
-    suspend fun applyMd3CustomColor(context: Context, hex: String) = context.settingsDataStore.edit { preferences ->
-        preferences[KEY_MD3_COLOR_SOURCE] = Md3ColorSource.CUSTOM.name
-        preferences[KEY_DYNAMIC_COLOR] = false
-        preferences[KEY_MD3_CUSTOM_COLOR_HEX] = normalizeMd3CustomColorHex(hex)
+    suspend fun applyMd3CustomColor(context: Context, hex: String) = setMd3CustomColorHex(context, hex)
+
+    fun getWallpaperPaletteOverrides(context: Context): Flow<WallpaperPaletteOverrides> =
+        context.settingsDataStore.data.map(::readWallpaperPaletteOverrides)
+
+    suspend fun setWallpaperPaletteColor(
+        context: Context,
+        darkTheme: Boolean,
+        role: WallpaperPaletteRole,
+        hex: String?,
+    ) = context.settingsDataStore.edit { preferences ->
+        val key = wallpaperPalettePreferenceKeys.getValue(darkTheme to role)
+        if (hex == null) preferences.remove(key)
+        else if (com.android.purebilibili.feature.settings.isValidMd3CustomColorHex(hex)) {
+            preferences[key] = normalizeMd3CustomColorHex(hex)
+        }
     }
+
+    suspend fun resetWallpaperPaletteColors(context: Context, darkTheme: Boolean) =
+        context.settingsDataStore.edit { preferences ->
+            WallpaperPaletteRole.entries.forEach { role ->
+                preferences.remove(wallpaperPalettePreferenceKeys.getValue(darkTheme to role))
+            }
+        }
 
     fun getThemeRoleOverrides(context: Context): Flow<ThemeRoleOverrides> =
         context.settingsDataStore.data.map { preferences ->
@@ -2577,11 +2754,36 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    fun getSeedPaletteStyle(context: Context): Flow<SeedPaletteStyle> = context.settingsDataStore.data
+        .map { preferences -> SeedPaletteStyle.fromStored(preferences[KEY_SEED_PALETTE_STYLE]) }
+        .distinctUntilChanged()
+
+    suspend fun setSeedPaletteStyle(context: Context, style: SeedPaletteStyle) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_SEED_PALETTE_STYLE] = style.name }
+    }
+
     fun getThemeColorStyle(context: Context): Flow<PaletteStyle> = context.settingsDataStore.data
         .map { preferences -> resolvePaletteStylePreference(preferences[KEY_THEME_COLOR_STYLE]) }
 
     suspend fun setThemeColorStyle(context: Context, style: PaletteStyle) {
-        context.settingsDataStore.edit { preferences -> preferences[KEY_THEME_COLOR_STYLE] = style.name }
+        context.settingsDataStore.edit { preferences -> preferences[KEY_THEME_COLOR_STYLE] = style.toString() }
+    }
+
+    /** Apply the invitation only after confirmation, in one transaction. Keep the user's
+     * source, seed, advanced colors, contrast and glass preferences untouched. */
+    internal suspend fun applyCmfUpdateTrial(context: Context, expected: AppThemeSettings): Boolean {
+        var applied = false
+        context.settingsDataStore.edit { preferences ->
+            val current = mapAppThemeSettingsFromPreferences(preferences)
+            // Recheck the preview snapshot, so another settings change cannot be overwritten.
+            if (current != expected || current.uiStyle != AppUiStyle.MATERIAL3 ||
+                current.md3ColorSource != Md3ColorSource.CUSTOM) return@edit
+            preferences[KEY_SEED_PALETTE_STYLE] = SeedPaletteStyle.Standard.name
+            preferences[KEY_THEME_COLOR_STYLE] = PaletteStyle.Cmf().toString()
+            preferences[KEY_THEME_COLOR_SPEC] = ColorSpec.SpecVersion.SPEC_2026.name
+            applied = true
+        }
+        return applied
     }
 
     fun getThemeColorSpec(context: Context): Flow<ColorSpec.SpecVersion> = context.settingsDataStore.data
@@ -2589,6 +2791,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setThemeColorSpec(context: Context, spec: ColorSpec.SpecVersion) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_THEME_COLOR_SPEC] = spec.name }
+    }
+
+    fun getThemeColorContrast(context: Context): Flow<Contrast> = context.settingsDataStore.data
+        .map { preferences -> resolveColorContrastPreference(preferences[KEY_THEME_COLOR_CONTRAST]) }
+
+    suspend fun setThemeColorContrast(context: Context, contrast: Contrast) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_THEME_COLOR_CONTRAST] = contrast.name }
     }
 
     fun getAppFontSizePreset(context: Context): Flow<AppFontSizePreset> = context.settingsDataStore.data
@@ -2685,6 +2894,18 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getHapticFeedbackEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_HAPTIC_FEEDBACK_ENABLED] ?: true } // 默认开启
 
+    fun getHapticSettings(context: Context): Flow<com.android.purebilibili.core.ui.AppHapticSettings> =
+        context.settingsDataStore.data.map {
+            com.android.purebilibili.core.ui.AppHapticSettings(it[KEY_HAPTIC_SCENES_DISABLED] ?: 0)
+        }
+
+    suspend fun setHapticSceneEnabled(context: Context, scene: com.android.purebilibili.core.ui.AppHapticScene, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            val current = com.android.purebilibili.core.ui.AppHapticSettings(preferences[KEY_HAPTIC_SCENES_DISABLED] ?: 0)
+            preferences[KEY_HAPTIC_SCENES_DISABLED] = current.withEnabled(scene, enabled).disabledMask
+        }
+    }
+
     suspend fun setHapticFeedbackEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_HAPTIC_FEEDBACK_ENABLED] = value }
         // 同步到 SharedPreferences，供同步读取 (例如 modifier 中)
@@ -2705,6 +2926,22 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_GLOBAL_TEXT_TAP_COPY_ENABLED] = value
         }
+    }
+
+    /** 播放器信息返回上次观看的分P时，播放器内展示「上次看到第 N P」提示；镜像 SP 供同步读取。 */
+    fun getShowContinuePartNoticeSync(context: Context): Boolean =
+        context.getSharedPreferences("playback_notice_cache", Context.MODE_PRIVATE)
+            .getBoolean("show_continue_part_notice", true)
+
+    fun getShowContinuePartNotice(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SHOW_CONTINUE_PART_NOTICE] ?: true }
+
+    suspend fun setShowContinuePartNotice(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SHOW_CONTINUE_PART_NOTICE] = value
+        }
+        context.getSharedPreferences("playback_notice_cache", Context.MODE_PRIVATE)
+            .edit().putBoolean("show_continue_part_notice", value).apply()
     }
 
     //  [新增] --- 手势灵敏度 (0.5 ~ 2.0, 默认 1.0) ---
@@ -2764,13 +3001,40 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getSeekForwardSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SEEK_FORWARD_SECONDS] ?: 10 }
 
-    /** 直播清晰度记忆（对齐 PiliPlus liveQuality）：0 表示未选择，走默认策略。 */
-    fun getLivePreferredQuality(context: Context): Flow<Int> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_LIVE_QUALITY] ?: 0 }
+    /** 分网络保存直播画质；已有的单份画质作为首次迁移值。 */
+    fun getLivePreferredQuality(context: Context, isWifi: Boolean = true): Flow<Int> = context.settingsDataStore.data
+        .map { preferences ->
+            preferences[if (isWifi) KEY_LIVE_WIFI_QUALITY else KEY_LIVE_MOBILE_QUALITY]
+                ?: preferences[KEY_LIVE_QUALITY]?.takeIf { it > 0 }
+                ?: if (isWifi) 10000 else 250
+        }
 
-    suspend fun setLivePreferredQuality(context: Context, qn: Int) {
+    fun getLiveSuperChatEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { it[KEY_LIVE_SUPER_CHAT_ENABLED] ?: true }
+
+    suspend fun setLiveSuperChatEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_LIVE_SUPER_CHAT_ENABLED] = enabled }
+    }
+
+    fun getLiveCdnHost(context: Context): Flow<String?> = context.settingsDataStore.data
+        .map { it[KEY_LIVE_CDN_HOST] }
+
+    suspend fun setLiveCdnHost(context: Context, host: String?) {
+        context.settingsDataStore.edit {
+            if (host.isNullOrBlank()) it.remove(KEY_LIVE_CDN_HOST) else it[KEY_LIVE_CDN_HOST] = host
+        }
+    }
+
+    fun getLivePreferredStream(context: Context): Flow<String?> = context.settingsDataStore.data
+        .map { it[KEY_LIVE_PREFERRED_STREAM] }
+
+    suspend fun setLivePreferredStream(context: Context, value: String) {
+        context.settingsDataStore.edit { it[KEY_LIVE_PREFERRED_STREAM] = value }
+    }
+
+    suspend fun setLivePreferredQuality(context: Context, qn: Int, isWifi: Boolean = true) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_LIVE_QUALITY] = qn
+            preferences[if (isWifi) KEY_LIVE_WIFI_QUALITY else KEY_LIVE_MOBILE_QUALITY] = qn
         }
     }
 
@@ -3037,6 +3301,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         PlayerSettingsStore.getLastPlaybackSpeed(context)
 
     suspend fun setLastPlaybackSpeed(context: Context, speed: Float) {
+        if (!ContentDisplayPreferences.rememberPlayerAdjustments(context).first()) return
         PlayerSettingsStore.setLastPlaybackSpeed(context, speed)
     }
 
@@ -3073,7 +3338,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setThemeColorIndex(context: Context, index: Int) {
         context.settingsDataStore.edit { preferences -> 
-            preferences[KEY_THEME_COLOR_INDEX] = normalizeThemeColorIndex(index)
+            updateMd3ColorSelection(preferences, Md3ColorSource.CUSTOM, presetIndex = index)
         }
     }
     
@@ -3104,14 +3369,26 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setGridColumnCount(context: Context, count: Int) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_GRID_COLUMN_COUNT] = count
+            preferences[KEY_GRID_COLUMN_COUNT] = count.coerceIn(0, 7)
         }
     }
 
     //  窄屏（折叠屏外屏/手机竖屏）独立列数记忆；内屏/平板写 setGridColumnCount。
     suspend fun setGridColumnCountCompact(context: Context, count: Int) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_GRID_COLUMN_COUNT_COMPACT] = count
+            preferences[KEY_GRID_COLUMN_COUNT_COMPACT] = count.coerceIn(0, 4)
+        }
+    }
+
+    suspend fun setGridColumnCustomizationEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_GRID_COLUMN_CUSTOMIZATION_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setGridColumnsSharedAcrossPages(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_GRID_COLUMNS_SHARED_ACROSS_PAGES] = enabled
         }
     }
 
@@ -3216,18 +3493,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences -> preferences[KEY_CARD_TRANSITION_ENABLED] = value }
     }
 
-    /** 相关推荐进入下一层详情时是否复用卡片 Morph；关闭后交给默认导航过渡。 */
-    fun getRelatedVideoTransitionEnabled(context: Context): Flow<Boolean> =
-        context.settingsDataStore.data.map { preferences ->
-            preferences[KEY_RELATED_VIDEO_TRANSITION_ENABLED] ?: true
-        }
-
-    suspend fun setRelatedVideoTransitionEnabled(context: Context, value: Boolean) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_RELATED_VIDEO_TRANSITION_ENABLED] = value
-        }
-    }
-
     /** 默认关闭：稳妥封面过渡；开启后 SDR 可用实时画面双向 morph，HDR 仍不强制 TextureView。 */
     fun getLiveSurfaceCardTransitionEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
@@ -3240,9 +3505,23 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     /** 默认开启：SC 浮层跟随弹幕开关显示；关闭后即使弹幕开启也不再弹出 SC 卡片。 */
+    fun getLiveSuperChatPanelEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_LIVE_SUPER_CHAT_PANEL_ENABLED] ?: true }
+
+    suspend fun setLiveSuperChatPanelEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_LIVE_SUPER_CHAT_PANEL_ENABLED] = value }
+    }
+
     fun getLiveSuperChatFlashEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_LIVE_SUPER_CHAT_FLASH_ENABLED] ?: true }
+
+    fun getLiveAutoMiniPlayerEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_LIVE_AUTO_MINI_PLAYER_ENABLED] ?: true }
+
+    suspend fun setLiveAutoMiniPlayerEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_LIVE_AUTO_MINI_PLAYER_ENABLED] = enabled }
+    }
 
     fun getLiveDanmakuEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
@@ -3354,6 +3633,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     //  [新增] --- 界面入场动画 master 开关(全 App 统一入场动效) ---
+    fun getGlobalDragFeedbackEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_GLOBAL_DRAG_FEEDBACK_ENABLED] ?: true }
+
+    suspend fun setGlobalDragFeedbackEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_GLOBAL_DRAG_FEEDBACK_ENABLED] = value }
+    }
+
     fun getUiEntranceAnimationEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_UI_ENTRANCE_ANIMATION_ENABLED] ?: true }  // 默认开启
 
@@ -3473,9 +3759,38 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getHomeWallpaperUri(context: Context): Flow<String> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_HOME_WALLPAPER_URI] ?: "" }
 
+    fun getHomeWallpaperSelection(context: Context): Flow<HomeWallpaperSelection> =
+        context.settingsDataStore.data.map { preferences ->
+            HomeWallpaperSelection(
+                uri = preferences[KEY_HOME_WALLPAPER_URI].orEmpty(),
+                mobileTransform = sanitizeWallpaperTransform(WallpaperTransform(
+                    scale = preferences[KEY_HOME_WALLPAPER_SCALE_MOBILE] ?: 1f,
+                    offsetX = preferences[KEY_HOME_WALLPAPER_OFFSET_X_MOBILE] ?: 0f,
+                    offsetY = preferences[KEY_HOME_WALLPAPER_OFFSET_Y_MOBILE] ?: 0f,
+                )),
+                tabletTransform = sanitizeWallpaperTransform(WallpaperTransform(
+                    scale = preferences[KEY_HOME_WALLPAPER_SCALE_TABLET] ?: 1f,
+                    offsetX = preferences[KEY_HOME_WALLPAPER_OFFSET_X_TABLET] ?: 0f,
+                    offsetY = preferences[KEY_HOME_WALLPAPER_OFFSET_Y_TABLET] ?: 0f,
+                )),
+            )
+        }
+
     suspend fun setHomeWallpaperUri(context: Context, uri: String) {
+        setHomeWallpaperSelection(context, HomeWallpaperSelection(uri = uri))
+    }
+
+    suspend fun setHomeWallpaperSelection(context: Context, selection: HomeWallpaperSelection) {
+        val mobile = sanitizeWallpaperTransform(selection.mobileTransform)
+        val tablet = sanitizeWallpaperTransform(selection.tabletTransform)
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_WALLPAPER_URI] = uri
+            preferences[KEY_HOME_WALLPAPER_URI] = selection.uri
+            preferences[KEY_HOME_WALLPAPER_SCALE_MOBILE] = mobile.scale
+            preferences[KEY_HOME_WALLPAPER_OFFSET_X_MOBILE] = mobile.offsetX
+            preferences[KEY_HOME_WALLPAPER_OFFSET_Y_MOBILE] = mobile.offsetY
+            preferences[KEY_HOME_WALLPAPER_SCALE_TABLET] = tablet.scale
+            preferences[KEY_HOME_WALLPAPER_OFFSET_X_TABLET] = tablet.offsetX
+            preferences[KEY_HOME_WALLPAPER_OFFSET_Y_TABLET] = tablet.offsetY
         }
     }
 
@@ -3840,6 +4155,19 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    private val searchLandingSectionKeys = listOf(
+        booleanPreferencesKey("search_hot_control_visible"),
+        booleanPreferencesKey("search_history_control_visible"),
+        booleanPreferencesKey("search_discover_control_visible"),
+    )
+
+    fun getSearchLandingSectionVisible(context: Context, index: Int): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[searchLandingSectionKeys[index]] ?: true }
+
+    suspend fun setSearchLandingSectionVisible(context: Context, index: Int, visible: Boolean) {
+        context.settingsDataStore.edit { it[searchLandingSectionKeys[index]] = visible }
+    }
+
     fun getSearchHotSectionEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SEARCH_HOT_SECTION_ENABLED] ?: true }
 
@@ -3933,6 +4261,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    suspend fun setTopTabConfiguration(context: Context, order: List<String>, visible: Set<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_TOP_TAB_ORDER] = order.joinToString(",")
+            prefs[KEY_TOP_TAB_VISIBLE_TABS] = visible.joinToString(",")
+        }
+    }
+
     //  [新增] --- 顶部标签可见项配置 ---
     fun getTopTabVisibleTabs(context: Context): Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
         val tabsString = prefs[KEY_TOP_TAB_VISIBLE_TABS] ?: DEFAULT_TOP_TAB_VISIBLE
@@ -3949,7 +4284,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getSearchFilterTabOrder(context: Context): Flow<List<String>> =
         context.settingsDataStore.data.map { prefs ->
             val orderString = prefs[KEY_SEARCH_FILTER_TAB_ORDER] ?: DEFAULT_SEARCH_FILTER_TAB_ORDER
-            orderString.split(",").filter { it.isNotBlank() }
+            val effectiveOrder = if (orderString == LEGACY_DEFAULT_SEARCH_FILTER_TAB_ORDER) {
+                DEFAULT_SEARCH_FILTER_TAB_ORDER
+            } else orderString
+            effectiveOrder.split(",").filter { it.isNotBlank() }
         }
 
     suspend fun setSearchFilterTabOrder(context: Context, order: List<String>) {
@@ -3960,7 +4298,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     fun getDynamicTabVisibleTabs(context: Context): Flow<Set<String>> = context.settingsDataStore.data.map { prefs ->
         val tabsString = prefs[KEY_DYNAMIC_TAB_VISIBLE_TABS] ?: DEFAULT_DYNAMIC_TAB_VISIBLE
-        tabsString.split(",").filter { it.isNotBlank() }.toSet()
+        tabsString.split(",").filter { it.isNotBlank() }.map { if (it == "up") "all" else it }.toSet()
     }
 
     suspend fun setDynamicTabVisibleTabs(context: Context, tabs: Set<String>) {
@@ -3972,7 +4310,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     /** 动态栏位顺序：id 用逗号连接，缺失的 id 按默认顺序排在后面。 */
     fun getDynamicTabOrder(context: Context): Flow<List<String>> = context.settingsDataStore.data.map { prefs ->
         val orderString = prefs[KEY_DYNAMIC_TAB_ORDER] ?: DEFAULT_DYNAMIC_TAB_ORDER
-        orderString.split(",").filter { it.isNotBlank() }
+        orderString.split(",").filter { it.isNotBlank() }.map { if (it == "up") "all" else it }.distinct()
     }
 
     suspend fun setDynamicTabOrder(context: Context, order: List<String>) {
@@ -4052,17 +4390,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
-    fun getDynamicAllTabHorizontalUserListVisible(context: Context): Flow<Boolean> =
-        context.settingsDataStore.data.map { prefs ->
-            prefs[KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE] ?: false
-        }
-
-    suspend fun setDynamicAllTabHorizontalUserListVisible(context: Context, visible: Boolean) {
-        context.settingsDataStore.edit { prefs ->
-            prefs[KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE] = visible
-        }
-    }
-
     /**
      * When true, the dynamic Tab top bar collapses as soon as the feed leaves the top.
      * Default false: keep the Tab bar pinned (horizontal UP list still collapses separately).
@@ -4093,8 +4420,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
-    fun getLiveFavoriteTags(context: Context): Flow<List<LiveFavoriteTagEntry>> = context.settingsDataStore.data.map { prefs ->
-        val raw = prefs[KEY_LIVE_FAVORITE_TAGS].orEmpty()
+    private fun liveFavoriteTagsKey(accountMid: Long?) = if ((accountMid ?: 0L) > 0L) {
+        stringPreferencesKey("live_favorite_tags_$accountMid")
+    } else KEY_LIVE_FAVORITE_TAGS
+
+    fun getLiveFavoriteTags(context: Context, accountMid: Long? = null): Flow<List<LiveFavoriteTagEntry>> = context.settingsDataStore.data.map { prefs ->
+        val raw = prefs[liveFavoriteTagsKey(accountMid)].orEmpty()
         if (raw.isBlank()) {
             emptyList()
         } else {
@@ -4102,13 +4433,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
-    suspend fun setLiveFavoriteTags(context: Context, tags: List<LiveFavoriteTagEntry>) {
+    suspend fun setLiveFavoriteTags(context: Context, tags: List<LiveFavoriteTagEntry>, accountMid: Long? = null) {
         val normalized = tags
             .filter { it.parentAreaId > 0 && it.areaId >= 0 && it.title.isNotBlank() }
             .distinctBy { it.parentAreaId to it.areaId }
-            .take(12)
         context.settingsDataStore.edit { prefs ->
-            prefs[KEY_LIVE_FAVORITE_TAGS] = if (normalized.isEmpty()) {
+            prefs[liveFavoriteTagsKey(accountMid)] = if (normalized.isEmpty()) {
                 ""
             } else {
                 Json.encodeToString(normalized)
@@ -4197,7 +4527,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
     
-    // 首页顶栏：始终显示，或离开顶部后收起、单击底栏首页回顶后再出现。
+    // 首页顶栏保存收起范围及仅回顶恢复策略，保留旧模式数值。
     fun getHomeHeaderCollapseMode(context: Context): Flow<HomeHeaderCollapseMode> =
         context.settingsDataStore.data.map { preferences ->
             preferences[KEY_HOME_HEADER_COLLAPSE_MODE]
@@ -4367,6 +4697,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    fun getBottomBarScrollCompactEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_BOTTOM_BAR_SCROLL_COMPACT_ENABLED] ?: true }
+
+    suspend fun setBottomBarScrollCompactEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_BOTTOM_BAR_SCROLL_COMPACT_ENABLED] = value }
+    }
+
     fun getLinkedDockMergeOnScrollEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences ->
@@ -4403,6 +4740,24 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED]
                     ?: true
             }
+
+    fun getLiquidControlsUseThemeColor(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_LIQUID_CONTROLS_USE_THEME_COLOR] ?: false }
+
+    fun getLiquidSwitchThumbMode(context: Context): Flow<com.android.purebilibili.core.ui.LiquidSwitchThumbMode> =
+        context.settingsDataStore.data.map { preferences ->
+            com.android.purebilibili.core.ui.LiquidSwitchThumbMode.entries.firstOrNull {
+                it.name == preferences[KEY_LIQUID_SWITCH_THUMB_MODE]
+            } ?: com.android.purebilibili.core.ui.LiquidSwitchThumbMode.THEME
+        }
+
+    suspend fun setLiquidSwitchThumbMode(context: Context, value: com.android.purebilibili.core.ui.LiquidSwitchThumbMode) {
+        context.settingsDataStore.edit { it[KEY_LIQUID_SWITCH_THUMB_MODE] = value.name }
+    }
+
+    suspend fun setLiquidControlsUseThemeColor(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_LIQUID_CONTROLS_USE_THEME_COLOR] = value }
+    }
 
     suspend fun setAndroidNativeLiquidGlassEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences ->
@@ -4631,7 +4986,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private const val DEFAULT_DANMAKU_LINE_HEIGHT = 1.6f
     private const val DEFAULT_DANMAKU_SCROLL_DURATION_SECONDS = 7.0f
     private const val DEFAULT_DANMAKU_STATIC_DURATION_SECONDS = 4.0f
-    private const val DEFAULT_DANMAKU_DUPLICATE_MERGE_WINDOW_MS = 500
+    private const val DEFAULT_DANMAKU_DUPLICATE_MERGE_WINDOW_MS = 15_000
     private const val DEFAULT_DANMAKU_DUPLICATE_MERGE_COUNT_THRESHOLD = 2
 
     private fun normalizeDanmakuFontWeight(value: Int?): Int {
@@ -4664,7 +5019,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     private fun normalizeDanmakuDuplicateMergeWindowMs(value: Int?): Int {
         val raw = value ?: DEFAULT_DANMAKU_DUPLICATE_MERGE_WINDOW_MS
-        return raw.coerceIn(100, 3000)
+        return raw.coerceIn(1_000, 15_000)
     }
 
     private fun normalizeDanmakuDuplicateMergeCountThreshold(value: Int?): Int {
@@ -4677,7 +5032,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         suffix: String
     ): String {
         // Keep the existing fullscreen values authoritative across playback modes.
-        val shared = suffix == "enabled" || suffix == "font_scale" ||
+        val shared = suffix == "enabled" ||
             suffix == "line_height" || suffix == "area"
         val prefix = if (shared) DanmakuSettingsScope.LANDSCAPE.keyPrefix else scope.keyPrefix
         return "danmaku_${prefix}_$suffix"
@@ -4699,7 +5054,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         booleanPreferencesKey("danmaku_scroll_fixed_velocity")
     private val KEY_DANMAKU_STATIC_TO_SCROLL =
         booleanPreferencesKey("danmaku_static_to_scroll")
-    private val KEY_HOT_DANMAKU_EXPANDED_MODE = booleanPreferencesKey("hot_danmaku_expanded_mode")
     private val KEY_DANMAKU_MASSIVE_MODE = booleanPreferencesKey("danmaku_massive_mode")
     private val KEY_DANMAKU_ALLOW_SCROLL = booleanPreferencesKey("danmaku_allow_scroll")
     private val KEY_DANMAKU_ALLOW_TOP = booleanPreferencesKey("danmaku_allow_top")
@@ -4748,8 +5102,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         floatPreferencesKey(buildScopedDanmakuKeyName(scope, "scroll_duration_seconds"))
     private fun keyDanmakuLegacyPortraitEnabled() =
         booleanPreferencesKey("danmaku_portrait_enabled")
-    private fun keyDanmakuLegacyPortraitFontScale() =
-        floatPreferencesKey("danmaku_portrait_font_scale")
     private fun keyDanmakuLegacyPortraitLineHeight() =
         floatPreferencesKey("danmaku_portrait_line_height")
     private fun keyDanmakuLegacyPortraitArea() =
@@ -4766,6 +5118,33 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             ?: preferences[legacyPortraitKey]
             ?: preferences[legacyKey]
             ?: defaultValue
+    }
+
+    private fun oppositeDanmakuScope(scope: DanmakuSettingsScope): DanmakuSettingsScope =
+        if (scope == DanmakuSettingsScope.PORTRAIT) DanmakuSettingsScope.LANDSCAPE
+        else DanmakuSettingsScope.PORTRAIT
+
+    private fun readDanmakuFontScale(preferences: Preferences, scope: DanmakuSettingsScope): Float =
+        normalizeDanmakuFontScale(
+            preferences[keyDanmakuFontScale(scope)]
+                ?: preferences[keyDanmakuFontScale(oppositeDanmakuScope(scope))]
+                ?: preferences[KEY_DANMAKU_FONT_SCALE]
+                ?: DEFAULT_DANMAKU_FONT_SCALE
+        )
+
+    internal fun updateDanmakuFontScalePreferences(
+        preferences: MutablePreferences,
+        value: Float,
+        scope: DanmakuSettingsScope,
+    ) {
+        // Old installs may only have a shared/fullscreen value. Freeze the other
+        // orientation's effective value before changing this one, in the same edit.
+        val oppositeScope = oppositeDanmakuScope(scope)
+        val oppositeKey = keyDanmakuFontScale(oppositeScope)
+        if (preferences[oppositeKey] == null) {
+            preferences[oppositeKey] = readDanmakuFontScale(preferences, oppositeScope)
+        }
+        preferences[keyDanmakuFontScale(scope)] = normalizeDanmakuFontScale(value)
     }
 
     private fun keyDanmakuStaticDurationSeconds(scope: DanmakuSettingsScope) =
@@ -4832,15 +5211,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     defaultValue = DEFAULT_DANMAKU_OPACITY
                 )
             ),
-            fontScale = normalizeDanmakuFontScale(
-                readSharedDanmakuPreference(
-                    preferences = preferences,
-                    scopeKey = keyDanmakuFontScale(scope),
-                    legacyPortraitKey = keyDanmakuLegacyPortraitFontScale(),
-                    legacyKey = KEY_DANMAKU_FONT_SCALE,
-                    defaultValue = DEFAULT_DANMAKU_FONT_SCALE
-                )
-            ),
+            fontScale = readDanmakuFontScale(preferences, scope),
             speed = readScopedDanmakuPreference(
                 preferences = preferences,
                 scopeKey = keyDanmakuSpeed(scope),
@@ -4967,7 +5338,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 legacyKey = KEY_DANMAKU_ALLOW_SPECIAL,
                 defaultValue = true
             ),
-            weightFilterLevel = (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 10),
+            weightFilterLevel = (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 11),
             hideInteractiveCommands = preferences[KEY_DANMAKU_BLOCK_ATTENTION_COMMANDS] ?: false,
             blockAttentionCommands = preferences[KEY_DANMAKU_BLOCK_ATTENTION_COMMANDS] ?: false,
             smartOcclusion = readScopedDanmakuPreference(
@@ -4976,14 +5347,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 legacyKey = KEY_DANMAKU_SMART_OCCLUSION,
                 defaultValue = false
             ),
-            portraitDisplayAreaMode = if (scope == DanmakuSettingsScope.PORTRAIT) {
-                PortraitDanmakuDisplayAreaMode.fromValue(
-                    preferences[keyDanmakuPortraitDisplayAreaMode()]
-                        ?: PortraitDanmakuDisplayAreaMode.VIDEO_VIEWPORT.value
-                )
-            } else {
-                PortraitDanmakuDisplayAreaMode.VIDEO_VIEWPORT
-            },
+            // Profiles distinguish inline/fullscreen; this option is still portrait-only
+            // at the renderer, so preserve it for portrait fullscreen's shared profile.
+            portraitDisplayAreaMode = PortraitDanmakuDisplayAreaMode.fromValue(
+                preferences[keyDanmakuPortraitDisplayAreaMode()]
+                    ?: PortraitDanmakuDisplayAreaMode.SCREEN_TOP.value
+            ),
             fullscreenPanelWidthMode = normalizeDanmakuFullscreenPanelWidthMode(
                 DanmakuPanelWidthMode.fromValue(
                     preferences[KEY_DANMAKU_FULLSCREEN_PANEL_WIDTH_MODE]
@@ -4993,16 +5362,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             blockRulesRaw = blockRulesRaw,
             blockRules = parseDanmakuBlockRules(blockRulesRaw)
         )
-    }
-
-    /** 计数弹幕扩展模式：最多三条，允许滚动与省略，横竖屏共用。 */
-    fun getHotDanmakuExpandedMode(context: Context): Flow<Boolean> =
-        context.settingsDataStore.data
-            .map { it[KEY_HOT_DANMAKU_EXPANDED_MODE] ?: false }
-            .distinctUntilChanged()
-
-    suspend fun setHotDanmakuExpandedMode(context: Context, enabled: Boolean) {
-        context.settingsDataStore.edit { it[KEY_HOT_DANMAKU_EXPANDED_MODE] = enabled }
     }
 
     fun getDanmakuSettings(
@@ -5071,15 +5430,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
     ): Flow<Float> = context.settingsDataStore.data
         .map { preferences ->
-            normalizeDanmakuFontScale(
-                readSharedDanmakuPreference(
-                    preferences = preferences,
-                    scopeKey = keyDanmakuFontScale(scope),
-                    legacyPortraitKey = keyDanmakuLegacyPortraitFontScale(),
-                    legacyKey = KEY_DANMAKU_FONT_SCALE,
-                    defaultValue = DEFAULT_DANMAKU_FONT_SCALE
-                )
-            )
+            readDanmakuFontScale(preferences, scope)
         }
 
     suspend fun setDanmakuFontScale(
@@ -5088,7 +5439,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         scope: DanmakuSettingsScope = DanmakuSettingsScope.PORTRAIT
     ) {
         context.settingsDataStore.edit { preferences ->
-            preferences[keyDanmakuFontScale(scope)] = normalizeDanmakuFontScale(value)
+            updateDanmakuFontScalePreferences(preferences, value, scope)
         }
     }
     
@@ -5376,12 +5727,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     // --- 弹幕智能云屏蔽等级 (0=关闭, 1~10) ---
     fun getDanmakuWeightFilterLevel(context: Context): Flow<Int> =
         context.settingsDataStore.data.map { preferences ->
-            (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 10)
+            (preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] ?: 0).coerceIn(0, 11)
         }
 
     suspend fun setDanmakuWeightFilterLevel(context: Context, value: Int) {
         context.settingsDataStore.edit { preferences ->
-            preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] = value.coerceIn(0, 10)
+            preferences[KEY_DANMAKU_WEIGHT_FILTER_LEVEL] = value.coerceIn(0, 11)
         }
     }
 
@@ -5704,7 +6055,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                     DEFAULT_DANMAKU_STATIC_DURATION_SECONDS
                 preferences[KEY_DANMAKU_SCROLL_FIXED_VELOCITY] = false
                 preferences[KEY_DANMAKU_STATIC_TO_SCROLL] = false
-                preferences[KEY_HOT_DANMAKU_EXPANDED_MODE] = false
                 preferences[KEY_DANMAKU_MASSIVE_MODE] = false
                 preferences[KEY_DANMAKU_DUPLICATE_MERGE_WINDOW_MS] =
                     DEFAULT_DANMAKU_DUPLICATE_MERGE_WINDOW_MS
@@ -5757,7 +6107,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     
     private val KEY_FEED_API_TYPE = intPreferencesKey("feed_api_type")
     private val KEY_INCREMENTAL_TIMELINE_REFRESH = booleanPreferencesKey("incremental_timeline_refresh")
-    private val KEY_HOME_REFRESH_COUNT = intPreferencesKey("home_refresh_count")
     
     /**
      *  推荐流 API 类型
@@ -5766,8 +6115,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
      */
     enum class FeedApiType(val value: Int, val label: String, val description: String) {
         WEB(0, "网页端", "使用 B 站网页端的推荐内容"),
-        MOBILE(1, "手机端", "使用 B 站手机端的推荐内容，需登录"),
-        MERGED(2, "合并推荐", "合并网页端和手机端推荐；手机端需登录，不可用时使用网页端");
+        MOBILE(1, "手机端", "需移动端登录凭证；按授权来源使用手机端或平板兼容推荐，不可用时提示并使用网页端"),
+        MERGED(2, "合并推荐", "合并网页端与当前登录授权支持的移动端推荐；缺少移动端凭证时仅使用网页端");
         
         companion object {
             fun fromValue(value: Int): FeedApiType = entries.find { it.value == value } ?: WEB
@@ -5806,28 +6155,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
-    fun getHomeRefreshCount(context: Context): Flow<Int> = context.settingsDataStore.data
-        .map { preferences ->
-            normalizeHomeRefreshCount(preferences[KEY_HOME_REFRESH_COUNT] ?: DEFAULT_HOME_REFRESH_COUNT)
-        }
-
-    suspend fun setHomeRefreshCount(context: Context, count: Int) {
-        val normalized = normalizeHomeRefreshCount(count)
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_HOME_REFRESH_COUNT] = normalized
-        }
-        context.getSharedPreferences("feed_api", Context.MODE_PRIVATE)
-            .edit()
-            .putInt("home_refresh_count", normalized)
-            .apply()
-    }
-
-    fun getHomeRefreshCountSync(context: Context): Int {
-        val value = context.getSharedPreferences("feed_api", Context.MODE_PRIVATE)
-            .getInt("home_refresh_count", DEFAULT_HOME_REFRESH_COUNT)
-        return normalizeHomeRefreshCount(value)
-    }
-    
     // ==========  实验性功能 ==========
     
     private val KEY_AUTO_1080P = booleanPreferencesKey("exp_auto_1080p")
@@ -6030,6 +6357,16 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.getSharedPreferences("auto_rotate_cache", Context.MODE_PRIVATE)
             .edit().putBoolean("enabled", value).apply()
     }
+
+    // --- 横屏保持 (自动横竖屏进入横屏后不随倾斜回竖屏，仅手动退出，默认关闭) ---
+    private val KEY_LANDSCAPE_HOLD_ENABLED = booleanPreferencesKey("landscape_hold_enabled")
+
+    fun getLandscapeHoldEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_LANDSCAPE_HOLD_ENABLED] ?: false }
+
+    suspend fun setLandscapeHoldEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences -> preferences[KEY_LANDSCAPE_HOLD_ENABLED] = value }
+    }
     
     fun isAutoRotateEnabledSync(context: Context): Boolean {
         val prefs = context.getSharedPreferences("auto_rotate_cache", Context.MODE_PRIVATE)
@@ -6046,6 +6383,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_VIDEO_SECOND_CODEC = stringPreferencesKey("video_second_codec_preference")
     private val KEY_AUDIO_QUALITY = intPreferencesKey("audio_quality_preference")
     private val KEY_SUBSCRIBED_COLLECTION_IDS = stringPreferencesKey("subscribed_collection_ids")
+    private val KEY_KNOWN_COLLECTION_SUBSCRIPTION_IDS = stringPreferencesKey("known_collection_subscription_ids")
     private val KEY_COLLECTION_SORT_PREFERENCES = stringPreferencesKey("collection_sort_preferences")
     
     // --- WiFi 默认画质 (默认 80 = 1080P) ---
@@ -6097,6 +6435,17 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             .distinctUntilChanged()
     }
 
+    /** 缓存缺失为未知；已订阅集合也可作为旧版本的肯定记录。 */
+    fun getCollectionSubscriptionState(context: Context, collectionId: Long): Flow<Boolean?> =
+        context.settingsDataStore.data.map { preferences ->
+            val id = collectionId.toString()
+            when {
+                id in decodeCollectionSubscriptionIds(preferences[KEY_SUBSCRIBED_COLLECTION_IDS]) -> true
+                id in decodeCollectionSubscriptionIds(preferences[KEY_KNOWN_COLLECTION_SUBSCRIPTION_IDS]) -> false
+                else -> null
+            }
+        }.distinctUntilChanged()
+
     suspend fun toggleCollectionSubscription(context: Context, collectionId: Long) {
         if (collectionId <= 0L) return
         context.settingsDataStore.edit { preferences ->
@@ -6110,6 +6459,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setCollectionSubscription(context: Context, collectionId: Long, subscribed: Boolean) {
         if (collectionId <= 0L) return
         context.settingsDataStore.edit { preferences ->
+            preferences[KEY_KNOWN_COLLECTION_SUBSCRIPTION_IDS] = encodeCollectionSubscriptionIds(
+                decodeCollectionSubscriptionIds(preferences[KEY_KNOWN_COLLECTION_SUBSCRIPTION_IDS]) + collectionId.toString()
+            )
             val current = decodeCollectionSubscriptionIds(preferences[KEY_SUBSCRIBED_COLLECTION_IDS])
             preferences[KEY_SUBSCRIBED_COLLECTION_IDS] = encodeCollectionSubscriptionIds(
                 setCollectionSubscription(current, collectionId, subscribed)
@@ -6308,6 +6660,16 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    fun getCommentAvatarPushEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_COMMENT_AVATAR_PUSH_ENABLED] ?: false }
+
+    suspend fun setCommentAvatarPushEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_COMMENT_AVATAR_PUSH_ENABLED] = enabled
+        }
+    }
+
     fun getCommentMemberDecorationsEnabled(context: Context): Flow<Boolean> =
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_COMMENT_MEMBER_DECORATIONS_ENABLED] ?: false }
@@ -6322,9 +6684,37 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.data
             .map { preferences -> preferences[KEY_DETAILED_COMMENT_TIME_ENABLED] ?: false }
 
+    /** 评论楼中楼预览是否显示；入口在评论右上角菜单，默认显示。 */
+    fun getCommentReplyPreviewVisible(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data
+            .map { preferences -> preferences[KEY_COMMENT_REPLY_PREVIEW_VISIBLE] ?: true }
+
+    suspend fun setCommentReplyPreviewVisible(context: Context, visible: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_COMMENT_REPLY_PREVIEW_VISIBLE] = visible
+        }
+    }
+
+    /**
+     * 评论右上角菜单的落盘入口：弹层关闭会取消其 rememberCoroutineScope，
+     * 挂起写盘必须在调用方作用域之外完成，否则开关可能一次都写不进去。
+     */
+    fun setCommentReplyPreviewVisibleDetached(context: Context, visible: Boolean) {
+        commentPreferenceWriteScope.launch {
+            setCommentReplyPreviewVisible(context.applicationContext, visible)
+        }
+    }
+
     suspend fun setDetailedCommentTimeEnabled(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_DETAILED_COMMENT_TIME_ENABLED] = enabled
+        }
+    }
+
+    /** 评论长按菜单的落盘入口：与回复按钮开关同因，写入不依赖弹层作用域。 */
+    fun setDetailedCommentTimeEnabledDetached(context: Context, enabled: Boolean) {
+        commentPreferenceWriteScope.launch {
+            setDetailedCommentTimeEnabled(context.applicationContext, enabled)
         }
     }
 
@@ -6368,9 +6758,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         .map { preferences -> preferences[KEY_SPONSOR_BLOCK_ENABLED] ?: false }  // 默认关闭
 
     suspend fun setSponsorBlockEnabled(context: Context, value: Boolean) {
+        com.android.purebilibili.core.plugin.PluginManager.setEnabled(
+            com.android.purebilibili.core.plugin.BuiltinPluginIds.SPONSOR_BLOCK, value
+        )
+    }
+
+    internal suspend fun persistSponsorBlockEnabled(context: Context, value: Boolean) {
         context.settingsDataStore.edit { preferences -> preferences[KEY_SPONSOR_BLOCK_ENABLED] = value }
-        //  [修复] 同步到PluginStore，使插件系统能正确识别空降助手状态
-        com.android.purebilibili.core.plugin.PluginManager.setEnabled("sponsor_block", value)
     }
     
     // --- 自动跳过（true=自动跳过, false=显示提示按钮）---
@@ -6491,6 +6885,22 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             .edit().putBoolean("enabled", value).apply()
     }
     
+    // Search-only recording preference. Global privacy still overrides this choice.
+    private val KEY_SEARCH_HISTORY_RECORDING_ENABLED = booleanPreferencesKey("search_history_recording_enabled")
+
+    fun getSearchHistoryRecordingEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { it[KEY_SEARCH_HISTORY_RECORDING_ENABLED] ?: true }
+
+    suspend fun setSearchHistoryRecordingEnabled(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { it[KEY_SEARCH_HISTORY_RECORDING_ENABLED] = enabled }
+        context.getSharedPreferences("privacy_mode", Context.MODE_PRIVATE)
+            .edit().putBoolean("search_history_recording_enabled", enabled).apply()
+    }
+
+    fun isSearchHistoryRecordingEnabledSync(context: Context): Boolean =
+        context.getSharedPreferences("privacy_mode", Context.MODE_PRIVATE)
+            .getBoolean("search_history_recording_enabled", true)
+
     //  同步读取隐私模式状态（用于非协程环境）
     fun isPrivacyModeEnabledSync(context: Context): Boolean {
         return context.getSharedPreferences("privacy_mode", Context.MODE_PRIVATE)
@@ -6541,6 +6951,42 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
     
     // --- 小窗模式设置 ---
+    internal fun mapPlaybackPreferencesSettings(preferences: Preferences): PlaybackPreferencesSettings =
+        PlaybackPreferencesSettings(
+            miniPlayerMode = MiniPlayerMode.fromValue(preferences[KEY_MINI_PLAYER_MODE] ?: MiniPlayerMode.OFF.value),
+            stopPlaybackOnExit = preferences[KEY_STOP_PLAYBACK_ON_EXIT] ?: false,
+            backgroundPlaybackEnabled = preferences[KEY_BACKGROUND_PLAYBACK_ENABLED] ?: true,
+            audioFocusEnabled = preferences[KEY_AUDIO_FOCUS_ENABLED] ?: true,
+            audioModeAutoPipEnabled = preferences[KEY_AUDIO_MODE_AUTO_PIP_ENABLED] ?: false,
+            audioNowPlayingBarEnabled = preferences[KEY_AUDIO_NOW_PLAYING_BAR_ENABLED] ?: true,
+            audioNowPlayingBarImmersiveEnabled = preferences[KEY_AUDIO_NOW_PLAYING_BAR_IMMERSIVE_ENABLED] ?: true,
+            audioNowPlayingBarOpensAudioMode = preferences[KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE] ?: false,
+            musicLyricsUiStyle = MusicLyricsUiStyle.fromValue(preferences[KEY_MUSIC_LYRICS_UI_STYLE] ?: MusicLyricsUiStyle.CLASSIC.value),
+            loudnessNormalizationEnabled = preferences[KEY_LOUDNESS_NORMALIZATION_ENABLED] ?: false,
+            audioSpectrumEnabled = preferences[KEY_AUDIO_SPECTRUM_ENABLED] ?: false,
+            startupAutoPlayEnabled = preferences[KEY_STARTUP_AUTO_PLAY_ENABLED] ?: false,
+            wifiQuality = preferences[KEY_WIFI_QUALITY] ?: 80,
+            mobileQuality = preferences[KEY_MOBILE_QUALITY] ?: 64,
+            autoHighestQualityEnabled = preferences[KEY_AUTO_HIGHEST_QUALITY] ?: false,
+            directedTrafficEnabled = preferences[KEY_BILI_DIRECTED_TRAFFIC] ?: false,
+            videoCodecPreference = preferences[KEY_VIDEO_CODEC] ?: "hev1",
+            videoSecondCodecPreference = preferences[KEY_VIDEO_SECOND_CODEC] ?: "avc1",
+            dataSaverMode = DataSaverMode.fromValue(preferences[KEY_DATA_SAVER_MODE] ?: DataSaverMode.MOBILE_ONLY.value),
+            defaultAudioQuality = preferences[com.android.purebilibili.core.store.player.defaultAudioQualityPreferenceKey] ?: com.android.purebilibili.core.store.player.DEFAULT_AUDIO_QUALITY_FOLLOW_LAST,
+        )
+
+    internal fun getPlaybackPreferencesSettings(context: Context): Flow<PlaybackPreferencesSettings> =
+        context.settingsDataStore.data
+            .map(::mapPlaybackPreferencesSettings)
+            .distinctUntilChanged()
+            .onEach { settings ->
+                // 保留独立开关读取路径的缓存同步行为，供播放服务同步查询。
+                context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("audio_now_playing_bar_enabled", settings.audioNowPlayingBarEnabled)
+                    .apply()
+            }
+
     fun getMiniPlayerMode(context: Context): Flow<MiniPlayerMode> = context.settingsDataStore.data
         .map { preferences -> 
             MiniPlayerMode.fromValue(preferences[KEY_MINI_PLAYER_MODE] ?: MiniPlayerMode.OFF.value)
@@ -6626,11 +7072,38 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_LOUDNESS_NORMALIZATION_ENABLED] = value
         }
+        // 同步到 SharedPreferences，供 MiniPlayerManager 同步读取（此前缺少这一步，
+        // 导致 Sync 读取恒为 false、响度均衡从未真正注入音频链路）
+        context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .edit().putBoolean("loudness_normalization_enabled", value).apply()
     }
 
     fun getLoudnessNormalizationEnabledSync(context: Context): Boolean {
         return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
             .getBoolean("loudness_normalization_enabled", false)
+    }
+
+    /**
+     * 「听视频」封面律动。数据取自音频输出链路的 PCM（无录音权限），
+     * 默认关闭；公共 AudioSink 按缓冲读取开关，已有 PCM 播放会话内即可生效。
+     */
+    fun getAudioSpectrumEnabled(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { preferences ->
+            preferences[KEY_AUDIO_SPECTRUM_ENABLED] ?: false
+        }
+
+    suspend fun setAudioSpectrumEnabled(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_AUDIO_SPECTRUM_ENABLED] = value
+        }
+        // 同步到 SharedPreferences，供 MiniPlayerManager 同步读取
+        context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .edit().putBoolean("audio_spectrum_enabled", value).apply()
+    }
+
+    fun getAudioSpectrumEnabledSync(context: Context): Boolean {
+        return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
+            .getBoolean("audio_spectrum_enabled", false)
     }
 
     /** 冷启动后进入播放场景时自动续播上一次会话。 */
@@ -6688,6 +7161,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     fun getAudioNowPlayingBarEnabledSync(context: Context): Boolean {
         return context.getSharedPreferences("mini_player", Context.MODE_PRIVATE)
             .getBoolean("audio_now_playing_bar_enabled", true)
+    }
+
+    fun getAudioNowPlayingBarDeleteButton(context: Context): Flow<Boolean> =
+        context.settingsDataStore.data.map { it[KEY_AUDIO_NOW_PLAYING_BAR_DELETE_BUTTON] ?: true }
+
+    suspend fun setAudioNowPlayingBarDeleteButton(context: Context, value: Boolean) {
+        context.settingsDataStore.edit { it[KEY_AUDIO_NOW_PLAYING_BAR_DELETE_BUTTON] = value }
     }
 
     fun getAudioNowPlayingBarOpensAudioMode(context: Context): Flow<Boolean> =
@@ -7008,20 +7488,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
      * 根据模式和当前网络状态判断
      */
     fun isDataSaverActive(context: Context): Boolean {
-        val mode = getDataSaverModeSync(context)
-        return when (mode) {
-            DataSaverMode.OFF -> false
-            DataSaverMode.ALWAYS -> true
-            DataSaverMode.MOBILE_ONLY -> {
-                // 检测当前网络是否为移动数据
-                val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) 
-                    as android.net.ConnectivityManager
-                val network = connectivityManager.activeNetwork
-                val capabilities = connectivityManager.getNetworkCapabilities(network)
-                // 如果是蜂窝网络，则启用省流量
-                capabilities?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) == true
-            }
-        }
+        return DataSaverState.get(context).active.value
     }
     
     //  [新增] --- 底栏顺序配置 ---
@@ -7034,6 +7501,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     suspend fun setBottomBarOrder(context: Context, order: List<String>) {
         context.settingsDataStore.edit { prefs ->
             prefs[KEY_BOTTOM_BAR_ORDER] = order.joinToString(",")
+        }
+    }
+
+    suspend fun setBottomBarConfiguration(context: Context, order: List<String>, visible: Set<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[KEY_BOTTOM_BAR_ORDER] = order.joinToString(",")
+            prefs[KEY_BOTTOM_BAR_VISIBLE_TABS] = visible.joinToString(",")
         }
     }
     
@@ -7120,9 +7594,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_PAUSE_ON_PLAYER_COLLAPSE = booleanPreferencesKey("pause_on_player_collapse")
     private val KEY_PORTRAIT_SWIPE_TO_FULLSCREEN = booleanPreferencesKey("portrait_swipe_to_fullscreen")
     private val KEY_CENTER_SWIPE_TO_FULLSCREEN = booleanPreferencesKey("center_swipe_to_fullscreen")
-    private val KEY_INLINE_SWIPE_SEEK_SECONDS = intPreferencesKey("inline_swipe_seek_seconds")
     private val KEY_FULLSCREEN_SWIPE_SEEK_ENABLED = booleanPreferencesKey("fullscreen_swipe_seek_enabled")
-    private val KEY_FULLSCREEN_SWIPE_SEEK_SECONDS = intPreferencesKey("fullscreen_swipe_seek_seconds")
     private val KEY_FULLSCREEN_GESTURE_REVERSE = booleanPreferencesKey("fullscreen_gesture_reverse")
     private val KEY_HIDE_VIDEO_PAGE_STATUS_BAR = booleanPreferencesKey("hide_video_page_status_bar")
     private val KEY_PORTRAIT_LETTERBOX_AMBIENT_HAZE =
@@ -7144,6 +7616,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_SHOW_FULLSCREEN_BATTERY_LEVEL = booleanPreferencesKey("show_fullscreen_battery_level")
     private val KEY_SHOW_FULLSCREEN_TIME = booleanPreferencesKey("show_fullscreen_time")
     private val KEY_SHOW_FULLSCREEN_ACTION_ITEMS = booleanPreferencesKey("show_fullscreen_action_items")
+    private val KEY_SHOW_CARD_ONLINE_COUNT = booleanPreferencesKey("show_card_online_count")
     private val KEY_SHOW_ONLINE_COUNT = booleanPreferencesKey("show_online_count")
     private val KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT =
         booleanPreferencesKey("show_video_detail_comment_count")
@@ -7162,6 +7635,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_QUALITY_SWITCH_FAILURE_DIALOG_SHOWN =
         booleanPreferencesKey("quality_switch_failure_dialog_shown")
     private val KEY_SUBTITLE_AUTO_PREFERENCE = intPreferencesKey("subtitle_auto_preference")
+    private val KEY_CHAPTER_DISPLAY_MODE = intPreferencesKey("chapter_display_mode")
     private val KEY_BOTTOM_PROGRESS_BEHAVIOR = intPreferencesKey("bottom_progress_behavior")
     private val KEY_PROGRESS_PEAK_DANMAKU_ENABLED =
         booleanPreferencesKey("progress_peak_danmaku_enabled")
@@ -7170,11 +7644,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val KEY_HORIZONTAL_ADAPTATION = booleanPreferencesKey("horizontal_adaptation_enabled")
     private val KEY_FULLSCREEN_MODE = intPreferencesKey("fullscreen_mode")
     private val KEY_FULLSCREEN_ASPECT_RATIO = intPreferencesKey("fullscreen_aspect_ratio")
-    private val INLINE_SWIPE_SEEK_OPTIONS = listOf(5, 10, 15, 30, 60)
-    private val FULLSCREEN_SWIPE_SEEK_OPTIONS = listOf(10, 15, 20, 30)
     const val DEFAULT_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT = 3
-    private const val COMMENT_PREVIEW_CACHE_PREFS = "comment_preview_cache"
-    private const val CACHE_KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT = "comment_collapsed_reply_preview_limit"
 
     fun normalizeCommentCollapsedReplyPreviewLimit(value: Int): Int = value.coerceIn(1, 10)
 
@@ -7258,24 +7728,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences -> preferences[KEY_CENTER_SWIPE_TO_FULLSCREEN] = value }
     }
 
-    // --- 非全屏左右滑动调进度范围（秒，默认 30） ---
-    fun getInlineSwipeSeekSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
-        .map { preferences ->
-            val raw = preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] ?: 0
-            normalizeInlineSwipeSeekSeconds(raw)
-        }
-
-    suspend fun setInlineSwipeSeekSeconds(context: Context, seconds: Int) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_INLINE_SWIPE_SEEK_SECONDS] = normalizeInlineSwipeSeekSeconds(seconds)
-        }
-    }
-
-    private fun normalizeInlineSwipeSeekSeconds(seconds: Int): Int {
-        if (seconds == 0) return 0
-        return INLINE_SWIPE_SEEK_OPTIONS.minByOrNull { option -> abs(option - seconds) } ?: 30
-    }
-
     // --- 横屏左右滑动精细调进度开关（默认开启） ---
     fun getFullscreenSwipeSeekEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_FULLSCREEN_SWIPE_SEEK_ENABLED] ?: true }
@@ -7284,24 +7736,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_FULLSCREEN_SWIPE_SEEK_ENABLED] = enabled
         }
-    }
-
-    // --- 横屏左右滑动调进度范围（秒，默认 15） ---
-    fun getFullscreenSwipeSeekSeconds(context: Context): Flow<Int> = context.settingsDataStore.data
-        .map { preferences ->
-            val raw = preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] ?: 0
-            normalizeFullscreenSwipeSeekSeconds(raw)
-        }
-
-    suspend fun setFullscreenSwipeSeekSeconds(context: Context, seconds: Int) {
-        context.settingsDataStore.edit { preferences ->
-            preferences[KEY_FULLSCREEN_SWIPE_SEEK_SECONDS] = normalizeFullscreenSwipeSeekSeconds(seconds)
-        }
-    }
-
-    private fun normalizeFullscreenSwipeSeekSeconds(seconds: Int): Int {
-        if (seconds == 0) return 0
-        return FULLSCREEN_SWIPE_SEEK_OPTIONS.minByOrNull { option -> abs(option - seconds) } ?: 15
     }
 
     private fun isLargeScreenOrFoldableConfiguration(context: Context): Boolean {
@@ -7537,6 +7971,16 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    // Legacy value seeds card visibility until either independent switch is edited.
+    fun getShowCardOnlineCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
+        .map { preferences -> preferences[KEY_SHOW_CARD_ONLINE_COUNT] ?: preferences[KEY_SHOW_ONLINE_COUNT] ?: false }
+
+    suspend fun setShowCardOnlineCount(context: Context, enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_SHOW_CARD_ONLINE_COUNT] = enabled
+        }
+    }
+
     fun getShowOnlineCount(context: Context): Flow<Boolean> = context.settingsDataStore.data
         .map { preferences -> preferences[KEY_SHOW_ONLINE_COUNT] ?: false }
 
@@ -7551,6 +7995,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setShowOnlineCount(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
+            if (preferences[KEY_SHOW_CARD_ONLINE_COUNT] == null) {
+                preferences[KEY_SHOW_CARD_ONLINE_COUNT] = preferences[KEY_SHOW_ONLINE_COUNT] ?: false
+            }
             preferences[KEY_SHOW_ONLINE_COUNT] = enabled
         }
         context.getSharedPreferences("video_overlay_cache", Context.MODE_PRIVATE)
@@ -7565,7 +8012,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     }
 
     fun getShowProfileEditButton(context: Context): Flow<Boolean> = context.settingsDataStore.data
-        .map { preferences -> preferences[KEY_SHOW_PROFILE_EDIT_BUTTON] ?: false }
+        .map { preferences -> preferences[KEY_SHOW_PROFILE_EDIT_BUTTON] ?: true }
 
     suspend fun setShowProfileEditButton(context: Context, enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
@@ -7586,20 +8033,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT] = normalized
         }
-        context.getSharedPreferences(COMMENT_PREVIEW_CACHE_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putInt(CACHE_KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT, normalized)
-            .apply()
-    }
-
-    fun getCommentCollapsedReplyPreviewLimitSync(context: Context): Int {
-        return normalizeCommentCollapsedReplyPreviewLimit(
-            context.getSharedPreferences(COMMENT_PREVIEW_CACHE_PREFS, Context.MODE_PRIVATE)
-                .getInt(
-                    CACHE_KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT,
-                    DEFAULT_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT
-                )
-        )
     }
 
     fun getPlayerDiagnosticLoggingEnabled(context: Context): Flow<Boolean> = context.settingsDataStore.data
@@ -7689,6 +8122,19 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         }
     }
 
+    fun getChapterDisplayMode(context: Context): Flow<ChapterDisplayMode> =
+        context.settingsDataStore.data.map { preferences ->
+            ChapterDisplayMode.fromValue(
+                preferences[KEY_CHAPTER_DISPLAY_MODE] ?: ChapterDisplayMode.WITH_CONTROLS.value
+            )
+        }
+
+    suspend fun setChapterDisplayMode(context: Context, mode: ChapterDisplayMode) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[KEY_CHAPTER_DISPLAY_MODE] = mode.value
+        }
+    }
+
     fun getBottomProgressBehavior(context: Context): Flow<BottomProgressBehavior> =
         context.settingsDataStore.data.map { preferences ->
             BottomProgressBehavior.fromValue(
@@ -7755,6 +8201,12 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             )
         }
 
+    suspend fun savePlayerFullscreenAspectRatio(context: Context, ratio: FullscreenAspectRatio): Boolean {
+        if (!ContentDisplayPreferences.rememberPlayerAdjustments(context).first()) return false
+        setFullscreenAspectRatio(context, ratio)
+        return true
+    }
+
     suspend fun setFullscreenAspectRatio(context: Context, ratio: FullscreenAspectRatio) {
         context.settingsDataStore.edit { preferences ->
             preferences[KEY_FULLSCREEN_ASPECT_RATIO] = ratio.value
@@ -7810,10 +8262,19 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         val tabsString = preferences[KEY_BOTTOM_BAR_VISIBLE_TABS] ?: DEFAULT_BOTTOM_BAR_VISIBLE_TABS
         val order = orderString.split(",").filter { it.isNotBlank() }
         val visible = tabsString.split(",").filter { it.isNotBlank() }
+        val savedVisibility = BottomBarVisibilityMode.fromValue(
+            preferences[KEY_BOTTOM_BAR_VISIBILITY_MODE] ?: BottomBarVisibilityMode.ALWAYS_VISIBLE.value
+        )
+        // 用户选择的整栏显隐策略优先；Dock 收缩不能将下滑隐藏改成始终显示。
         return AppNavigationSettings(
-            bottomBarVisibilityMode = BottomBarVisibilityMode.fromValue(
-                preferences[KEY_BOTTOM_BAR_VISIBILITY_MODE] ?: BottomBarVisibilityMode.ALWAYS_VISIBLE.value
-            ),
+            liquidIndicatorDynamicLengthEnabled =
+                preferences[com.android.purebilibili.core.store.navigation.liquidIndicatorDynamicLengthPreferencesKey] ?: true,
+            liquidIndicatorWobbleEnabled =
+                preferences[com.android.purebilibili.core.store.navigation.liquidIndicatorWobblePreferencesKey] ?: true,
+            bottomBarVisibilityMode = savedVisibility,
+            savedBottomBarVisibilityMode = savedVisibility,
+            bottomBarOrder = order,
+            bottomBarVisibleTabs = visible.toSet(),
             orderedVisibleTabIds = resolveOrderedVisibleBottomTabs(order, visible),
             bottomBarItemColors = parseBottomBarItemColors(preferences[KEY_BOTTOM_BAR_ITEM_COLORS] ?: ""),
             bottomBarItemLabels = parseBottomBarItemLabels(
@@ -7835,6 +8296,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_FOLLOW_ENABLED] ?: true,
             videoReturnContentFollowProgressEnabled =
                 preferences[booleanPreferencesKey("video_return_content_follow_progress_enabled")] ?: true,
+            settingsContainerMorphEnabled =
+                preferences[booleanPreferencesKey("settings_container_morph_enabled")] ?: true,
+            settingsContainerRealtimeBlurEnabled =
+                preferences[booleanPreferencesKey("settings_container_realtime_blur_enabled")] ?: false,
             videoSharedReturnGestureTranslationEnabled =
                 preferences[KEY_VIDEO_SHARED_RETURN_GESTURE_TRANSLATION_ENABLED] ?: true,
         )
@@ -7870,6 +8335,14 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         NavigationSettingsStore.setPredictiveBackEnabled(context, enabled)
     }
 
+    suspend fun setLiquidIndicatorDynamicLengthEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setLiquidIndicatorDynamicLengthEnabled(context, enabled)
+    }
+
+    suspend fun setLiquidIndicatorWobbleEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setLiquidIndicatorWobbleEnabled(context, enabled)
+    }
+
     suspend fun setPredictiveBackAnimationStyle(context: Context, style: String) {
         NavigationSettingsStore.setPredictiveBackAnimationStyle(context, style)
     }
@@ -7892,6 +8365,20 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
 
     suspend fun setVideoReturnContentFollowProgressEnabled(context: Context, enabled: Boolean) {
         NavigationSettingsStore.setVideoReturnContentFollowProgressEnabled(context, enabled)
+    }
+
+    fun getSettingsContainerRealtimeBlurEnabled(context: Context): Flow<Boolean> =
+        NavigationSettingsStore.getSettingsContainerRealtimeBlurEnabled(context)
+
+    suspend fun setSettingsContainerRealtimeBlurEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setSettingsContainerRealtimeBlurEnabled(context, enabled)
+    }
+
+    fun getSettingsContainerMorphEnabled(context: Context): Flow<Boolean> =
+        NavigationSettingsStore.getSettingsContainerMorphEnabled(context)
+
+    suspend fun setSettingsContainerMorphEnabled(context: Context, enabled: Boolean) {
+        NavigationSettingsStore.setSettingsContainerMorphEnabled(context, enabled)
     }
 
     suspend fun setVideoSharedReturnGestureTranslationEnabled(context: Context, enabled: Boolean) {
@@ -8105,11 +8592,17 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
         listOf(
             StringShareablePreferenceDefinition(KEY_THEME_SELECTION, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_THEME_MODE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_DARK_SCHEDULE_ENABLED, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_DARK_SCHEDULE_START, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_DARK_SCHEDULE_END, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_DARK_THEME_STYLE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_APP_LANGUAGE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_DYNAMIC_COLOR, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_MD3_COLOR_SOURCE, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_MD3_CUSTOM_COLOR_HEX, SettingsShareSection.APPEARANCE),
+            *wallpaperPalettePreferenceKeys.values.map {
+                StringShareablePreferenceDefinition(it, SettingsShareSection.APPEARANCE)
+            }.toTypedArray(),
             BooleanShareablePreferenceDefinition(KEY_THEME_ROLE_OVERRIDES_ENABLED, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_LIGHT_BACKGROUND, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_LIGHT_PRIMARY_TEXT, SettingsShareSection.APPEARANCE),
@@ -8119,8 +8612,10 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             StringShareablePreferenceDefinition(KEY_THEME_DARK_PRIMARY_TEXT, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_DARK_SECONDARY_TEXT, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_DARK_CONTROL_ACCENT, SettingsShareSection.APPEARANCE),
+            StringShareablePreferenceDefinition(KEY_SEED_PALETTE_STYLE, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_COLOR_STYLE, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_THEME_COLOR_SPEC, SettingsShareSection.APPEARANCE),
+            StringShareablePreferenceDefinition(KEY_THEME_COLOR_CONTRAST, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(
                 KEY_SINGLE_CHOICE_PRESENTATION,
                 SettingsShareSection.APPEARANCE,
@@ -8153,6 +8648,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 SettingsShareSection.APPEARANCE,
             ),
             BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_LIQUID_GLASS_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_LIQUID_CONTROLS_USE_THEME_COLOR, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_BOTTOM_BAR_SEARCH_LAYOUT_MODE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(
                 KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED,
@@ -8189,6 +8685,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 liquidGlassReadabilityModePreferencesKey,
                 SettingsShareSection.APPEARANCE,
             ),
+            IntShareablePreferenceDefinition(glassPopupPalettePreferencesKey, SettingsShareSection.APPEARANCE),
             FloatShareablePreferenceDefinition(
                 KEY_LIQUID_GLASS_CONTENT_READABILITY,
                 SettingsShareSection.APPEARANCE,
@@ -8205,6 +8702,8 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_DISPLAY_MODE, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_GRID_COLUMN_COUNT_COMPACT, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_GRID_COLUMN_CUSTOMIZATION_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_GRID_COLUMNS_SHARED_ACROSS_PAGES, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(
                 KEY_PINCH_TO_CHANGE_GRID_COLUMNS_ENABLED,
                 SettingsShareSection.APPEARANCE
@@ -8219,10 +8718,27 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_CARD_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_MAID_LOTTIE_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_UI_ENTRANCE_ANIMATION_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(KEY_GLOBAL_DRAG_FEEDBACK_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                com.android.purebilibili.core.store.navigation.liquidIndicatorDynamicLengthPreferencesKey,
+                SettingsShareSection.APPEARANCE,
+            ),
+            BooleanShareablePreferenceDefinition(
+                com.android.purebilibili.core.store.navigation.liquidIndicatorWobblePreferencesKey,
+                SettingsShareSection.APPEARANCE,
+            ),
             BooleanShareablePreferenceDefinition(KEY_CARD_TRANSITION_ENABLED, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(
+                booleanPreferencesKey("video_return_content_follow_progress_enabled"),
+                SettingsShareSection.APPEARANCE,
+            ),
             BooleanShareablePreferenceDefinition(
                 KEY_LIVE_SURFACE_CARD_TRANSITION_ENABLED,
                 SettingsShareSection.APPEARANCE
+            ),
+            BooleanShareablePreferenceDefinition(
+                booleanPreferencesKey("settings_container_realtime_blur_enabled"),
+                SettingsShareSection.APPEARANCE,
             ),
             BooleanShareablePreferenceDefinition(
                 KEY_VIDEO_TRANSITION_REALTIME_BLUR_ENABLED,
@@ -8251,8 +8767,24 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             ),
             BooleanShareablePreferenceDefinition(KEY_COMPACT_VIDEO_STATS_ON_COVER, SettingsShareSection.APPEARANCE),
             StringShareablePreferenceDefinition(KEY_HOME_WALLPAPER_URI, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_SCALE_MOBILE, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_OFFSET_X_MOBILE, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_OFFSET_Y_MOBILE, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_SCALE_TABLET, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_OFFSET_X_TABLET, SettingsShareSection.APPEARANCE),
+            FloatShareablePreferenceDefinition(KEY_HOME_WALLPAPER_OFFSET_Y_TABLET, SettingsShareSection.APPEARANCE),
             IntShareablePreferenceDefinition(KEY_HOME_WALLPAPER_EFFECT_MODE, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(KEY_HOME_WALLPAPER_EFFECT_SCOPE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_BADGES_VISIBLE, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(ContentDisplayPreferences.rememberPlayerAdjustmentsKey, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.rotationSensitivityKey, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.playerControlsTimeoutKey, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(ContentDisplayPreferences.dynamicVisibilityCheckKey, SettingsShareSection.NAVIGATION),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.listQualityKey, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.previewQualityKey, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.darkDimKey, SettingsShareSection.APPEARANCE),
+            IntShareablePreferenceDefinition(ContentDisplayPreferences.springKey, SettingsShareSection.APPEARANCE),
+            BooleanShareablePreferenceDefinition(ContentDisplayPreferences.keepRecommendKey, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_HOME_REFRESH_TIP_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_REFRESH_UNDO_VISIBLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_HOME_UP_AVATARS_VISIBLE, SettingsShareSection.APPEARANCE),
@@ -8263,8 +8795,14 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_HOME_DURATION_STYLE, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_SHOW_PROFILE_EDIT_BUTTON, SettingsShareSection.APPEARANCE),
 
+            IntShareablePreferenceDefinition(KEY_LIVE_WIFI_QUALITY, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(KEY_LIVE_MOBILE_QUALITY, SettingsShareSection.PLAYBACK),
+            StringShareablePreferenceDefinition(KEY_LIVE_CDN_HOST, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_LIVE_SUPER_CHAT_ENABLED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_LIVE_AUTO_MINI_PLAYER_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_NEXT_WATCH_HINT_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUTO_PLAY, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_RESILIENT_VIDEO_BUFFER, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_PLAYBACK_COMPLETION_BEHAVIOR, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_HW_DECODE, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_BG_PLAY, SettingsShareSection.PLAYBACK),
@@ -8273,6 +8811,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_REMEMBER_LAST_PLAYBACK_SPEED, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_COMMENT_DEFAULT_SORT_MODE, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_COMMENT_FRAUD_DETECTION_ENABLED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_COMMENT_AVATAR_PUSH_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_COMMENT_MEMBER_DECORATIONS_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_DETAILED_COMMENT_TIME_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_IMAGE_PREVIEW_LONG_PRESS_SAVE_ENABLED, SettingsShareSection.PLAYBACK),
@@ -8280,6 +8819,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_STOP_PLAYBACK_ON_EXIT, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_BACKGROUND_PLAYBACK_ENABLED, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(KEY_AUDIO_FOCUS_ENABLED, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_AUDIO_NOW_PLAYING_BAR_DELETE_BUTTON, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(
                 KEY_AUDIO_NOW_PLAYING_BAR_OPENS_AUDIO_MODE,
                 SettingsShareSection.PLAYBACK,
@@ -8318,6 +8858,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_FULLSCREEN_MODE, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_FULLSCREEN_ASPECT_RATIO, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_SUBTITLE_AUTO_PREFERENCE, SettingsShareSection.PLAYBACK),
+            IntShareablePreferenceDefinition(KEY_CHAPTER_DISPLAY_MODE, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_BOTTOM_PROGRESS_BEHAVIOR, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(
                 KEY_PROGRESS_PEAK_DANMAKU_ENABLED,
@@ -8327,6 +8868,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_HIDE_VIDEO_PAGE_STATUS_BAR, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_TABLET_COMMENT_PANEL_WIDTH_PRESET, SettingsShareSection.PLAYBACK),
             IntShareablePreferenceDefinition(KEY_TABLET_SECONDARY_DEFAULT_TAB, SettingsShareSection.PLAYBACK),
+            BooleanShareablePreferenceDefinition(KEY_SHOW_CARD_ONLINE_COUNT, SettingsShareSection.APPEARANCE),
             BooleanShareablePreferenceDefinition(KEY_SHOW_ONLINE_COUNT, SettingsShareSection.PLAYBACK),
             BooleanShareablePreferenceDefinition(
                 KEY_SHOW_VIDEO_DETAIL_COMMENT_COUNT,
@@ -8335,6 +8877,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             IntShareablePreferenceDefinition(KEY_COMMENT_COLLAPSED_REPLY_PREVIEW_LIMIT, SettingsShareSection.PLAYBACK),
 
             BooleanShareablePreferenceDefinition(KEY_HAPTIC_FEEDBACK_ENABLED, SettingsShareSection.GESTURE),
+            IntShareablePreferenceDefinition(KEY_HAPTIC_SCENES_DISABLED, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(
                 KEY_GLOBAL_TEXT_TAP_COPY_ENABLED,
                 SettingsShareSection.GESTURE,
@@ -8367,9 +8910,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             BooleanShareablePreferenceDefinition(KEY_PAUSE_ON_PLAYER_COLLAPSE, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_PORTRAIT_SWIPE_TO_FULLSCREEN, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_CENTER_SWIPE_TO_FULLSCREEN, SettingsShareSection.GESTURE),
-            IntShareablePreferenceDefinition(KEY_INLINE_SWIPE_SEEK_SECONDS, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_FULLSCREEN_SWIPE_SEEK_ENABLED, SettingsShareSection.GESTURE),
-            IntShareablePreferenceDefinition(KEY_FULLSCREEN_SWIPE_SEEK_SECONDS, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_FULLSCREEN_GESTURE_REVERSE, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_AUTO_ENTER_FULLSCREEN, SettingsShareSection.GESTURE),
             BooleanShareablePreferenceDefinition(KEY_AUTO_EXIT_FULLSCREEN, SettingsShareSection.GESTURE),
@@ -8403,7 +8944,6 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 KEY_DANMAKU_STATIC_TO_SCROLL,
                 SettingsShareSection.DANMAKU
             ),
-            BooleanShareablePreferenceDefinition(KEY_HOT_DANMAKU_EXPANDED_MODE, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_MASSIVE_MODE, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_ALLOW_SCROLL, SettingsShareSection.DANMAKU),
             BooleanShareablePreferenceDefinition(KEY_DANMAKU_ALLOW_TOP, SettingsShareSection.DANMAKU),
@@ -8431,6 +8971,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 SettingsShareSection.NAVIGATION
             ),
             BooleanShareablePreferenceDefinition(KEY_HEADER_COLLAPSE_ENABLED, SettingsShareSection.NAVIGATION),
+            BooleanShareablePreferenceDefinition(KEY_BOTTOM_BAR_SCROLL_COMPACT_ENABLED, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_SHOW_PGC_TIMELINE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_TABLET_NAVIGATION_MODE, SettingsShareSection.NAVIGATION),
             BooleanShareablePreferenceDefinition(KEY_SIDEBAR_EXPANDED, SettingsShareSection.NAVIGATION),
@@ -8446,14 +8987,13 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 SettingsShareSection.NAVIGATION
             ),
             BooleanShareablePreferenceDefinition(
-                KEY_DYNAMIC_ALL_TAB_HORIZONTAL_USER_LIST_VISIBLE,
+                dynamicCommentPreviewVisiblePreferencesKey,
                 SettingsShareSection.NAVIGATION
             ),
             BooleanShareablePreferenceDefinition(
                 KEY_DYNAMIC_TOP_BAR_COLLAPSE_ON_SCROLL,
                 SettingsShareSection.NAVIGATION
             ),
-            IntShareablePreferenceDefinition(KEY_HOME_REFRESH_COUNT, SettingsShareSection.NAVIGATION)
         )
     }
 
@@ -8464,6 +9004,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
     private val liquidGlassShareableStorageKeys: Set<String> by lazy {
         setOf(
             KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED.name,
+            KEY_LIQUID_CONTROLS_USE_THEME_COLOR.name,
             KEY_LIQUID_GLASS_ENABLED.name,
             KEY_TOP_BAR_LIQUID_GLASS_ENABLED.name,
             KEY_HOME_SEARCH_LIQUID_GLASS_ENABLED.name,
@@ -8477,6 +9018,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_EXTENT.name,
             KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE.name,
             liquidGlassReadabilityModePreferencesKey.name,
+            glassPopupPalettePreferencesKey.name,
             KEY_LIQUID_GLASS_CONTENT_READABILITY.name,
             KEY_LIQUID_GLASS_CHROMATIC_ABERRATION.name,
             KEY_LIQUID_GLASS_CONTENT_DISTORTION.name,
@@ -8526,6 +9068,9 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             contentDistortion = preferences[KEY_LIQUID_GLASS_CONTENT_DISTORTION],
         )
         return linkedMapOf(
+            KEY_LIQUID_CONTROLS_USE_THEME_COLOR.name to JsonPrimitive(
+                preferences[KEY_LIQUID_CONTROLS_USE_THEME_COLOR] ?: false
+            ),
             KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED.name to JsonPrimitive(
                 preferences[KEY_ANDROID_NATIVE_LIQUID_GLASS_ENABLED] ?: true
             ),
@@ -8555,6 +9100,7 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
             KEY_LIQUID_GLASS_PROGRESSIVE_BLUR_CURVE.name to JsonPrimitive(
                 advancedSettings.progressiveBlurCurve
             ),
+            glassPopupPalettePreferencesKey.name to JsonPrimitive(preferences[glassPopupPalettePreferencesKey] ?: 0),
             liquidGlassReadabilityModePreferencesKey.name to JsonPrimitive(
                 preferences[liquidGlassReadabilityModePreferencesKey]
                     ?: LiquidGlassReadabilityMode.STABLE.value
@@ -8602,8 +9148,14 @@ private val KEY_APP_FONT_WEIGHT = intPreferencesKey("app_font_weight")
                 PlayerSettingsStore.reconcilePlaybackSpeedSelections(preferences)
             }
         }
+        ContentDisplayPreferences.syncRememberPlayerAdjustments(updated)
         if (playbackSpeedChanged) {
             PlayerSettingsStore.syncPlaybackSpeedCache(context, updated)
+        }
+        if (KEY_RESILIENT_VIDEO_BUFFER.name in appliedKeys) {
+            context.getSharedPreferences("auto_play_cache", Context.MODE_PRIVATE).edit()
+                .putBoolean(CACHE_KEY_RESILIENT_VIDEO_BUFFER, updated[KEY_RESILIENT_VIDEO_BUFFER] ?: false)
+                .apply()
         }
 
         return SettingsShareApplyResult(

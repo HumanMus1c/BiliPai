@@ -7,6 +7,48 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PortraitDetailPresentationPolicyTest {
+    @Test
+    fun collapsedPlayToolbarJoinsTheScrollTransitionBeforeTheViewportReachesItsEndpoint() {
+        // 横、竖视频都收向工具栏时，途中就必须绘制渐显层，不能等收起到位才突然出现。
+        listOf(0.25f, 0.7f, 1f).forEach { progress ->
+            assertTrue(shouldShowCollapsedPlayerPlayToolbar(true, progress, 56f, false))
+        }
+        assertFalse(shouldShowCollapsedPlayerPlayToolbar(true, 0f, 56f, false))
+    }
+
+    @Test
+    fun collapsedPlayToolbarDoesNotReplacePlayingOrCompactPortraitMedia() {
+        assertFalse(shouldShowCollapsedPlayerPlayToolbar(false, 1f, 56f, false))
+        assertFalse(shouldShowCollapsedPlayerPlayToolbar(false, 1f, 231.75f, false))
+        assertFalse(shouldShowCollapsedPlayerPlayToolbar(true, 1f, 231.75f, false))
+        assertFalse(shouldShowCollapsedPlayerPlayToolbar(true, 1f, 56f, true))
+    }
+
+    @Test
+    fun fadingToolbarOnlyTakesInputAtTheCollapsedEndpoint() {
+        assertFalse(canInteractWithCollapsedPlayerPlayToolbar(0f))
+        assertFalse(canInteractWithCollapsedPlayerPlayToolbar(0.7f))
+        assertTrue(canInteractWithCollapsedPlayerPlayToolbar(1f))
+    }
+
+
+    @Test
+    fun switchingToCommentsNeverForcesCompactPlayerForAnyModeOrPauseState() {
+        PortraitPlayerCollapseMode.entries.forEach { mode ->
+            listOf(false, true).forEach { paused ->
+                assertFalse(
+                    shouldUseCompactInlinePortraitPlayerForCommentTab(
+                        useOfficialInlinePortraitDetailExperience = true,
+                        selectedTabIndex = 1,
+                        isPortraitFullscreen = false,
+                        collapseMode = mode,
+                        isVerticalVideo = true,
+                        isPlaybackPaused = paused,
+                    )
+                )
+            }
+        }
+    }
 
     @Test
     fun portraitFullscreenPlayback_reusesSharedPlayerForSeamlessSurfaceHandoff() {
@@ -212,6 +254,27 @@ class PortraitDetailPresentationPolicyTest {
 
     @Test
     fun pausedCommentViewport_hidesMediaWithoutChangingOtherCompactSizes() {
+        assertEquals(56f, resolveInlinePlayerCollapsedViewportHeightDp(
+            standardCollapsedHeightDp = 231.75f,
+            hidePausedPlayerForComments = true,
+            retainPlayToolbar = true,
+        ))
+        for (vertical in listOf(true, false)) {
+            assertTrue(shouldEnableInlinePortraitScrollTransform(
+                collapseMode = PortraitPlayerCollapseMode.OFF,
+                selectedTabIndex = 0,
+                isVerticalVideo = vertical,
+                isPlaybackPaused = true,
+            ))
+        }
+        assertEquals(
+            56f,
+            resolveInlinePlayerCollapsedViewportHeightDp(
+                standardCollapsedHeightDp = 56f,
+                hidePausedPlayerForComments = true,
+                retainPlayToolbar = true,
+            )
+        )
         assertEquals(
             0f,
             resolveInlinePlayerCollapsedViewportHeightDp(
@@ -263,7 +326,7 @@ class PortraitDetailPresentationPolicyTest {
                 isPlaybackPaused = false,
             )
         )
-        assertFalse(
+        assertTrue(
             shouldEnableInlinePortraitScrollTransform(
                 collapseMode = PortraitPlayerCollapseMode.OFF,
                 selectedTabIndex = 0,
@@ -282,7 +345,7 @@ class PortraitDetailPresentationPolicyTest {
                 isCommentThreadVisible = true,
             )
         )
-        assertFalse(shouldHidePausedInlinePlayerForComments(0, true))
+        assertTrue(shouldHidePausedInlinePlayerForComments(0, true))
         assertFalse(shouldHidePausedInlinePlayerForComments(1, false))
         assertTrue(shouldHidePausedInlinePlayerForComments(1, true))
         assertTrue(shouldHidePausedInlinePlayerForComments(0, true, isCommentThreadVisible = true))
@@ -302,11 +365,11 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun landscapeDetailPlayerHeight_matchesActualLayoutWidthFor16By9() {
-        // vivo 类窄机：按真实布局宽算 9/16，避免 screenWidthDp 偏差导致左右黑边
-        assertEquals(608, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 1080))
-        assertEquals(684, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 1216))
-        assertEquals(1, resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = 0))
+    fun phoneDetailPlayerHeight_keepsLoadingCoverAndPlayback16By9() {
+        // Loading cover and playback share 16:9 at the actual layout width.
+        assertEquals(608, resolvePhoneDetailPlayerContentHeightPx(layoutWidthPx = 1080))
+        assertEquals(684, resolvePhoneDetailPlayerContentHeightPx(layoutWidthPx = 1216))
+        assertEquals(1, resolvePhoneDetailPlayerContentHeightPx(layoutWidthPx = 0))
     }
 
     @Test
@@ -574,9 +637,9 @@ class PortraitDetailPresentationPolicyTest {
     }
 
     @Test
-    fun inlinePortraitPlayer_scrollProgressFollowsManualOffsetForRestore() {
+    fun inlinePortraitPlayer_compactCommentsAffectLayoutWithoutPausingPlayback() {
         assertEquals(
-            0f,
+            1f,
             resolveInlinePortraitPlayerCollapseProgress(
                 manualCollapseProgress = 0f,
                 compactForCommentTabProgress = 1f
@@ -590,7 +653,7 @@ class PortraitDetailPresentationPolicyTest {
             )
         )
         assertEquals(
-            0.2f,
+            0.6f,
             resolveInlinePortraitPlayerCollapseProgress(
                 manualCollapseProgress = 0.2f,
                 compactForCommentTabProgress = 0.6f
@@ -602,6 +665,18 @@ class PortraitDetailPresentationPolicyTest {
                 manualCollapseProgress = 1f,
                 compactForCommentTabProgress = 1f,
                 restoreRequested = true
+            )
+        )
+    }
+
+    @Test
+    fun inlinePortraitPlayer_pausedCommentsKeepManualHideProgress() {
+        assertEquals(
+            0.2f,
+            resolveInlinePortraitPlayerCollapseProgress(
+                manualCollapseProgress = 0.2f,
+                compactForCommentTabProgress = 1f,
+                hidePausedPlayerForComments = true,
             )
         )
     }
@@ -629,7 +704,7 @@ class PortraitDetailPresentationPolicyTest {
     fun standalonePortraitPagerMotionSpec_keepsExitTransitionShortAndTight() {
         val spec = resolveStandalonePortraitPagerMotionSpec()
 
-        assertEquals(0, spec.enterDurationMillis)
+        assertEquals(240, spec.enterDurationMillis)
         assertEquals(220, spec.exitDurationMillis)
         assertEquals(0.96f, spec.exitScaleTarget)
         assertEquals(0.08f, spec.exitTranslateUpFraction)
@@ -641,23 +716,23 @@ class PortraitDetailPresentationPolicyTest {
     fun continuousPlayerInlineHeight_prefersLayoutWidthWhenExpandedButHonorsCollapse() {
         val layoutWidth = 1080
         val layoutExpanded =
-            resolveLandscapeDetailPlayerContentHeightPx(layoutWidthPx = layoutWidth) + 80
+            resolvePhoneDetailPlayerContentHeightPx(layoutWidthPx = layoutWidth) + 80
         // screenWidthDp 估高：caller 展开高度大于真布局宽 → 取 layout 消黑边
         assertEquals(
             layoutExpanded,
             resolveContinuousPlayerInlineHeightPx(
                 layoutWidthPx = layoutWidth,
-                preferLayoutWidth16x9Inline = true,
+                preferLayoutWidthInline = true,
                 callerInlineHeightPx = layoutExpanded + 40,
                 inlineTopInsetPx = 80,
             ),
         )
-        // 评论上滑折叠：caller 更小 → 必须跟着缩小，不能卡死在 16:9
+        // 评论上滑折叠：caller 更小 → 必须跟着缩小，不能卡死在展开高度
         assertEquals(
             120,
             resolveContinuousPlayerInlineHeightPx(
                 layoutWidthPx = layoutWidth,
-                preferLayoutWidth16x9Inline = true,
+                preferLayoutWidthInline = true,
                 callerInlineHeightPx = 120,
                 inlineTopInsetPx = 80,
             ),
@@ -667,7 +742,7 @@ class PortraitDetailPresentationPolicyTest {
             200,
             resolveContinuousPlayerInlineHeightPx(
                 layoutWidthPx = layoutWidth,
-                preferLayoutWidth16x9Inline = false,
+                preferLayoutWidthInline = false,
                 callerInlineHeightPx = 200,
                 inlineTopInsetPx = 80,
             ),

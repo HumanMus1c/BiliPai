@@ -16,6 +16,20 @@ import kotlin.test.assertTrue
 class VideoInfoDisplayPolicyTest {
 
     @Test
+    fun ownerStats_placesCountsBeforeLabels() {
+        assertEquals(listOf("9粉丝", "2视频"), resolveVideoDetailOwnerStatsLabels(9, 2))
+    }
+
+    @Test
+    fun ownerStats_preservesZeroAndHidesUnknownCounts() {
+        assertEquals(listOf("0粉丝", "0视频"), resolveVideoDetailOwnerStatsLabels(0, 0))
+        assertEquals(listOf("2视频"), resolveVideoDetailOwnerStatsLabels(null, 2))
+        assertEquals(listOf("9粉丝"), resolveVideoDetailOwnerStatsLabels(9, -1))
+        assertEquals(emptyList(), resolveVideoDetailOwnerStatsLabels(null, null))
+        assertEquals(emptyList(), resolveVideoDetailOwnerStatsLabels(-1, -1))
+    }
+
+    @Test
     fun videoInfoInitialExpanded_whenDescriptionOrTagsExist() {
         assertTrue(
             resolveVideoInfoInitialExpandedState(
@@ -197,6 +211,23 @@ class VideoInfoDisplayPolicyTest {
             "发布时间 2小时前  ·  2024-03-01 02:00",
             resolvePublishTimeRowText(
                 pubdate = 1_709_258_400L,
+                partitionName = "资讯",
+                title = "例行发布会速报",
+                nowMs = 1_709_265_600_000L,
+                locale = Locale.US,
+                timeZone = TimeZone.getTimeZone("UTC")
+            )
+        )
+    }
+
+    @Test
+    fun publishTimeRow_dropsDuplicatedDateRelativeForCurrentAffairsVideos() {
+        // 发布超过一周后相对值退化为日期形态（如 02-20），与精确时间重复：
+        // 时政强调行仅保留精确时间，不再双段拼接。
+        assertEquals(
+            "发布时间 2024-02-20 04:00",
+            resolvePublishTimeRowText(
+                pubdate = 1_708_401_600L,
                 partitionName = "资讯",
                 title = "例行发布会速报",
                 nowMs = 1_709_265_600_000L,

@@ -9,7 +9,7 @@ import com.android.purebilibili.data.model.response.SponsorSegment
 import com.android.purebilibili.data.model.response.UgcSeason
 import com.android.purebilibili.data.model.response.VideoshotData
 import com.android.purebilibili.data.model.response.ViewPoint
-import com.android.purebilibili.feature.plugin.CdnLineDiagnostic
+import com.android.purebilibili.plugin.sdk.CdnLineDiagnostic
 import com.android.purebilibili.feature.video.player.PlayMode
 import com.android.purebilibili.feature.video.progress.PbpProgressData
 import com.android.purebilibili.feature.video.state.VideoPlayerState
@@ -26,6 +26,7 @@ import com.android.purebilibili.feature.video.viewmodel.VideoPlaybackUiState
 internal data class VideoPlayerSectionState(
     val playerState: VideoPlayerState,
     val uiState: VideoPlaybackUiState,
+    val engagementState: com.android.purebilibili.feature.video.viewmodel.VideoEngagementUiState? = null,
     val isFullscreen: Boolean = false,
     val isInPipMode: Boolean = false,
     val contentTopInset: Dp = 0.dp,
@@ -34,8 +35,10 @@ internal data class VideoPlayerSectionState(
     val danmakuHostActive: Boolean = true,
     val suppressTransientOverlaysForTransition: Boolean = false,
     val endDrawerRequestKey: Int = 0,
+    val commentStateHandle: androidx.compose.runtime.State<com.android.purebilibili.feature.video.viewmodel.CommentUiState>? = null,
     val landscapeCommentPanelVisible: Boolean = false,
     val landscapeCommentPanelOnLeft: Boolean = true,
+    val landscapeCommentCloseProgressProvider: () -> Float = { 0f },
     val danmakuComposerVisible: Boolean = false,
     val isSendingDanmakuComposer: Boolean = false,
     val danmakuComposerInitialText: String = "",
@@ -74,14 +77,20 @@ internal data class VideoPlayerSectionState(
     val relatedVideos: List<RelatedVideo> = emptyList(),
     val ugcSeason: UgcSeason? = null,
     val isFollowed: Boolean = false,
+    val followStatusKnown: Boolean,
+    val isFollowSubmitting: Boolean,
     val isLiked: Boolean = false,
+    val isDisliked: Boolean = false,
+    val likeStatusKnown: Boolean,
     val isCoined: Boolean = false,
     val isFavorited: Boolean = false,
-    val hasFavoritePlaylist: Boolean = false,
+    val isTripleSubmitting: Boolean,
+    val hasExternalPlaylist: Boolean = false,
     val forceCoverOnly: Boolean = false,
     val preserveCurrentFrameOnFullscreenChange: Boolean = false,
     val liveBackPreview: Boolean = false,
     val useTextureSurfaceForNavigation: Boolean = false,
+    val isPlayerSurfaceReady: Boolean = true,
     val predictiveBackCancelRecoveryGeneration: Int = 0,
     val allowLivePlayerSharedElement: Boolean = true,
     val sourceRouteForSharedElement: String? = null,
@@ -142,13 +151,16 @@ internal data class VideoPlayerSectionActions(
     val onPlayModeClick: () -> Unit = {},
     val onRelatedVideoClick: (String, Bundle?) -> Unit = { _, _ -> },
     val onToggleFollow: () -> Unit = {},
+    val onFollow: () -> Unit,
     val onToggleLike: () -> Unit = {},
     val onDislike: () -> Unit = {},
     val onCoin: () -> Unit = {},
     val onToggleFavorite: () -> Unit = {},
     val onTriple: () -> Unit = {},
     val onPageSelect: (Int) -> Unit = {},
-    val onFavoritePlaylistClick: () -> Unit = {},
+    val onJumpToLastPlayedPart: () -> Unit = {},
+    val onDismissPartResumeNotice: () -> Unit = {},
+    val onExternalPlaylistClick: () -> Unit = {},
     val onSubtitleDisplayModePreferenceOverrideChange: (SubtitleDisplayMode) -> Unit = {},
     val onSubtitleTrackSelected: (String) -> Unit = {},
     val onLikeDanmaku: (Long) -> Unit = {},
@@ -157,4 +169,7 @@ internal data class VideoPlayerSectionActions(
         kotlinx.coroutines.flow.MutableStateFlow(emptySet()),
     val onReportDanmaku: (dmid: Long, reason: Int) -> Unit = { _, _ -> },
     val onRecallDanmaku: (Long) -> Unit = {},
+    val menuActions: com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions =
+        com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions(),
+    val onQuickFavorite: () -> Unit = {},
 )

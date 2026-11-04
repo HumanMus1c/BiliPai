@@ -1,12 +1,15 @@
 // 文件路径: data/repository/LiveRepository.kt
 package com.android.purebilibili.data.repository
 
+import com.android.purebilibili.core.coroutines.AppScope
 import com.android.purebilibili.core.network.AppSignUtils
 import com.android.purebilibili.core.network.NetworkModule
 import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -34,8 +37,16 @@ data class LivePrefetchDanmaku(
     val uid: Long = 0,
     val uname: String = "",
     val text: String = "",
+    val emoticon: LiveMessageEmote? = null,
+    val inlineEmotes: Map<String, LiveMessageEmote> = emptyMap(),
+    val medal: LiveMessageMedal? = null,
+    val medalName: String = "",
+    val medalLevel: Int = 0,
+    val medalColor: Int = 0,
+    val rawMessage: JsonObject? = null,
     val emoticonUrl: String? = null,
     val replyToName: String = "",
+    val replyToUid: Long = 0L,
     val dmType: Int = 0,
     val idStr: String = "",
     val reportTs: Long = 0,
@@ -49,6 +60,17 @@ data class LiveSuperChatSeed(
     val message: String = "",
     val price: String = "",
     val backgroundColor: Int = 0,
+    val headerColor: Int = 0,
+    val messageColor: Int = 0,
+    val nameColor: Int = 0,
+    val face: String = "",
+    val faceFrame: String = "",
+    val headerImage: String = "",
+    val rawInfo: String = "",
+    val medal: LiveMessageMedal? = null,
+    val medalName: String = "",
+    val medalLevel: Int = 0,
+    val medalColor: Int = 0,
     val token: String = "",
     val reportTs: Long = 0,
     val startTime: Long = 0,
@@ -100,6 +122,9 @@ data class LiveDanmakuPermission(
 private const val DEFAULT_LIVE_HEARTBEAT_INTERVAL_SEC = 60
 private const val DEFAULT_LIVE_DANMAKU_MAX_LENGTH = 40
 
+/** App 二级分区列表请求的 page_size；同时用于「无 hasMore/total 元数据」时的到底判断。 */
+private const val LIVE_APP_SECOND_LIST_PAGE_SIZE = 30
+
 internal fun hasPlayableLiveUrl(data: LivePlayUrlData): Boolean {
     if (data.durl.orEmpty().any { it.url.isNotBlank() }) return true
     return data.playurl_info
@@ -130,6 +155,16 @@ internal fun buildLivePlayUrlQuery(roomId: Long, qn: Int, onlyAudio: Boolean): M
         if (onlyAudio) put("only_audio", "1")
     }
 
+private fun parseLiveColorInt(raw: String): Int {
+    val normalized = raw.trim().removePrefix("#")
+    val value = normalized.toLongOrNull(16)?.toInt() ?: return 0
+    return when (normalized.length) {
+        6 -> value or 0xFF000000.toInt()
+        8 -> value
+        else -> 0
+    }
+}
+
 internal fun parseLiveDanmakuHistoryItems(rawJson: String): Result<List<LivePrefetchDanmaku>> {
     val root = liveRepositoryJson.parseToJsonElement(rawJson).jsonObject
     if (root.int("code", -1) != 0) {
@@ -141,6 +176,7 @@ internal fun parseLiveDanmakuHistoryItems(rawJson: String): Result<List<LivePref
             val obj = element as? JsonObject ?: return@forEach
             val user = obj.obj("user")
             val base = user?.obj("base")
+            val messageMedal = parseLiveMessageMedal(user?.obj("medal"))
             val checkInfo = obj.obj("check_info")
             val reply = obj.obj("reply")
             add(
@@ -148,10 +184,18 @@ internal fun parseLiveDanmakuHistoryItems(rawJson: String): Result<List<LivePref
                     uid = user?.long("uid") ?: 0L,
                     uname = base?.string("name").orEmpty(),
                     text = obj.string("text"),
+                    rawMessage = obj,
+                    medal = messageMedal,
+                    emoticon = parseLiveMessageEmote(obj.obj("emoticon")),
+                    inlineEmotes = parseLiveMessageEmotes(obj.obj("emots")),
+                    medalName = messageMedal?.name.orEmpty(),
+                    medalLevel = messageMedal?.level ?: 0,
+                    medalColor = messageMedal?.backgroundColor ?: 0,
                     emoticonUrl = obj.obj("emoticon")
                         ?.string("url")
                         ?.takeIf { it.isNotBlank() },
                     replyToName = reply?.string("reply_uname").orEmpty(),
+                    replyToUid = reply?.long("reply_mid") ?: 0L,
                     dmType = obj.int("dm_type"),
                     idStr = obj.string("id_str"),
                     reportTs = checkInfo?.long("ts") ?: 0L,
@@ -264,6 +308,7 @@ internal fun parseLiveShieldInfo(rawJson: String): Result<LiveShieldInfo> {
                 shieldInfo.optJSONArray("user_list")
                     ?: shieldInfo.optJSONArray("shield_user_list")
                     ?: data.optJSONArray("user_list")
+                    ?: data.optJSONArray("shield_user_list")
             )
         )
     }
@@ -328,12 +373,13 @@ private fun firstPositiveLong(json: JSONObject, vararg names: String): Long {
 
 enum class LiveContributionRankType(
     val title: String,
-    val switchValue: String
+    val switchValue: String,
+    val apiValue: String,
 ) {
-    ONLINE("在线榜", "contribution_rank"),
-    DAILY("日榜", "today_rank"),
-    WEEKLY("周榜", "current_week_rank"),
-    MONTHLY("月榜", "current_month_rank")
+    ONLINE("在线榜", "contribution_rank", "online_rank"),
+    DAILY("日榜", "today_rank", "daily_rank"),
+    WEEKLY("周榜", "current_week_rank", "weekly_rank"),
+    MONTHLY("月榜", "current_month_rank", "monthly_rank")
 }
 
 private val liveRepositoryJson = Json {
@@ -530,7 +576,15 @@ object LiveRepository {
                     Result.failure(Exception(resp.message.ifBlank { "直播 feed 加载失败" }))
                 }
             }
-            Result.success(parseLiveFeedHomeSnapshot(data))
+            val snapshot = parseLiveFeedHomeSnapshot(data)
+            val loggedIn = TokenManager.midCache?.let { it > 0 } == true || !TokenManager.sessDataCache.isNullOrBlank()
+            val resolved = if (page == 1 && loggedIn && needsLiveFollowSupplement(snapshot)) {
+                getAllFollowedLive().fold(
+                    onSuccess = { supplementLiveFollowSnapshot(snapshot, it.items, it.totalCount) },
+                    onFailure = { snapshot.copy(followError = it.message ?: "关注直播加载失败") },
+                )
+            } else snapshot
+            Result.success(resolved)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (page == 1) fallbackLiveFeedHome() else Result.failure(e)
@@ -567,7 +621,9 @@ object LiveRepository {
                 val hasMore = hasMoreLiveAreaRooms(
                     loadedCount = checkedRespData.list.orEmpty().size,
                     page = page,
-                    pageSize = 20,
+                    // 传请求时的 page_size（而非实际返回条数）：无 hasMore/total 时按
+                    // 「短页即到底」兜底，且不会因服务器少回条目而误判。
+                    pageSize = LIVE_APP_SECOND_LIST_PAGE_SIZE,
                     hasMoreFlag = checkedRespData.hasMore,
                     totalCount = checkedRespData.count
                 )
@@ -629,6 +685,73 @@ object LiveRepository {
         return AppSignUtils.signForAndroidApi(params)
     }
 
+    suspend fun submitLiveFeedFeedback(
+        roomId: Long,
+        reason: com.android.purebilibili.data.model.response.LiveFeedbackReason,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (roomId <= 0 || reason.idType.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("无效的直播反馈选项"))
+        }
+        try {
+            val params = buildLiveAppFeedParams(1, false).toMutableMap().apply {
+                remove("sign")
+                remove("relation_page")
+                put("room_id", roomId.toString())
+                put("id", reason.id.toString())
+                put("id_type", reason.idType)
+                put("type", "dislike")
+            }
+            val response = api.submitLiveFeedFeedback(AppSignUtils.signForAndroidApi(params))
+            if (response.code == 0) Result.success(Unit)
+            else Result.failure(IllegalStateException(response.message.ifBlank { "提交反馈失败" }))
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
+    private fun buildLiveFavoriteTagParams(tags: List<LiveFavoriteTagEntry>? = null): Map<String, String> {
+        val params = buildLiveAppFeedParams(1, false).toMutableMap()
+        params.remove("sign")
+        params.remove("page")
+        params.remove("relation_page")
+        if (tags != null) params["tags"] = tags.joinToString(",") { it.areaId.toString() }
+        return AppSignUtils.signForAndroidApi(params)
+    }
+
+    suspend fun getLiveFavoriteTags(): Result<List<LiveFavoriteTagEntry>> = withContext(Dispatchers.IO) {
+        try {
+            val root = JSONObject(api.getLiveFavoriteTagsRaw(buildLiveFavoriteTagParams()).use { it.string() })
+            if (root.optInt("code", -1) != 0) return@withContext Result.failure(Exception(root.optString("message", "获取常用标签失败")))
+            val tags = root.optJSONObject("data")?.optJSONArray("tags")
+            Result.success(buildList {
+                for (index in 0 until (tags?.length() ?: 0)) {
+                    val tag = tags?.optJSONObject(index) ?: continue
+                    val id = tag.optInt("id")
+                    if (id <= 0) continue
+                    add(LiveFavoriteTagEntry(tag.optInt("parent_id"), id, tag.optString("name"), tag.optString("pic"), tag.optString("parent_name")))
+                }
+            })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun setLiveFavoriteTags(tags: List<LiveFavoriteTagEntry>): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val root = JSONObject(api.setLiveFavoriteTagsRaw(buildLiveFavoriteTagParams(tags)).use { it.string() })
+            if (root.optInt("code", -1) == 0) Result.success(Unit)
+            else Result.failure(Exception(root.optString("message", "保存常用标签失败")))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun buildLiveAppSecondListParams(
         page: Int,
         parentAreaId: Int,
@@ -653,7 +776,7 @@ object LiveRepository {
             "module_select" to "0",
             "network" to "wifi",
             "page" to page.toString(),
-            "page_size" to "20",
+            "page_size" to LIVE_APP_SECOND_LIST_PAGE_SIZE.toString(),
             "platform" to "android",
             "qn" to "0",
             "tag_version" to "1",
@@ -673,7 +796,8 @@ object LiveRepository {
 
     private suspend fun fallbackLiveFeedHome(): Result<LiveFeedHomeSnapshot> {
         val recommend = getRecommendedLiveRooms().getOrElse { emptyList() }
-        val follow = getFollowedLive(page = 1).getOrElse { emptyList() }
+        val followedPage = getAllFollowedLive().getOrNull()
+        val follow = followedPage?.items.orEmpty()
         val areas = getLiveAreaIndex().getOrElse { emptyList() }
             .map {
                 LiveFeedAreaEntry(
@@ -685,18 +809,58 @@ object LiveRepository {
         return Result.success(
             LiveFeedHomeSnapshot(
                 rooms = recommend,
+                hasFollowModule = followedPage != null,
+                followError = if (followedPage == null) "关注直播加载失败" else null,
                 followRooms = follow,
+                totalCount = followedPage?.totalCount,
                 areaEntries = areas,
                 hasMore = recommend.size >= 20,
             )
         )
     }
 
-    suspend fun getLiveAreaIndex(): Result<List<LiveAreaParent>> = withContext(Dispatchers.IO) {
+    // 分区索引复用：并发调用共享同一个 in-flight 请求（去重），成功结果缓存短 TTL，
+    // 失败不入缓存——下次调用会重新请求，避免把一次失败固化成长期空数据。
+    private val areaIndexMutex = kotlinx.coroutines.sync.Mutex()
+    private var areaIndexCache: List<LiveAreaParent>? = null
+    private var areaIndexCachedAt = 0L
+    private var areaIndexInFlight: kotlinx.coroutines.Deferred<Result<List<LiveAreaParent>>>? = null
+
+    private const val AREA_INDEX_TTL_MS = 60_000L
+
+    suspend fun getLiveAreaIndex(): Result<List<LiveAreaParent>> {
+        // 先在锁内决定：命中缓存 / 复用 in-flight / 新建共享请求。
+        val start = areaIndexMutex.withLock {
+            val now = android.os.SystemClock.elapsedRealtime()
+            areaIndexCache?.takeIf { now - areaIndexCachedAt < AREA_INDEX_TTL_MS }?.let {
+                return Result.success(it)
+            }
+            val inFlight = areaIndexInFlight
+            if (inFlight != null) {
+                inFlight
+            } else {
+                val created = AppScope.ioScope.async { fetchLiveAreaIndex() }
+                areaIndexInFlight = created
+                created
+            }
+        }
+        val result = start.await()
+        areaIndexMutex.withLock {
+            // 无论成功失败都清 in-flight；只有成功才写缓存（失败不入缓存）。
+            if (areaIndexInFlight === start) areaIndexInFlight = null
+            result.getOrNull()?.let { areas ->
+                areaIndexCache = areas
+                areaIndexCachedAt = android.os.SystemClock.elapsedRealtime()
+            }
+        }
+        return result
+    }
+
+    private suspend fun fetchLiveAreaIndex(): Result<List<LiveAreaParent>> = withContext(Dispatchers.IO) {
         try {
             val resp = api.getLiveAreaList()
-            if (resp.code == 0) {
-                Result.success(resp.data ?: emptyList())
+            if (resp.code == 0 && resp.data != null) {
+                Result.success(requireNotNull(resp.data))
             } else {
                 Result.failure(Exception(resp.message.ifBlank { resp.msg.ifBlank { "获取直播标签失败" } }))
             }
@@ -799,32 +963,54 @@ object LiveRepository {
      */
     suspend fun getFollowedLive(page: Int = 1): Result<List<LiveRoom>> = getFollowedLivePage(page).map { it.items }
 
+    /** 首页关注条聚合各页，不把接口首批数据当作完整关注列表。 */
+    private suspend fun getAllFollowedLive(): Result<LivePagedResult<LiveRoom>> {
+        val rooms = linkedMapOf<Long, LiveRoom>()
+        var page = 1
+        var total: Int? = null
+        while (true) {
+            val result = getFollowedLivePage(page)
+            val data = result.getOrElse {
+                if (rooms.isEmpty()) return Result.failure(it)
+                return Result.success(LivePagedResult(rooms.values.toList(), true, page, total))
+            }
+            val before = rooms.size
+            data.items.forEach { rooms[it.roomid] = it }
+            total = data.totalCount ?: total
+            if (!data.hasMore || (data.items.isNotEmpty() && rooms.size == before)) {
+                return Result.success(LivePagedResult(rooms.values.toList(), false, page + 1, total))
+            }
+            page = data.nextPage
+        }
+    }
+
     suspend fun getFollowedLivePage(
         page: Int = 1,
-        pageSize: Int = 50
+        pageSize: Int = 9
     ): Result<LivePagedResult<LiveRoom>> = withContext(Dispatchers.IO) {
         try {
-            val resp = api.getFollowedLive(page = page, pageSize = pageSize)
+            val resp = api.getFollowedLive(page = page, pageSize = pageSize.coerceIn(1, 10))
             if (resp.code != 0) {
                 return@withContext Result.failure(Exception(resp.message.ifBlank { "获取关注直播失败" }))
             }
-            val rooms = resp.data?.list.orEmpty()
+            val data = checkNotNull(resp.data) { "关注直播数据为空" }
+            val rooms = data.list.orEmpty()
             val followedRooms = rooms.filter { it.liveStatus == 1 }
 
             val liveRooms = followedRooms.map { it.toLiveRoom() }
             val pageInfo = resp.data?.pageinfo
-            val hasMore = when {
-                pageInfo != null && pageInfo.total_page > 0 -> page < pageInfo.total_page
-                rooms.size >= pageSize -> true
-                else -> false
-            }
+            val hasMore = hasMoreFollowedLivePages(
+                page = page,
+                returnedRoomCount = rooms.size,
+                totalPages = data.totalPage.takeIf { it > 0 } ?: pageInfo?.total_page ?: 0,
+            )
 
             Result.success(
                 LivePagedResult(
                     items = liveRooms.distinctBy { it.roomid },
                     hasMore = hasMore,
                     nextPage = page + 1,
-                    totalCount = resp.data?.livingNum ?: liveRooms.size
+                    totalCount = data.livingNum?.takeIf { it >= 0 }?.coerceAtLeast(liveRooms.size)
                 )
             )
         } catch (e: Exception) {
@@ -865,20 +1051,11 @@ object LiveRepository {
     }
 
     private suspend fun signWithWbi(params: Map<String, String>): Map<String, String> {
-        return try {
-            val navResp = api.getNavInfo()
-            val wbiImg = navResp.data?.wbi_img
-            val imgKey = wbiImg?.img_url?.substringAfterLast("/")?.substringBefore(".") ?: ""
-            val subKey = wbiImg?.sub_url?.substringAfterLast("/")?.substringBefore(".") ?: ""
-            if (imgKey.isNotEmpty() && subKey.isNotEmpty()) {
-                com.android.purebilibili.core.network.WbiUtils.sign(params, imgKey, subKey)
-            } else {
-                params
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            params
-        }
+        // 复用 WbiKeyManager 的缓存，避免每次请求都打一次 /x/web-interface/nav。
+        val keys = com.android.purebilibili.core.network.WbiKeyManager.getWbiKeys().getOrNull()
+            ?: com.android.purebilibili.core.network.WbiKeyManager.refreshKeys().getOrNull()
+            ?: return params
+        return com.android.purebilibili.core.network.WbiUtils.sign(params, keys.first, keys.second)
     }
 
     suspend fun getLiveDanmakuHistory(roomId: Long): Result<List<LivePrefetchDanmaku>> = withContext(Dispatchers.IO) {
@@ -933,6 +1110,7 @@ object LiveRepository {
                     for (index in 0 until list.length()) {
                         val obj = list.optJSONObject(index) ?: continue
                         val user = obj.optJSONObject("user_info")
+                        val medal = parseLiveSuperChatMedal(liveRepositoryJson.parseToJsonElement(obj.toString()).jsonObject)
                         add(
                             LiveSuperChatSeed(
                                 id = obj.optLong("id", obj.optLong("message_id", 0L)),
@@ -945,6 +1123,17 @@ object LiveRepository {
                                         obj.optString("background_color")
                                     }
                                 ),
+                                headerColor = parseLiveColorInt(obj.optString("background_color")),
+                                messageColor = parseLiveColorInt(obj.optString("message_font_color")),
+                                nameColor = parseLiveColorInt(user?.optString("name_color").orEmpty()),
+                                face = user?.optString("face").orEmpty(),
+                                faceFrame = user?.optString("face_frame").orEmpty(),
+                                headerImage = obj.optString("background_image"),
+                                rawInfo = obj.toString(),
+                                medal = medal,
+                                medalName = medal?.name.orEmpty(),
+                                medalLevel = medal?.level ?: 0,
+                                medalColor = medal?.backgroundColor ?: 0,
                                 token = obj.optString("token"),
                                 reportTs = obj.optLong("ts", obj.optLong("start_time", 0L)),
                                 startTime = obj.optLong("start_time", 0L),
@@ -1001,7 +1190,7 @@ object LiveRepository {
                     "room_id" to realRoomId.toString(),
                     "page" to page.toString(),
                     "page_size" to "100",
-                    "type" to type.name.lowercase(),
+                    "type" to type.apiValue,
                     "switch" to type.switchValue,
                     "platform" to "web",
                     "web_location" to "444.8"
@@ -1384,7 +1573,7 @@ object LiveRepository {
     }
 
     /**
-     * 进房上报（登录态，写入直播观看历史；对齐 PiliPlus roomEntryAction）
+     * 进房上报（登录态，写入直播观看历史）
      */
     suspend fun reportRoomEntry(roomId: Long): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
@@ -1432,13 +1621,5 @@ object LiveRepository {
     }
 
 
-    private fun parseLiveColorInt(raw: String): Int {
-        val normalized = raw.trim().removePrefix("#")
-        val value = normalized.toLongOrNull(16)?.toInt() ?: return 0
-        return when (normalized.length) {
-            6 -> value or 0xFF000000.toInt()
-            8 -> value
-            else -> 0
-        }
-    }
+
 }

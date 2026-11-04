@@ -2,6 +2,15 @@
 
 package com.android.purebilibili.feature.settings
 
+import com.android.purebilibili.core.theme.SeedPaletteStyle
+import com.android.purebilibili.core.theme.SeedPresetColors
+import com.android.purebilibili.core.theme.SeedPresetColorNames
+import com.android.purebilibili.core.theme.rememberSeedStyleSwatches
+
+import com.android.purebilibili.feature.settings.screen.DarkThemeSchedulePreference
+
+import com.android.purebilibili.core.ui.AppContentColors
+
 import com.android.purebilibili.core.ui.components.AppColorPicker
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.AppIconStyle
@@ -56,6 +65,7 @@ import com.android.purebilibili.R
 import com.android.purebilibili.core.store.BackToTopSettingsStore
 import com.android.purebilibili.core.store.DEFAULT_BACK_TO_TOP_BUTTON_ENABLED
 import com.android.purebilibili.core.store.HomeDurationStyle
+import com.android.purebilibili.core.store.HomeFeedCardWidthPreset
 import com.android.purebilibili.core.store.HomeFeedCardStyle
 import com.android.purebilibili.core.store.HomeWallpaperEffectMode
 import com.android.purebilibili.core.store.CommonListHeaderCollapseMode
@@ -73,7 +83,6 @@ import com.android.purebilibili.core.ui.adaptive.resolveDeviceUiProfile
 import com.android.purebilibili.core.ui.adaptive.resolveEffectiveMotionTier
 import com.android.purebilibili.core.ui.blur.BlurIntensity
 import com.android.purebilibili.core.ui.blur.resolveHomeChromeLiquidGlassEnabled
-import com.android.purebilibili.core.ui.blur.shouldAllowHomeChromeLiquidGlass
 import com.android.purebilibili.core.ui.performance.SYSTEM_AUTO_DISPLAY_MODE_ID
 import com.android.purebilibili.core.ui.performance.applyPreferredDisplayMode
 import com.android.purebilibili.core.ui.performance.displayModePreferenceLabel
@@ -112,8 +121,9 @@ fun AppearanceSettingsScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val homeConfiguration = rememberSettingsHomeConfiguration()
     val effectiveLiquidGlassEnabled = resolveHomeChromeLiquidGlassEnabled(
-        userEnabled = state.androidNativeLiquidGlassEnabled,
+        userEnabled = homeConfiguration.androidNativeLiquidGlassEnabled,
         sdkInt = Build.VERSION.SDK_INT,
     )
     val coroutineScope = rememberCoroutineScope()
@@ -121,7 +131,7 @@ fun AppearanceSettingsScreen(
     val backLabel = stringResource(R.string.common_back)
     val screenTitle = when (contentMode) {
         AppearanceSettingsContentMode.APPEARANCE -> stringResource(R.string.appearance_settings_title)
-        AppearanceSettingsContentMode.HOME -> "首页与动态"
+        AppearanceSettingsContentMode.HOME -> context.getString(R.string.appearance_home_and_dynamic_title)
     }
     val restartDialogTitle = stringResource(R.string.app_language_restart_dialog_title)
     val restartDialogMessage = stringResource(R.string.app_language_restart_dialog_message)
@@ -137,7 +147,7 @@ fun AppearanceSettingsScreen(
             if (state.isBottomBarFloating) 0.1f else 0f
         ).coerceIn(0f, 1f)
     val appearanceAnimationSpeed = if (state.dynamicColor) 1.1f else 1f
-    
+
     val bottomContentPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     //  [修复] 设置导航栏透明，确保底部手势栏沉浸式效果
@@ -236,12 +246,13 @@ fun AppearanceSettingsContent(
     onAppLanguageChange: (AppLanguage) -> Unit,
     onAnimationClick: () -> Unit = {},
 ) {
+    val homeConfiguration = rememberSettingsHomeConfiguration()
+    val themeConfiguration = rememberSettingsThemeConfiguration()
     val activity = context as? android.app.Activity
     val supportedDisplayModes = remember(activity) {
         activity?.supportedAppDisplayModes().orEmpty()
     }
-    val storedScreenDisplayModeId by SettingsManager
-        .getScreenDisplayModeId(context)
+    val storedScreenDisplayModeId by remember(context) { SettingsManager.getScreenDisplayModeId(context) }
         .collectAsStateWithLifecycle(initialValue = SYSTEM_AUTO_DISPLAY_MODE_ID)
     val selectedScreenDisplayModeId = remember(storedScreenDisplayModeId, supportedDisplayModes) {
         normalizePreferredDisplayModeId(
@@ -250,7 +261,7 @@ fun AppearanceSettingsContent(
         )
     }
     val screenDisplayModeOptions = remember(supportedDisplayModes) {
-        listOf(AppSegmentOption(SYSTEM_AUTO_DISPLAY_MODE_ID, "跟随系统")) +
+        listOf(AppSegmentOption(SYSTEM_AUTO_DISPLAY_MODE_ID, context.getString(R.string.appearance_display_follow_system))) +
             supportedDisplayModes.map { mode ->
                 AppSegmentOption(mode.modeId, displayModePreferenceLabel(mode))
             }
@@ -258,29 +269,45 @@ fun AppearanceSettingsContent(
     val selectedScreenDisplayModeLabel = screenDisplayModeOptions
         .firstOrNull { option -> option.value == selectedScreenDisplayModeId }
         ?.label
-        ?: "跟随系统"
-    val singleChoicePresentation by SettingsManager
-        .getSingleChoicePresentation(context)
-        .collectAsStateWithLifecycle(AppSingleChoicePresentation.WINDOW_POPUP)
-    val pinchToChangeGridColumnsEnabled by SettingsManager
-        .getPinchToChangeGridColumnsEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val singleChoicePresentationOptions = remember {
+        ?: context.getString(R.string.appearance_display_follow_system)
+    val singleChoicePresentation = themeConfiguration.singleChoicePresentation
+    val pinchToChangeGridColumnsEnabled = homeConfiguration.pinchToChangeGridColumnsEnabled
+    val appListItemStyleOptions = remember(context) {
+        resolveAppListItemStyleOptions().map { option ->
+            option.copy(label = context.getString(when (option.value) {
+                AppListItemStyle.AUTO -> R.string.appearance_option_follow_preset
+                AppListItemStyle.CUSTOM -> R.string.appearance_option_custom_list_items
+                AppListItemStyle.NATIVE -> R.string.appearance_option_native_components
+            }))
+        }
+    }
+    val appIconStyleOptions = remember(context) {
+        resolveAppIconStyleOptions().map { option ->
+            option.copy(label = context.getString(when (option.value) {
+                AppIconStyle.AUTO -> R.string.appearance_option_follow_preset
+                AppIconStyle.SOFT_COLORFUL -> R.string.appearance_option_soft_colorful
+                AppIconStyle.VIVID_COLORFUL -> R.string.appearance_option_vivid_colorful
+                AppIconStyle.THEME_CONTAINER -> R.string.appearance_option_theme_container
+                AppIconStyle.MD3_STANDARD -> R.string.appearance_option_monochrome_line
+            }))
+        }
+    }
+    val singleChoicePresentationOptions = remember(context) {
         listOf(
-            AppSegmentOption(AppSingleChoicePresentation.WINDOW_POPUP, "选项旁展开"),
-            AppSegmentOption(AppSingleChoicePresentation.CENTERED_DIALOG, "居中弹窗"),
+            AppSegmentOption(AppSingleChoicePresentation.WINDOW_POPUP, context.getString(R.string.appearance_display_choice_popup)),
+            AppSegmentOption(AppSingleChoicePresentation.CENTERED_DIALOG, context.getString(R.string.appearance_display_choice_dialog)),
         )
     }
     val listState = rememberLazyListState()
     val focusRequest by SettingsSearchFocusController.request.collectAsStateWithLifecycle()
     // Animation Trigger
-    val displayModeTint = rememberAdaptiveSemanticIconTint(iOSBlue)
+    val displayModeTint = rememberAdaptiveSemanticIconTint(AppContentColors.accent())
 
     val displayMetricsSnapshot = LocalDisplayMetricsSnapshot.current
     val windowSizeClass = LocalWindowSizeClass.current
     val isTablet = windowSizeClass.isTablet
     val sectionKeys = when (contentMode) {
-        AppearanceSettingsContentMode.APPEARANCE -> listOf("appearance_display_mode", "appearance_theme_color", "appearance_text_size", "appearance_splash_icon", "appearance_language")
+        AppearanceSettingsContentMode.APPEARANCE -> listOf("appearance_display_mode", "appearance_theme_color", "appearance_text_size", "appearance_splash_icon", "content_image_display", "appearance_language")
         AppearanceSettingsContentMode.HOME -> listOf("home_list", "home_wallpaper", "home_recommendation", "home_browsing")
     }.flatMap { listOf(it + "_title", it) }
     SettingsSectionFocusEffect(
@@ -289,6 +316,7 @@ fun AppearanceSettingsContent(
         sectionKeys = if (contentMode == AppearanceSettingsContentMode.APPEARANCE) sectionKeys else sectionKeys + "home_options",
         legacyKeys = mapOf(
             SettingsSearchFocusIds.APPEARANCE_THEME to "appearance_display_mode_title",
+            "appearance.dark_theme_schedule" to "appearance_theme_color",
             SettingsSearchFocusIds.APPEARANCE_DISPLAY to "appearance_text_size_title",
             SettingsSearchFocusIds.APPEARANCE_SPLASH to "appearance_splash_icon_title",
             SettingsSearchFocusIds.APPEARANCE_PERSONALIZATION to "appearance_splash_icon_title",
@@ -413,115 +441,90 @@ fun AppearanceSettingsContent(
         navigationBarsBottom = navigationBarBottomPadding,
         expandableSectionEnabled = true
     )
-    val compactVideoStatsOnCover by SettingsManager
-        .getCompactVideoStatsOnCover(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val backToTopButtonEnabled by BackToTopSettingsStore
-        .isEnabled(context)
+    val compactVideoStatsOnCover = homeConfiguration.compactVideoStatsOnCover
+    val backToTopButtonEnabled by remember(context) { BackToTopSettingsStore.isEnabled(context) }
         .collectAsStateWithLifecycle(initialValue = DEFAULT_BACK_TO_TOP_BUTTON_ENABLED)
     val backToTopCustomOffset by remember(context) {
         BackToTopSettingsStore.getCustomOffsetDp(context)
     }.collectAsStateWithLifecycle(initialValue = BackToTopSettingsStore.getCachedOffsetDp())
     val hasCustomBackToTopOffset = backToTopCustomOffset.first != 0f || backToTopCustomOffset.second != 0f
-    val dedicatedHomeWallpaperUri by SettingsManager
-        .getHomeWallpaperUri(context)
-        .collectAsStateWithLifecycle(initialValue = "")
-    val splashWallpaperFallbackUri by SettingsManager
-        .getSplashWallpaperUri(context)
+    val homeWallpaperSelection by remember(context) { SettingsManager.getHomeWallpaperSelection(context) }
+        .collectAsStateWithLifecycle(initialValue = com.android.purebilibili.core.store.home.HomeWallpaperSelection())
+    val dedicatedHomeWallpaperUri = homeWallpaperSelection.uri
+    val wallpaperPreviewIsTablet = com.android.purebilibili.core.util.LocalWindowSizeClass.current.isTablet
+    val splashWallpaperFallbackUri by remember(context) { SettingsManager.getSplashWallpaperUri(context) }
         .collectAsStateWithLifecycle(initialValue = "")
     val resolvedHomeWallpaperUri = remember(dedicatedHomeWallpaperUri, splashWallpaperFallbackUri) {
         dedicatedHomeWallpaperUri.ifBlank { splashWallpaperFallbackUri }.trim()
     }
     val homeWallpaperFollowsSplash = dedicatedHomeWallpaperUri.isBlank() && splashWallpaperFallbackUri.isNotBlank()
-    val homeWallpaperEffectMode by SettingsManager
-        .getHomeWallpaperEffectMode(context)
-        .collectAsStateWithLifecycle(initialValue = HomeWallpaperEffectMode.SOFT_BLUR)
-    val homeWallpaperEffectScope by SettingsManager
-        .getHomeWallpaperEffectScope(context)
-        .collectAsStateWithLifecycle(initialValue = HomeWallpaperEffectScope.HOME_ONLY)
+    val homeWallpaperIsStatic = com.android.purebilibili.core.ui.wallpaper.rememberIsStaticWallpaper(resolvedHomeWallpaperUri)
+    val homeWallpaperEffectMode = homeConfiguration.homeWallpaperEffectMode
+    val homeWallpaperEffectScope = homeConfiguration.homeWallpaperEffectScope
     val homeWallpaperEffectOptions = remember {
         listOf(
-            AppSegmentOption(HomeWallpaperEffectMode.OFF, "关闭"),
-            AppSegmentOption(HomeWallpaperEffectMode.SOFT_BLUR, "柔和"),
-            AppSegmentOption(HomeWallpaperEffectMode.STRONG_BLUR, "强模糊"),
-            AppSegmentOption(HomeWallpaperEffectMode.ORIGINAL, "原图")
+            AppSegmentOption(HomeWallpaperEffectMode.OFF, context.getString(R.string.appearance_wallpaper_effect_off)),
+            AppSegmentOption(HomeWallpaperEffectMode.SOFT_BLUR, context.getString(R.string.appearance_wallpaper_effect_soft)),
+            AppSegmentOption(HomeWallpaperEffectMode.STRONG_BLUR, context.getString(R.string.appearance_wallpaper_effect_strong)),
+            AppSegmentOption(HomeWallpaperEffectMode.ORIGINAL, context.getString(R.string.appearance_wallpaper_effect_original))
         )
     }
     val homeWallpaperEffectScopeOptions = remember {
         listOf(
-            AppSegmentOption(HomeWallpaperEffectScope.HOME_ONLY, "仅首页"),
-            AppSegmentOption(HomeWallpaperEffectScope.GLOBAL, "首页与聊天")
+            AppSegmentOption(HomeWallpaperEffectScope.HOME_ONLY, context.getString(R.string.appearance_wallpaper_scope_home)),
+            AppSegmentOption(HomeWallpaperEffectScope.GLOBAL, context.getString(R.string.appearance_wallpaper_scope_global))
         )
     }
-    val showPgcTimeline by SettingsManager
-        .getShowPgcTimeline(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val commonListHeaderCollapseMode by SettingsManager
-        .getCommonListHeaderCollapseMode(context)
-        .collectAsStateWithLifecycle(initialValue = CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY)
+    val showPgcTimeline = homeConfiguration.showPgcTimeline
+    val commonListHeaderCollapseMode = homeConfiguration.commonListHeaderCollapseMode
     val commonListHeaderCollapseOptions = remember {
         listOf(
-            AppSegmentOption(CommonListHeaderCollapseMode.ALWAYS_VISIBLE, "始终显示"),
-            AppSegmentOption(CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL, "上滑时显示"),
-            AppSegmentOption(CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY, "仅回顶显示")
+            AppSegmentOption(CommonListHeaderCollapseMode.ALWAYS_VISIBLE, context.getString(R.string.appearance_header_always)),
+            AppSegmentOption(CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL, context.getString(R.string.appearance_header_reverse_scroll)),
+            AppSegmentOption(CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY, context.getString(R.string.appearance_header_top_only))
         )
     }
-    val homeUpBadgesVisible by SettingsManager
-        .getHomeUpBadgesVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val homeUpAvatarsVisible by SettingsManager
-        .getHomeUpAvatarsVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val homeRefreshTipVisible by SettingsManager
-        .getHomeRefreshTipVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val homePublishTimeVisible by SettingsManager
-        .getHomePublishTimeVisible(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val homeRefreshUndoVisible by SettingsManager
-        .getHomeRefreshUndoVisible(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val fullVideoCardContentVisible by SettingsManager
-        .getFullVideoCardContentVisible(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val videoCardLongPressActionEnabled by SettingsManager
-        .getVideoCardLongPressActionEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val homeCardDynamicTintEnabled by SettingsManager
-        .getHomeCardDynamicTintEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val homeCardFrostedGlassEnabled by SettingsManager
-        .getHomeCardFrostedGlassEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val homeDurationStyle by SettingsManager
-        .getHomeDurationStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeDurationStyle.OUTSIDE_COVER)
-    val homeFeedCardStyle by SettingsManager
-        .getHomeFeedCardStyle(context)
-        .collectAsStateWithLifecycle(initialValue = HomeFeedCardStyle.BILIPAI)
-    val homeHeroCarouselEnabled by SettingsManager
-        .getHomeHeroCarouselEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = true)
-    val homeHeroCarouselAutoplayEnabled by SettingsManager
-        .getHomeHeroCarouselAutoplayEnabled(context)
-        .collectAsStateWithLifecycle(initialValue = false)
-    val themeRoleOverrides by SettingsManager
-        .getThemeRoleOverrides(context)
-        .collectAsStateWithLifecycle(initialValue = ThemeRoleOverrides())
+    val homeUpBadgesVisible = homeConfiguration.showHomeUpBadges
+    val homeUpAvatarsVisible = homeConfiguration.showHomeUpAvatars
+    val homeRefreshTipVisible = homeConfiguration.homeRefreshTipVisible
+    val homePublishTimeVisible = homeConfiguration.showHomePublishTime
+    val homeRefreshUndoVisible = homeConfiguration.homeRefreshUndoVisible
+    val fullVideoCardContentVisible = homeConfiguration.showFullVideoCardContent
+    val videoCardLongPressActionEnabled = homeConfiguration.videoCardLongPressActionEnabled
+    val homeCardDynamicTintEnabled = homeConfiguration.homeCardDynamicTintEnabled
+    val homeDurationStyle = homeConfiguration.homeDurationStyle
+    val homeFeedCardStyle = homeConfiguration.homeFeedCardStyle
+    val homeHeroCarouselEnabled = homeConfiguration.homeHeroCarouselEnabled
+    val homeHeroCarouselAutoplayEnabled = homeConfiguration.homeHeroCarouselAutoplayEnabled
+    val storedThemeRoleOverrides = themeConfiguration.themeRoleOverrides
     val baseThemeRoleOverrides = LocalBaseThemeRoleOverrides.current
-    val showOnlineCount by SettingsManager
-        .getShowOnlineCount(context)
+    val themeRoleOverrides = remember(storedThemeRoleOverrides, baseThemeRoleOverrides, state.md3CustomColorHex) {
+        if (storedThemeRoleOverrides.enabled) {
+            com.android.purebilibili.core.theme.enableThemeRoleOverrides(
+                storedThemeRoleOverrides, baseThemeRoleOverrides, state.md3CustomColorHex,
+            )
+        } else storedThemeRoleOverrides
+    }
+    val showOnlineCount by remember(context) { SettingsManager.getShowCardOnlineCount(context) }
         .collectAsStateWithLifecycle(initialValue = false)
-    val showProfileEditButton by SettingsManager
-        .getShowProfileEditButton(context)
+    val showProfileEditButton by remember(context) { SettingsManager.getShowProfileEditButton(context) }
         .collectAsStateWithLifecycle(initialValue = false)
-    val isLiquidGlassAvailable = shouldAllowHomeChromeLiquidGlass(Build.VERSION.SDK_INT)
     val effectiveLiquidGlassEnabled = resolveHomeChromeLiquidGlassEnabled(
-        userEnabled = state.androidNativeLiquidGlassEnabled,
+        userEnabled = homeConfiguration.androidNativeLiquidGlassEnabled,
         sdkInt = Build.VERSION.SDK_INT,
     )
+    val wallpaperPreviewOverrides = themeConfiguration.wallpaperPaletteOverrides
+    val palettePreviewConfiguration = ThemePreviewConfiguration(
+        uiStyle = LocalAppUiStyle.current,
+        source = state.md3ColorSource,
+        liquidGlassEnabled = effectiveLiquidGlassEnabled,
+        amoledDarkTheme = state.darkThemeStyle == DarkThemeStyle.AMOLED,
+        roleOverrides = themeRoleOverrides,
+        wallpaperOverrides = wallpaperPreviewOverrides,
+        wallpaperSchemes = com.android.purebilibili.core.theme.LocalThemeWallpaperPreviewSchemes.current,
+    )
     val showThemeColorPicker = shouldShowMd3CustomColorControls(state.md3ColorSource)
-    var showMd3ColorPickerDialog by remember { mutableStateOf(false) }
+    var showMd3ColorPickerDialog by rememberSaveable { mutableStateOf(false) }
     var roleColorTarget by remember { mutableStateOf<ThemeRoleColorTarget?>(null) }
     val md3ColorSourceOptions = remember { resolveMd3ColorSourceOptions() }
     val selectedMd3ColorSourceLabel = md3ColorSourceOptions
@@ -530,16 +533,44 @@ fun AppearanceSettingsContent(
     val selectedCustomThemeColor = remember(state.md3CustomColorHex) {
         parseMd3CustomColorHex(state.md3CustomColorHex)
     }
-    val selectedThemeColorName = remember(selectedCustomThemeColor) {
-        val selectedIndex = ThemeColors.indexOf(selectedCustomThemeColor)
-        ThemeColorNames.getOrNull(selectedIndex) ?: "自定义"
+    val displayedThemeColors = if (state.seedPaletteStyle.enabled) SeedPresetColors else ThemeColors
+    val displayedThemeColorNames = if (state.seedPaletteStyle.enabled) SeedPresetColorNames else ThemeColorNames
+    val selectedThemeColorName = remember(selectedCustomThemeColor, state.seedPaletteStyle) {
+        val selectedIndex = displayedThemeColors.indexOf(selectedCustomThemeColor)
+        displayedThemeColorNames.getOrNull(selectedIndex) ?: context.getString(R.string.appearance_custom_theme_color_title)
     }
     var themeColorPaletteExpanded by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(showThemeColorPicker) {
         if (!showThemeColorPicker) themeColorPaletteExpanded = false
     }
     val colorStyleOptions = remember { resolveColorStyleOptions() }
-    val colorSpecOptions = remember { resolveColorSpecOptions() }
+    val colorSpecOptions = remember(state.colorStyle, state.seedPaletteStyle) {
+        resolveColorSpecOptions(state.colorStyle, state.seedPaletteStyle)
+    }
+    val effectiveColorSpec = resolveSelectedColorSpec(state.colorSpec, state.colorStyle, state.seedPaletteStyle)
+    val colorContrastOptions = remember { resolveColorContrastOptions() }
+    // 主题模式 / 深色主题风格选项示意图的种子与预览方案：与色板小样共用同一来源和
+    // 配置推导，输入变化时一次性重算，后面嵌套的色板预览也复用这份种子。
+    val themePreviewCompatibilitySeed = com.android.purebilibili.core.theme.LocalWallpaperColorCompatibility.current.seed
+    val themePreviewSeed = remember(
+        state.md3ColorSource, state.md3CustomColorHex, state.themeColorIndex,
+        MaterialTheme.colorScheme.primary, themePreviewCompatibilitySeed,
+    ) {
+        resolveMd3ThemeSeedColor(
+            state.md3ColorSource, state.md3CustomColorHex, state.themeColorIndex,
+            wallpaperSeed = if (state.md3ColorSource == Md3ColorSource.WALLPAPER_RETONED) {
+                themePreviewCompatibilitySeed ?: com.android.purebilibili.core.theme.readSystemWallpaperSeed(context)
+            } else null,
+        )
+    }
+    val themeOptionPreviewPalettes = rememberThemeOptionPreviewPalettes(
+        seed = themePreviewSeed,
+        paletteStyle = state.colorStyle,
+        colorSpec = effectiveColorSpec,
+        colorContrast = state.colorContrast,
+        seedPaletteStyle = state.seedPaletteStyle,
+        configuration = palettePreviewConfiguration,
+    )
     val fontPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -549,16 +580,16 @@ fun AppearanceSettingsContent(
                 viewModel.setAppFontFile(imported.fileName, imported.displayName)
                 val coverageNotice = resolveAppFontCoverageNotice(imported.coversCjk)
                 val message = if (coverageNotice == null) {
-                    "已导入字体：${imported.displayName}"
+                    context.getString(R.string.appearance_font_imported, imported.displayName)
                 } else {
-                    "已导入字体：${imported.displayName}（$coverageNotice）"
+                    context.getString(R.string.appearance_font_imported_coverage, imported.displayName, coverageNotice)
                 }
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
             .onFailure { error ->
                 Toast.makeText(
                     context,
-                    error.message ?: "字体导入失败，请选择 .ttf / .otf / .ttc 文件",
+                    error.message ?: context.getString(R.string.appearance_font_import_failed),
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -576,26 +607,29 @@ fun AppearanceSettingsContent(
         //  显示模式
         item(key = "appearance_display_mode_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("界面与效果")
+                AppPreferenceSectionTitle(context.getString(R.string.appearance_section_interface_effects))
             }
         }
         item(key = "appearance_display_mode") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column {
                         SettingsSingleChoicePreference(
                             title = "${uiPresetTitle}：$selectedUiStyleLabel",
                             subtitle = uiPresetSubtitle,
                             options = uiStyleOptions,
                             selectedValue = state.themeSelection,
+                            optionLeading = { value ->
+                                SettingsOptionPreviewThumb(SettingsOptionPreview.UiPreset(miuix = value == AppUiStyle.MIUIX))
+                            },
                             onSelectionChange = viewModel::setThemeSelection,
                         )
 
                         Column {
                             AppPreferenceDivider()
                             SettingsSingleChoicePreference(
-                                title = "屏幕刷新率：$selectedScreenDisplayModeLabel",
-                                subtitle = "手动固定刷新率后，LTPO 屏幕不再自动调节，可能增加耗电",
+                                title = context.getString(R.string.appearance_refresh_rate_title, selectedScreenDisplayModeLabel),
+                                subtitle = context.getString(R.string.appearance_refresh_rate_summary),
                                 options = screenDisplayModeOptions,
                                 selectedValue = selectedScreenDisplayModeId,
                                 enabled = activity != null && supportedDisplayModes.isNotEmpty(),
@@ -608,33 +642,22 @@ fun AppearanceSettingsContent(
                             )
                         }
 
-                        Column {
-                            AppPreferenceDivider()
-                            SettingsItemAnchor("appearance.effective_liquid_glass_enabled") {
-                                AppSwitchPreference(
-                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.ANDROID_LIQUID_GLASS),
-                                    title = settingItemTitle("appearance.effective_liquid_glass_enabled"),
-                                    subtitle = if (isLiquidGlassAvailable) {
-                                        "首页顶栏、搜索框、底栏和评论底栏使用玻璃效果"
-                                    } else {
-                                        "当前 Android 版本暂不支持液态玻璃效果"
-                                    },
-                                    checked = effectiveLiquidGlassEnabled,
-                                    onCheckedChange = { viewModel.toggleAndroidNativeLiquidGlass(it) },
-                                    enabled = isLiquidGlassAvailable,
-                                    iconTint = iOSBlue
-                                )
-                            }
-                        }
-
-                        AppPreferenceDivider()
+                        // 液态玻璃总开关与玻璃材质条目已集中在「动画与触感」页的玻璃分组,
+                        // 这里只保留与玻璃无关的显示样式条目。
 
                         SettingsItemAnchor("appearance.app_list_item_style") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.app_list_item_style"),
-                                subtitle = "统一圆角条目，或跟随当前界面预设",
-                                options = resolveAppListItemStyleOptions(),
+                                title = context.getString(R.string.appearance_list_item_style_title),
+                                subtitle = context.getString(R.string.appearance_list_item_style_summary),
+                                options = appListItemStyleOptions,
                                 selectedValue = state.appListItemStyle,
+                                optionLeading = { style ->
+                                    SettingsOptionPreviewThumb(SettingsOptionPreview.ListItem(mode = when (style) {
+                                        AppListItemStyle.AUTO -> 0
+                                        AppListItemStyle.CUSTOM -> 1
+                                        AppListItemStyle.NATIVE -> 2
+                                    }))
+                                },
                                 onSelectionChange = { style ->
                                     viewModel.setAppListItemStyle(style)
                                 }
@@ -645,10 +668,19 @@ fun AppearanceSettingsContent(
 
                         SettingsItemAnchor("appearance.app_icon_style") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.app_icon_style"),
-                                subtitle = "彩色底图或单色图标，全局生效",
-                                options = resolveAppIconStyleOptions(),
+                                title = context.getString(R.string.appearance_icon_style_title),
+                                subtitle = context.getString(R.string.appearance_icon_style_summary),
+                                options = appIconStyleOptions,
                                 selectedValue = state.appIconStyle,
+                                optionLeading = { style ->
+                                    SettingsOptionPreviewThumb(SettingsOptionPreview.IconChip(mode = when (style) {
+                                        AppIconStyle.AUTO -> 0
+                                        AppIconStyle.THEME_CONTAINER -> 1
+                                        AppIconStyle.MD3_STANDARD -> 2
+                                        AppIconStyle.SOFT_COLORFUL -> 3
+                                        AppIconStyle.VIVID_COLORFUL -> 4
+                                    }))
+                                },
                                 onSelectionChange = { style ->
                                     viewModel.setAppIconStyle(style)
                                 }
@@ -659,10 +691,13 @@ fun AppearanceSettingsContent(
 
                         SettingsItemAnchor("appearance.single_choice_presentation") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.single_choice_presentation"),
-                                subtitle = "从条目旁展开，或居中弹出",
+                                title = context.getString(R.string.appearance_single_choice_title),
+                                subtitle = context.getString(R.string.appearance_single_choice_summary),
                                 options = singleChoicePresentationOptions,
                                 selectedValue = singleChoicePresentation,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Choice(
+                                    anchored = value == com.android.purebilibili.core.ui.components.AppSingleChoicePresentation.WINDOW_POPUP,
+                                )) },
                                 onSelectionChange = { presentation ->
                                     scope.launch {
                                         SettingsManager.setSingleChoicePresentation(
@@ -674,10 +709,16 @@ fun AppearanceSettingsContent(
                             )
                         }
                         AppPreferenceDivider()
-                        AppPreference(
-                            title = "动画、振动与玻璃效果",
+                        SettingsNavigationContainerOrigin(
+                            target = com.android.purebilibili.navigation3.BiliPaiNavKey.AnimationSettings,
                             onClick = onAnimationClick,
-                        )
+                            first = false,
+                        ) { open ->
+                            AppPreference(
+                                title = context.getString(R.string.appearance_animation_glass_title),
+                                onClick = open,
+                            )
+                        }
                     }
                 }
             }
@@ -686,25 +727,45 @@ fun AppearanceSettingsContent(
         //  主题与色彩
         item(key = "appearance_theme_color_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("主题与色彩")
+                AppPreferenceSectionTitle(themeSectionTitle)
             }
         }
         item(key = "appearance_theme_color") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column {
                         SettingsSingleChoicePreference(
                             title = "${themeModeTitle}：$selectedThemeModeLabel",
                             subtitle = themeModeSubtitle,
                             options = themeModeOptions,
+                            // 每个选项配迷你屏幕示意图：跟随系统为浅深对角拼接，浅色/深色
+                            // 各自按当前种子推导的方案着色，选中前即可看到实际观感。
+                            optionLeading = { mode ->
+                                ThemeOptionPreviewThumb(
+                                    kind = when (mode) {
+                                        AppThemeMode.FOLLOW_SYSTEM -> ThemeOptionPreviewKind.FOLLOW_SYSTEM
+                                        AppThemeMode.LIGHT -> ThemeOptionPreviewKind.LIGHT
+                                        AppThemeMode.DARK -> ThemeOptionPreviewKind.DARK
+                                    },
+                                    palettes = themeOptionPreviewPalettes,
+                                )
+                            },
                             selectedValue = state.themeMode,
                             onSelectionChange = { mode ->
                                 viewModel.setThemeMode(mode)
                             }
                         )
 
+                        AppPreferenceDivider()
+                        SettingsItemAnchor("appearance.dark_theme_schedule") {
+                            DarkThemeSchedulePreference(
+                                schedule = state.darkThemeSchedule,
+                                onChange = viewModel::setDarkThemeSchedule,
+                            )
+                        }
+
                         androidx.compose.animation.AnimatedVisibility(
-                            visible = state.themeMode != AppThemeMode.LIGHT,
+                            visible = state.themeMode != AppThemeMode.LIGHT || state.darkThemeSchedule.enabled,
                             enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
                             exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
                         ) {
@@ -714,6 +775,17 @@ fun AppearanceSettingsContent(
                                     title = "${darkThemeStyleTitle}：$selectedDarkThemeStyleLabel",
                                     subtitle = darkThemeStyleSubtitle,
                                     options = darkThemeStyleOptions,
+                                    // 普通黑与 AMOLED 纯黑用底面明度区分的示意图，
+                                    // 均按当前种子与色彩设置生成深色方案。
+                                    optionLeading = { style ->
+                                        ThemeOptionPreviewThumb(
+                                            kind = when (style) {
+                                                DarkThemeStyle.DEFAULT -> ThemeOptionPreviewKind.DARK
+                                                DarkThemeStyle.AMOLED -> ThemeOptionPreviewKind.AMOLED
+                                            },
+                                            palettes = themeOptionPreviewPalettes,
+                                        )
+                                    },
                                     selectedValue = state.darkThemeStyle,
                                     onSelectionChange = { style ->
                                         viewModel.setDarkThemeStyle(style)
@@ -728,9 +800,9 @@ fun AppearanceSettingsContent(
                             SettingsSingleChoicePreference(
                                 title = settingItemTitle("appearance.md3_color_source"),
                                 subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    "跟随时直接使用系统当前壁纸配色；自定义模式可选择色彩风格"
+                                    context.getString(R.string.appearance_md3_color_source_wallpaper_summary)
                                 } else {
-                                    "系统不支持壁纸取色，请选择自定义颜色"
+                                    context.getString(R.string.appearance_md3_color_source_fallback_summary)
                                 },
                                 options = md3ColorSourceOptions,
                                 selectedValue = state.md3ColorSource,
@@ -739,31 +811,36 @@ fun AppearanceSettingsContent(
                         }
 
                         AnimatedVisibility(
-                            visible = state.md3ColorSource == Md3ColorSource.FOLLOW_WALLPAPER,
+                            visible = state.md3ColorSource != Md3ColorSource.CUSTOM,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
                             Column(modifier = Modifier.padding(top = 12.dp)) {
-                                DynamicColorPreview()
+                                if (state.md3ColorSource == Md3ColorSource.WALLPAPER_RETONED) {
+                                    WallpaperPaletteEditor(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp))
+                                } else {
+                                    DynamicColorPreview()
+                                }
+                                com.android.purebilibili.feature.settings.WallpaperCompatibilitySettings()
                             }
                         }
 
                         AppPreferenceDivider()
                         AppPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.CUSTOM_MD3_COLOR),
-                            title = "自定义主题颜色",
+                            title = context.getString(R.string.appearance_custom_theme_color_title),
                             subtitle = if (state.md3ColorSource == Md3ColorSource.CUSTOM) {
-                                "可直接使用取色器，也可输入 #RRGGBB 色值"
+                                context.getString(R.string.appearance_custom_theme_color_summary)
                             } else {
-                                "当前跟随系统壁纸；确认后切换为自定义颜色"
+                                context.getString(R.string.appearance_custom_theme_color_following_summary)
                             },
                             value = state.md3CustomColorHex,
                             onClick = { showMd3ColorPickerDialog = true },
-                            iconTint = selectedCustomThemeColor
+                            iconTint = AppContentColors.accent()
                         )
 
                         AnimatedVisibility(
-                            visible = showThemeColorPicker,
+                            visible = showThemeColorPicker && !state.seedPaletteStyle.enabled,
                             enter = expandVertically() + fadeIn(),
                             exit = shrinkVertically() + fadeOut()
                         ) {
@@ -780,14 +857,47 @@ fun AppearanceSettingsContent(
                                                 SettingsManager.setThemeRoleOverrides(
                                                     context,
                                                     if (enabled) {
-                                                        baseThemeRoleOverrides.copy(enabled = true)
+                                                        com.android.purebilibili.core.theme.enableThemeRoleOverrides(
+                                                            current = themeRoleOverrides,
+                                                            base = baseThemeRoleOverrides,
+                                                            customColorHex = state.md3CustomColorHex,
+                                                        )
                                                     } else {
                                                         themeRoleOverrides.copy(enabled = false)
                                                     }
                                                 )
                                             }
                                         },
-                                        iconTint = MaterialTheme.colorScheme.primary
+                                        iconTint = AppContentColors.accent()
+                                    )
+                                }
+
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    com.android.purebilibili.core.ui.components.AppTextButton(
+                                        onClick = {
+                                            roleColorTarget = null
+                                            scope.launch {
+                                                // 清除两种明暗模式的手动覆盖，让当前主题重新提供完整默认色板。
+                                                SettingsManager.setThemeRoleOverrides(context, ThemeRoleOverrides())
+                                            }
+                                        },
+                                        enabled = storedThemeRoleOverrides != ThemeRoleOverrides(),
+                                    ) {
+                                        AppText(stringResource(
+                                            if (palettePreviewConfiguration.uiStyle == AppUiStyle.MIUIX) {
+                                                R.string.appearance_theme_restore_miuix_palette
+                                            } else {
+                                                R.string.appearance_theme_restore_md3_palette
+                                            }
+                                        ))
+                                    }
+                                    AppText(
+                                        text = stringResource(R.string.appearance_theme_restore_palette_summary),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AppContentColors.secondaryText(),
                                     )
                                 }
 
@@ -798,28 +908,124 @@ fun AppearanceSettingsContent(
                                 ) {
                                     ThemeRoleOverrideEditor(
                                         overrides = themeRoleOverrides,
-                                        onColorClick = { roleColorTarget = it }
+                                        onColorClick = { roleColorTarget = it },
+                                        configuration = palettePreviewConfiguration,
+                                        seed = selectedCustomThemeColor,
+                                        paletteStyle = state.colorStyle,
+                                        colorSpec = state.colorSpec,
+                                        colorContrast = state.colorContrast,
+                                        onRepair = { dark ->
+                                            scope.launch {
+                                                SettingsManager.setThemeRoleOverrides(context, if (dark) {
+                                                    themeRoleOverrides.copy(dark = repairThemeRoleTextContrast(themeRoleOverrides.dark, true))
+                                                } else {
+                                                    themeRoleOverrides.copy(light = repairThemeRoleTextContrast(themeRoleOverrides.light, false))
+                                                })
+                                            }
+                                        },
                                     )
                                 }
+                            }
+                        }
 
+                        AnimatedVisibility(
+                            visible = shouldShowMd3PaletteStyleControls(state.md3ColorSource),
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column {
+                                // 种子已提升到内容顶部计算（themePreviewSeed），此处直接复用。
+                                val seedPreviewColor = themePreviewSeed
+                                val seedPreviewSwatches = rememberSeedStyleSwatches(
+                                    seedColor = seedPreviewColor,
+                                    isDark = resolveColorSchemeIsDark(MaterialTheme.colorScheme),
+                                    colorSpec = state.colorSpec,
+                                    configuration = palettePreviewConfiguration,
+                                    paletteStyle = state.colorStyle,
+                                    colorContrast = state.colorContrast,
+                                )
+                                val seedOptions = remember { resolveSeedPaletteStyleOptions() }
                                 AppPreferenceDivider()
                                 ThemePresetChoiceSetting(
-                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_STYLE),
-                                    title = "色彩风格",
-                                    selectedValue = state.colorStyle,
-                                    options = colorStyleOptions,
-                                    onSelectionChange = viewModel::setThemeColorStyle,
-                                    iconTint = iOSPurple
+                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.SEED_PALETTE),
+                                    title = context.getString(R.string.appearance_theme_palette_title),
+                                    subtitle = context.getString(R.string.appearance_seed_palette_current, state.seedPaletteStyle.label, resolveSeedPaletteStyleDescription(state.seedPaletteStyle)),
+                                    selectedValue = state.seedPaletteStyle,
+                                    options = seedOptions,
+                                    optionLeading = { style ->
+                                        seedPreviewSwatches[style]?.let { ThemeStyleSwatch(it) }
+                                    },
+                                    onSelectionChange = viewModel::setSeedPaletteStyle,
+                                    iconTint = AppContentColors.secondaryText(),
                                 )
 
-                                AppPreferenceDivider()
-                                ThemePresetChoiceSetting(
-                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_SPEC),
-                                    title = "色彩标准",
-                                    selectedValue = state.colorSpec,
-                                    options = colorSpecOptions,
-                                    onSelectionChange = viewModel::setThemeColorSpec,
-                                    iconTint = iOSBlue
+                                if (!state.seedPaletteStyle.enabled) {
+                                    // 风格小样：用当前生效的种子色与色彩标准，预演每种风格的实际配色。
+                                    val stylePreviewSeed = seedPreviewColor
+                                    val stylePreviewSwatches = rememberThemeStylePaletteSwatches(
+                                        seedColor = stylePreviewSeed,
+                                        isDark = resolveColorSchemeIsDark(MaterialTheme.colorScheme),
+                                        paletteStyles = colorStyleOptions.map { it.value },
+                                        colorSpec = state.colorSpec,
+                                        colorContrast = state.colorContrast,
+                                        seedPaletteStyle = state.seedPaletteStyle,
+                                        configuration = palettePreviewConfiguration,
+                                    )
+                                    val styleSwatchByStyle = remember(stylePreviewSwatches) {
+                                        colorStyleOptions.map { it.value }.zip(stylePreviewSwatches).toMap()
+                                    }
+
+                                    AppPreferenceDivider()
+                                    ThemePresetChoiceSetting(
+                                        icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_STYLE),
+                                        title = context.getString(R.string.appearance_color_style_title),
+                                        subtitle = resolveColorStyleSubtitle(state.colorStyle),
+                                        selectedValue = state.colorStyle,
+                                        options = colorStyleOptions,
+                                        optionLeading = { style ->
+                                            val swatch = styleSwatchByStyle[style]
+                                            if (swatch != null) {
+                                                ThemeStyleSwatch(swatch)
+                                            }
+                                        },
+                                        onSelectionChange = viewModel::setThemeColorStyle,
+                                        iconTint = AppContentColors.secondaryText()
+                                    )
+
+                                }
+                                if (shouldShowColorSpecControl(state.seedPaletteStyle)) {
+                                    AppPreferenceDivider()
+                                    ThemePresetChoiceSetting(
+                                        icon = rememberSettingsSemanticIcon(SettingsIconRole.COLOR_SPEC),
+                                        title = context.getString(R.string.appearance_color_spec_title),
+                                        subtitle = resolveSelectedColorSpecSubtitle(state.colorSpec, state.colorStyle, state.seedPaletteStyle),
+                                        selectedValue = effectiveColorSpec,
+                                        options = colorSpecOptions,
+                                        onSelectionChange = viewModel::setThemeColorSpec,
+                                        iconTint = AppContentColors.secondaryText()
+                                    )
+
+                                }
+                                if (!state.seedPaletteStyle.enabled) {
+                                    AppPreferenceDivider()
+                                    ThemePresetChoiceSetting(
+                                        icon = rememberMaterialSymbol(R.drawable.ms_brightness_medium_24),
+                                        title = context.getString(R.string.appearance_color_contrast_title),
+                                        subtitle = resolveColorContrastSubtitle(state.colorContrast),
+                                        selectedValue = state.colorContrast,
+                                        options = colorContrastOptions,
+                                        onSelectionChange = viewModel::setThemeColorContrast,
+                                        iconTint = AppContentColors.secondaryText()
+                                    )
+                                }
+                                ThemePaletteContrastSummary(
+                                    seed = seedPreviewColor,
+                                    style = state.colorStyle,
+                                    spec = state.colorSpec,
+                                    contrast = state.colorContrast,
+                                    seedStyle = state.seedPaletteStyle,
+                                    configuration = palettePreviewConfiguration,
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                         }
@@ -834,15 +1040,15 @@ fun AppearanceSettingsContent(
                                 AppPreferenceDivider()
                                 AppPreference(
                                     icon = rememberSettingsSemanticIcon(SettingsIconRole.THEME_COLOR_PICKER),
-                                    title = "主题色：$selectedThemeColorName",
+                                    title = context.getString(R.string.appearance_theme_color_title, selectedThemeColorName),
                                     subtitle = if (themeColorPaletteExpanded) {
-                                        "当前 ${state.md3CustomColorHex}；点按收起色板"
+                                        context.getString(R.string.appearance_theme_color_palette_collapse, state.md3CustomColorHex)
                                     } else {
-                                        "当前 ${state.md3CustomColorHex}；点按展开预设色板"
+                                        context.getString(R.string.appearance_theme_color_palette_expand, state.md3CustomColorHex)
                                     },
-                                    value = if (themeColorPaletteExpanded) "收起" else "展开",
+                                    value = context.getString(if (themeColorPaletteExpanded) R.string.appearance_collapse else R.string.appearance_expand),
                                     onClick = { themeColorPaletteExpanded = !themeColorPaletteExpanded },
-                                    iconTint = selectedCustomThemeColor,
+                                    iconTint = AppContentColors.accent(),
                                 )
 
                                 AnimatedVisibility(
@@ -850,27 +1056,40 @@ fun AppearanceSettingsContent(
                                     enter = expandVertically() + fadeIn(),
                                     exit = shrinkVertically() + fadeOut(),
                                 ) {
-                                    Column(modifier = Modifier.padding(top = 12.dp)) {
-                                
-                                // 直接预览最终 MaterialTheme ColorScheme，不再用原始种子色手工画渐变。
-                                Md3ThemeColorPreview(colorHex = state.md3CustomColorHex)
+                                    Column(modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp)) {
+
+                                // 预设色板每格的三色预览：跟随当前色彩风格 / 色彩标准与明暗，
+                                // 展开时整组算一次，网格滚动不重复生成方案。
+                                val palettePreviewIsDark =
+                                    resolveColorSchemeIsDark(MaterialTheme.colorScheme)
+                                val presetSwatches = rememberThemePresetPaletteSwatches(
+                                    seedColors = displayedThemeColors,
+                                    isDark = palettePreviewIsDark,
+                                    paletteStyle = state.colorStyle,
+                                    colorSpec = state.colorSpec,
+                                    colorContrast = state.colorContrast,
+                                    seedPaletteStyle = state.seedPaletteStyle,
+                                    configuration = palettePreviewConfiguration.copy(
+                                        source = Md3ColorSource.CUSTOM, syncControlAccentToSeed = true,
+                                    ),
+                                )
 
                                 //  [Redesign] Theme Color Grid - Strict 2 Rows x 5 Columns
                                 val spacing = 12.dp
-                                
+
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalArrangement = Arrangement.spacedBy(16.dp) // 增加行间距以容纳文字
                                 ) {
-                                    ThemeColors.chunked(5).forEach { rowColors ->
+                                    displayedThemeColors.chunked(5).forEach { rowColors ->
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(spacing)
                                         ) {
                                             rowColors.forEach { color ->
-                                                val index = ThemeColors.indexOf(color)
+                                                val index = displayedThemeColors.indexOf(color)
                                                 val isSelected = selectedCustomThemeColor == color
-                                                
+
                                                 Column(
                                                     modifier = Modifier.weight(1f),
                                                     horizontalAlignment = Alignment.CenterHorizontally
@@ -881,7 +1100,19 @@ fun AppearanceSettingsContent(
                                                         label = "scale",
                                                         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
                                                     )
-                                                    
+
+                                                    // 版式对齐 PiliPlus `common/widgets/color_palette.dart`：
+                                                    // 圆角方形容器内放一个圆，圆内上半 primary、左下 tertiary、
+                                                    // 右下 primaryContainer；选中时叠容器色圆盘 + primary 对勾。
+                                                    val swatch = presetSwatches.getOrElse(index) {
+                                                        // 预览数据缺失时退回种子色本身，避免色板出现空档。
+                                                        ThemePresetPaletteSwatch(
+                                                            primary = color,
+                                                            tertiary = color,
+                                                            primaryContainer = color
+                                                        )
+                                                    }
+
                                                     Box(
                                                         modifier = Modifier
                                                             .aspectRatio(1f) // Ensure square aspect ratio for perfect circles
@@ -889,67 +1120,92 @@ fun AppearanceSettingsContent(
                                                                 scaleX = scale
                                                                 scaleY = scale
                                                             }
-                                                            // 选中时的外光环 (圆形)
-                                                            .border(
-                                                                width = if (isSelected) 2.dp else 0.dp,
-                                                                color = if (isSelected) color.copy(alpha = 0.5f) else Color.Transparent,
-                                                                shape = CircleShape
-                                                            )
-                                                            .padding(3.dp) // 光环与色块的间距
-                                                            .clip(CircleShape) // 裁剪为圆形
+                                                            .clip(AppShapes.container(ContainerLevel.Card))
                                                             .background(
-                                                                brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                                                                    colors = listOf(
-                                                                        color.copy(alpha = 0.9f), // 中心稍亮
-                                                                        color // 边缘原色
-                                                                    ),
-                                                                    center = androidx.compose.ui.geometry.Offset.Unspecified,
-                                                                    radius = Float.POSITIVE_INFINITY
-                                                                )
-                                                            )
-                                                            // 添加个内部高光，增加球体质感
-                                                            .background(
-                                                                brush = androidx.compose.ui.graphics.Brush.linearGradient(
-                                                                    colors = listOf(
-                                                                        Color.White.copy(alpha = 0.2f),
-                                                                        Color.Transparent
-                                                                    ),
-                                                                    start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                                                    end = androidx.compose.ui.geometry.Offset(100f, 100f)
-                                                                )
+                                                                if (state.seedPaletteStyle.enabled) swatch.inverseOnSurface
+                                                                else AppSurfaceTokens.cardContainer()
                                                             )
                                                             .clickable {
-                                                                viewModel.setThemeColorIndex(index)
-                                                                viewModel.setMd3CustomColorHex(formatMd3CustomColorHex(color))
+                                                                if (state.seedPaletteStyle.enabled) {
+                                                                    viewModel.applyMd3CustomColor(formatMd3CustomColorHex(color))
+                                                                } else {
+                                                                    viewModel.setThemeColorIndex(index)
+                                                                }
                                                             },
                                                         contentAlignment = Alignment.Center
                                                     ) {
-                                                        androidx.compose.animation.AnimatedVisibility(
-                                                            visible = isSelected,
-                                                            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
-                                                            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                                .padding(6.dp) // 方形容器与圆饼之间的留白
+                                                                .clip(CircleShape)
                                                         ) {
-                                                            AppIcon(
-                                                                com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_24),
-                                                                contentDescription = null,
-                                                                tint = Color.White,
-                                                                modifier = Modifier.size(18.dp)
-                                                            )
+                                                            Column(modifier = Modifier.fillMaxSize()) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .weight(1f)
+                                                                        .background(swatch.primary)
+                                                                )
+                                                                Row(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .weight(1f)
+                                                                ) {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxHeight()
+                                                                            .weight(1f)
+                                                                            .background(swatch.tertiary)
+                                                                    )
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxHeight()
+                                                                            .weight(1f)
+                                                                            .background(swatch.primaryContainer)
+                                                                    )
+                                                                }
+                                                            }
+
+                                                            androidx.compose.animation.AnimatedVisibility(
+                                                                visible = isSelected,
+                                                                modifier = Modifier.align(Alignment.Center),
+                                                                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+                                                                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(23.dp)
+                                                                        .background(
+                                                                            if (state.seedPaletteStyle.enabled) swatch.surfaceContainer
+                                                                            else AppSurfaceTokens.surfaceContainerHighest(),
+                                                                            CircleShape
+                                                                        ),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    AppIcon(
+                                                                        com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_check_24),
+                                                                        contentDescription = null,
+                                                                        tint = swatch.primary,
+                                                                        modifier = Modifier.size(12.dp)
+                                                                    )
+                                                                }
+                                                            }
                                                         }
                                                     }
-                                                    
+
                                                     // 颜色名称
                                                     Spacer(modifier = Modifier.height(8.dp))
                                                     AppText(
-                                                        text = ThemeColorNames.getOrElse(index) { "" },
+                                                        text = displayedThemeColorNames.getOrElse(index) { "" },
                                                         style = MaterialTheme.typography.labelSmall,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        color = if (isSelected) AppContentColors.accent() else AppContentColors.secondaryText(),
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                         maxLines = 1
                                                     )
                                                 }
                                             }
-                                            
+
                                             // Fill empty spots if last row has fewer than 5 items
                                             if (rowColors.size < 5) {
                                                 repeat(5 - rowColors.size) {
@@ -968,21 +1224,42 @@ fun AppearanceSettingsContent(
             }
         }
 
+        //  首页配色预览：不依赖颜色来源，始终展示当前主题的实际取色
+        item(key = "appearance_theme_home_preview") {
+            // 独立圆角分组之间保留外部间距，玻璃、MD3 与 Miuix 共用，避免两张卡片相贴。
+            Box(modifier = Modifier.padding(top = 16.dp).entrance()) {
+                // 交给设置页分组承载：圆角、水平边距与容器色由 AppPreferenceGroup 统一决定。
+                AppPreferenceGroup {
+                    ExpandableThemeHomePreview()
+                }
+            }
+        }
+
         item(key = "appearance_text_size_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("文字与大小")
+                AppPreferenceSectionTitle(context.getString(R.string.appearance_section_text_size))
             }
         }
         item(key = "appearance_text_size") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column {
                         SettingsItemAnchor("appearance.app_font_size_preset") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.app_font_size_preset"),
-                                subtitle = "仅调整应用内文字比例",
-                                options = resolveAppFontSizeSegmentOptions(),
+                                title = context.getString(R.string.appearance_setting_font_size_title),
+                                subtitle = context.getString(R.string.appearance_font_size_summary),
+                                options = resolveAppFontSizeSegmentOptions().map { it.copy(label = context.getString(when (it.value) {
+                                    AppFontSizePreset.SMALLEST -> R.string.appearance_font_size_smallest
+                                    AppFontSizePreset.SMALLER -> R.string.appearance_font_size_smaller
+                                    AppFontSizePreset.SMALL -> R.string.appearance_font_size_small
+                                    AppFontSizePreset.DEFAULT -> R.string.appearance_font_size_default
+                                    AppFontSizePreset.LARGE -> R.string.appearance_font_size_large
+                                    AppFontSizePreset.LARGER -> R.string.appearance_font_size_larger
+                                    AppFontSizePreset.EXTRA_LARGE -> R.string.appearance_font_size_extra_large
+                                    AppFontSizePreset.EXTRA_EXTRA_LARGE -> R.string.appearance_font_size_extra_extra_large
+                                })) },
                                 selectedValue = state.appFontSizePreset,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Typography(scale = value.multiplier)) },
                                 onSelectionChange = { preset ->
                                     viewModel.setAppFontSizePreset(preset)
                                 }
@@ -991,10 +1268,16 @@ fun AppearanceSettingsContent(
 
                         SettingsItemAnchor("appearance.app_font_weight_preset") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.app_font_weight_preset"),
-                                subtitle = "统一调整全部文字的粗细",
-                                options = resolveAppFontWeightSegmentOptions(),
+                                title = context.getString(R.string.appearance_setting_font_weight_title),
+                                subtitle = context.getString(R.string.appearance_font_weight_summary),
+                                options = resolveAppFontWeightSegmentOptions().map { it.copy(label = context.getString(when (it.value) {
+                                    AppFontWeightPreset.FOLLOW_THEME -> R.string.appearance_font_weight_follow
+                                    AppFontWeightPreset.MEDIUM -> R.string.appearance_font_weight_medium
+                                    AppFontWeightPreset.SEMI_BOLD -> R.string.appearance_font_weight_semibold
+                                    AppFontWeightPreset.BOLD -> R.string.appearance_font_weight_bold
+                                })) },
                                 selectedValue = state.appFontWeightPreset,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Typography(weight = value.fontWeight)) },
                                 onSelectionChange = { preset ->
                                     viewModel.setAppFontWeightPreset(preset)
                                 }
@@ -1004,17 +1287,17 @@ fun AppearanceSettingsContent(
                         AppPreferenceDivider()
 	                        AppPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.FONT_FILE),
-                            title = "应用字体",
+                            title = context.getString(R.string.appearance_font_file_title),
                             subtitle = if (state.appFontDisplayName.isBlank()) {
-                                "使用系统默认字体，或从本地导入 .ttf / .otf / .ttc"
+                                context.getString(R.string.appearance_font_file_import_summary)
                             } else {
-                                "当前：${state.appFontDisplayName}"
+                                context.getString(R.string.appearance_font_file_current_summary, state.appFontDisplayName)
                             },
-                            value = if (state.appFontDisplayName.isBlank()) "默认" else "更换",
+                            value = context.getString(if (state.appFontDisplayName.isBlank()) R.string.appearance_font_default_value else R.string.appearance_font_change_value),
                             onClick = {
                                 fontPickerLauncher.launch(arrayOf("*/*"))
                             },
-                            iconTint = iOSPurple
+                            iconTint = AppContentColors.secondaryText()
                         )
 
                         AnimatedVisibility(
@@ -1026,14 +1309,14 @@ fun AppearanceSettingsContent(
                                 AppPreferenceDivider()
 	                                AppPreference(
 	                                    icon = rememberSettingsSemanticIcon(SettingsIconRole.REPLAY_ONBOARDING),
-                                    title = "恢复默认字体",
-                                    subtitle = "删除已导入的字体文件",
+                                    title = context.getString(R.string.appearance_font_reset_title),
+                                    subtitle = context.getString(R.string.appearance_font_reset_summary),
                                     onClick = {
                                         deleteStoredAppFont(context, state.appFontFileName)
                                         viewModel.clearAppFontFile()
-                                        Toast.makeText(context, "已恢复默认字体", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.appearance_font_reset_toast), Toast.LENGTH_SHORT).show()
                                     },
-                                    iconTint = iOSOrange,
+                                    iconTint = AppContentColors.secondaryText(),
                                     showChevron = false
                                 )
                             }
@@ -1043,10 +1326,16 @@ fun AppearanceSettingsContent(
 
                         SettingsItemAnchor("appearance.app_ui_scale_preset") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.app_ui_scale_preset"),
-                                subtitle = "整体放大或缩小列表、卡片和按钮",
-                                options = resolveAppUiScaleSegmentOptions(),
+                                title = context.getString(R.string.appearance_setting_ui_scale_title),
+                                subtitle = context.getString(R.string.appearance_ui_scale_summary),
+                                options = resolveAppUiScaleSegmentOptions().map { it.copy(label = context.getString(when (it.value) {
+                                    AppUiScalePreset.COMPACT -> R.string.appearance_ui_scale_compact
+                                    AppUiScalePreset.STANDARD -> R.string.appearance_ui_scale_standard
+                                    AppUiScalePreset.COMFORTABLE -> R.string.appearance_ui_scale_comfortable
+                                    AppUiScalePreset.LARGE -> R.string.appearance_ui_scale_large
+                                })) },
                                 selectedValue = state.appUiScalePreset,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Density(value.densityMultiplier)) },
                                 onSelectionChange = { preset ->
                                     viewModel.setAppUiScalePreset(preset)
                                 }
@@ -1057,11 +1346,12 @@ fun AppearanceSettingsContent(
 
 	                        AppSwitchPreference(
 	                            icon = rememberSettingsSemanticIcon(SettingsIconRole.DISPLAY_SCALE),
-                            title = "显示大小微调",
+                            title = context.getString(R.string.appearance_display_scale_title),
                             subtitle = resolveDpiOverrideSubtitle(
+                                context = context,
                                 systemDensityDpi = displayMetricsSnapshot.systemDensityDpi,
                                 systemSmallestWidthDp = displayMetricsSnapshot.systemSmallestWidthDp,
-                                currentOverridePercent = state.appDpiOverridePercent
+                                currentOverridePercent = state.appDpiOverridePercent,
                             ),
                             checked = state.appDpiOverridePercent > 0,
                             onCheckedChange = { enabled ->
@@ -1069,7 +1359,7 @@ fun AppearanceSettingsContent(
                                     if (enabled) DEFAULT_APP_DPI_OVERRIDE_PERCENT else 0
                                 )
                             },
-                            iconTint = iOSTeal
+                            iconTint = AppContentColors.secondaryText()
                         )
 
                         AnimatedVisibility(
@@ -1079,8 +1369,8 @@ fun AppearanceSettingsContent(
                         ) {
                             Column(modifier = Modifier.padding(top = 16.dp)) {
                                 SettingsSingleChoicePreference(
-                                    title = "显示缩放：${resolveDisplayedAppDpiPercent(state.appDpiOverridePercent)}%",
-                                    subtitle = "只影响 BiliPai，不改变系统显示设置",
+                                    title = context.getString(R.string.appearance_display_scale_title_percent, resolveDisplayedAppDpiPercent(state.appDpiOverridePercent)),
+                                    subtitle = context.getString(R.string.appearance_display_scale_summary),
                                     options = resolveAppDpiOverrideSegmentOptions(),
                                     selectedValue = resolveDisplayedAppDpiPercent(state.appDpiOverridePercent),
                                     onSelectionChange = { percent ->
@@ -1090,9 +1380,10 @@ fun AppearanceSettingsContent(
 
                                 Spacer(modifier = Modifier.height(16.dp))
                                 AppText(
-                                    text = resolveDisplayMetricsSummary(displayMetricsSnapshot),
+                                    text = resolveDisplayMetricsSummary(context, displayMetricsSnapshot),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AppContentColors.secondaryText(),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 )
                             }
                         }
@@ -1102,23 +1393,24 @@ fun AppearanceSettingsContent(
                 }
             }
         }
-        
+
         //  开屏与图标
         item(key = "appearance_splash_icon_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("开屏与图标")
+                AppPreferenceSectionTitle(context.getString(R.string.appearance_section_splash_icon))
             }
         }
         item(key = "appearance_splash_icon") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
-                    val isSplashEnabled by com.android.purebilibili.core.store.SettingsManager.isSplashEnabled(context).collectAsStateWithLifecycle(initialValue = false)
-                    val splashRandomEnabled by com.android.purebilibili.core.store.SettingsManager.getSplashRandomEnabled(context).collectAsStateWithLifecycle(initialValue = false)
-                    val splashRandomPoolUris by com.android.purebilibili.core.store.SettingsManager.getSplashRandomPoolUris(context).collectAsStateWithLifecycle(initialValue = emptyList())
-                    val splashIconAnimationEnabled by com.android.purebilibili.core.store.SettingsManager.getSplashIconAnimationEnabled(context).collectAsStateWithLifecycle(initialValue = true)
-                    val startupAnimationStyle by SettingsManager.getStartupAnimationStyle(context)
+                    val isSplashEnabled by remember(context) { com.android.purebilibili.core.store.SettingsManager.isSplashEnabled(context) }.collectAsStateWithLifecycle(initialValue = false)
+                    val splashRandomEnabled by remember(context) { com.android.purebilibili.core.store.SettingsManager.getSplashRandomEnabled(context) }.collectAsStateWithLifecycle(initialValue = false)
+                    val splashRandomPoolUris by remember(context) { com.android.purebilibili.core.store.SettingsManager.getSplashRandomPoolUris(context) }.collectAsStateWithLifecycle(initialValue = emptyList())
+                    val splashIconAnimationEnabled by remember(context) { com.android.purebilibili.core.store.SettingsManager.getSplashIconAnimationEnabled(context) }.collectAsStateWithLifecycle(initialValue = true)
+                    val startupAnimationStyle by remember(context) { SettingsManager.getStartupAnimationStyle(context) }
                         .collectAsStateWithLifecycle(initialValue = SettingsManager.getStartupAnimationStyleSync(context))
-                    val splashWallpaperUri by com.android.purebilibili.core.store.SettingsManager.getSplashWallpaperUri(context).collectAsStateWithLifecycle(initialValue = null)
+                    // 复用页面已订阅的开屏壁纸，列表项回收后不重新订阅和回退占位值。
+                    val splashWallpaperUri = splashWallpaperFallbackUri
                     val hasSplashWallpaper = !splashWallpaperUri.isNullOrBlank()
                     val splashRandomPoolPreview = remember(splashRandomPoolUris) {
                         resolveSplashRandomPoolPreviewState(poolUris = splashRandomPoolUris)
@@ -1127,27 +1419,27 @@ fun AppearanceSettingsContent(
                     // 图标设置
                     AppPreference(
                         icon = rememberSettingsSemanticIcon(SettingsIconRole.APP_ICON),
-                        title = "应用图标",
+                        title = context.getString(R.string.appearance_app_icon_title),
                         value = when(state.appIcon) {
-                            "Blue Snow Maid", "蓝雪女仆", "icon_blue_snow_maid" -> "蓝雪女仆"
-                            "Blue Snow Maid Front", "蓝雪女仆·正面", "icon_blue_snow_maid_front" -> "蓝雪女仆·正面"
+                            "Blue Snow Maid", "蓝雪女仆", "icon_blue_snow_maid" -> context.getString(R.string.appearance_icon_blue_snow_maid)
+                            "Blue Snow Maid Front", "蓝雪女仆·正面", "icon_blue_snow_maid_front" -> context.getString(R.string.appearance_icon_blue_snow_maid_front)
                             // 🎀 二次元少女系列
                             "BiliPai", "icon_bilipai" -> "BiliPai"
-                            "BiliPai Pink", "icon_bilipai_pink" -> "BiliPai 粉"
-                            "BiliPai White", "icon_bilipai_white" -> "BiliPai 白"
+                            "BiliPai Pink", "icon_bilipai_pink" -> context.getString(R.string.appearance_icon_bilipai_pink)
+                            "BiliPai White", "icon_bilipai_white" -> context.getString(R.string.appearance_icon_bilipai_white)
                             "BiliPai Monet", "icon_bilipai_monet" -> "BiliPai Monet"
-                            "Yuki" -> "比心少女"
-                            "Anime", "icon_anime" -> "蓝发电视"
-                            "Headphone" -> "耳机少女"
+                            "Yuki" -> context.getString(R.string.appearance_icon_yuki)
+                            "Anime", "icon_anime" -> context.getString(R.string.appearance_icon_anime)
+                            "Headphone" -> context.getString(R.string.appearance_icon_headphone)
                             // 经典系列
-                            "3D", "icon_3d" -> "3D立体"
-                            "Flat", "icon_flat" -> "扁平现代"
-                            "Telegram Blue", "icon_telegram_blue" -> "纸飞机蓝"
-                            "Dark", "icon_telegram_dark" -> "暗夜蓝"
-                            else -> "蓝雪女仆"
+                            "3D", "icon_3d" -> context.getString(R.string.appearance_icon_3d)
+                            "Flat", "icon_flat" -> context.getString(R.string.appearance_icon_flat)
+                            "Telegram Blue", "icon_telegram_blue" -> context.getString(R.string.appearance_icon_telegram_blue)
+                            "Dark", "icon_telegram_dark" -> context.getString(R.string.appearance_icon_telegram_dark)
+                            else -> context.getString(R.string.appearance_icon_blue_snow_maid)
                         },
                         onClick = onNavigateToIconSettings,
-                        iconTint = iOSPurple
+                        iconTint = AppContentColors.secondaryText()
                     )
 
                     AppPreferenceDivider()
@@ -1156,11 +1448,11 @@ fun AppearanceSettingsContent(
                     SettingsItemAnchor("appearance.is_splash_enabled") {
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_WALLPAPER),
-                            title = settingItemTitle("appearance.is_splash_enabled"),
-                            subtitle = "应用启动时显示官方或相册壁纸",
+                            title = context.getString(R.string.appearance_splash_enabled_title),
+                            subtitle = context.getString(R.string.appearance_splash_enabled_summary),
                             checked = isSplashEnabled,
                             onCheckedChange = { viewModel.toggleSplashEnabled(it) },
-                            iconTint = com.android.purebilibili.core.theme.iOSBlue
+                            iconTint = AppContentColors.secondaryText()
                         )
                     }
 
@@ -1168,11 +1460,11 @@ fun AppearanceSettingsContent(
                     SettingsItemAnchor("appearance.splash_random_enabled") {
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.RANDOM_WALLPAPER),
-                            title = settingItemTitle("appearance.splash_random_enabled"),
-                            subtitle = "启动时从可见官方壁纸中随机展示",
+                            title = context.getString(R.string.appearance_splash_random_title),
+                            subtitle = context.getString(R.string.appearance_splash_random_summary),
                             checked = splashRandomEnabled,
                             onCheckedChange = { viewModel.toggleSplashRandomEnabled(it) },
-                            iconTint = com.android.purebilibili.core.theme.iOSGreen
+                            iconTint = AppContentColors.secondaryText()
                         )
                     }
 
@@ -1191,15 +1483,15 @@ fun AppearanceSettingsContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 AppText(
-                                    text = "参与随机的壁纸",
+                                    text = context.getString(R.string.appearance_splash_random_pool_label),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = AppContentColors.primaryText()
                                 )
                                 Spacer(modifier = Modifier.weight(1f))
                                 AppText(
-                                    text = "${splashRandomPoolPreview.totalCount} 张",
+                                    text = context.getString(R.string.appearance_splash_count, splashRandomPoolPreview.totalCount),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = AppContentColors.link()
                                 )
                             }
 
@@ -1207,9 +1499,9 @@ fun AppearanceSettingsContent(
 
                             if (splashRandomPoolPreview.previewUris.isEmpty()) {
                                 AppText(
-                                    text = "暂无可见壁纸，请先进入“选择开屏壁纸”加载列表",
+                                    text = context.getString(R.string.appearance_splash_no_visible),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AppContentColors.secondaryText()
                                 )
                             } else {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1231,9 +1523,9 @@ fun AppearanceSettingsContent(
                                 if (splashRandomPoolPreview.totalCount > splashRandomPoolPreview.previewUris.size) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     AppText(
-                                        text = "还有 ${splashRandomPoolPreview.totalCount - splashRandomPoolPreview.previewUris.size} 张",
+                                        text = context.getString(R.string.appearance_splash_remaining_count, splashRandomPoolPreview.totalCount - splashRandomPoolPreview.previewUris.size),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = AppContentColors.secondaryText()
                                     )
                                 }
                             }
@@ -1244,20 +1536,26 @@ fun AppearanceSettingsContent(
                     SettingsItemAnchor("appearance.splash_icon_animation_enabled") {
                         AppSwitchPreference(
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.SPLASH_ICON_ANIMATION),
-                            title = settingItemTitle("appearance.splash_icon_animation_enabled"),
-                            subtitle = "关闭后不播放图标飞出或蓝雪女仆动画",
+                            title = context.getString(R.string.appearance_splash_animation_title),
+                            subtitle = context.getString(R.string.appearance_splash_animation_summary),
                             checked = splashIconAnimationEnabled,
                             onCheckedChange = { viewModel.toggleSplashIconAnimationEnabled(it) },
-                            iconTint = com.android.purebilibili.core.theme.iOSPink
+                            iconTint = AppContentColors.secondaryText()
                         )
                     }
-                    
+
                     SettingsItemAnchor("appearance.startup_animation_style") {
                         SettingsSingleChoicePreference(
-                            title = settingItemTitle("appearance.startup_animation_style"),
-                            subtitle = "蓝雪女仆与自定义启动壁纸可同时展示",
+                            title = context.getString(R.string.appearance_startup_animation_style_title),
+                            subtitle = context.getString(R.string.appearance_startup_animation_style_summary),
                             options = com.android.purebilibili.core.store.StartupAnimationStyle.entries.map {
-                                AppSegmentOption(it, it.label)
+                                AppSegmentOption(
+                                    it,
+                                    context.getString(when (it) {
+                                        com.android.purebilibili.core.store.StartupAnimationStyle.ICON_FLYOUT -> R.string.appearance_startup_animation_icon_flyout
+                                        com.android.purebilibili.core.store.StartupAnimationStyle.BLUE_SNOW_MAID -> R.string.appearance_startup_animation_maid
+                                    }),
+                                )
                             },
                             selectedValue = startupAnimationStyle,
                             enabled = splashIconAnimationEnabled,
@@ -1273,9 +1571,9 @@ fun AppearanceSettingsContent(
                     ) {
                         Column {
                             AppPreferenceDivider()
-                            
+
                             var showWallpaperPicker by remember { mutableStateOf(false) }
-                            
+
                             // 选择壁纸按钮
                             Row(
                                 modifier = Modifier
@@ -1309,36 +1607,36 @@ fun AppearanceSettingsContent(
                                             AppIcon(
                                                 com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_photo_24),
                                                 contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                tint = AppContentColors.secondaryText(),
                                                 modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
                                 }
-                                
+
                                 Spacer(modifier = Modifier.width(16.dp))
-                                
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     AppText(
-                                        text = "选择开屏壁纸",
+                                        text = context.getString(R.string.appearance_splash_choose_wallpaper),
                                         style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = AppContentColors.primaryText()
                                     )
                                     AppText(
-                                        text = if (hasSplashWallpaper) "已设置壁纸，可从官方库或相册更换" else "从官方壁纸库或相册选择",
+                                        text = context.getString(if (hasSplashWallpaper) R.string.appearance_splash_wallpaper_set_summary else R.string.appearance_splash_wallpaper_empty_summary),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = AppContentColors.secondaryText()
                                     )
                                 }
-                                
+
                                 AppIcon(
                                     com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = AppContentColors.secondaryText().copy(alpha = 0.5f),
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
-                            
+
                             // 壁纸选择 Sheet
                             if (showWallpaperPicker) {
                                 com.android.purebilibili.feature.profile.SplashWallpaperPickerSheet(
@@ -1350,29 +1648,33 @@ fun AppearanceSettingsContent(
                 }
             }
         }
-        
+
+        item(key = "content_image_display_title") {
+            AppPreferenceSectionTitle("图片显示")
+        }
+        item(key = "content_image_display") {
+            com.android.purebilibili.feature.settings.ContentImagePreferences()
+        }
         //  语言
         item(key = "appearance_language_title") {
             Box(modifier = Modifier.entrance()) {
-                AppPreferenceSectionTitle("语言")
+                AppPreferenceSectionTitle(context.getString(R.string.appearance_section_language))
             }
         }
         item(key = "appearance_language") {
             Box(modifier = Modifier.entrance()) {
                 AppPreferenceGroup {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        SettingsSingleChoicePreference(
-                            icon = rememberSettingsSemanticIcon(SettingsIconRole.APP_LANGUAGE),
-                            iconTint = iOSBlue,
-                            title = "${appLanguageTitle}：$selectedAppLanguageLabel",
-                            subtitle = appLanguageSubtitle,
-                            options = appLanguageOptions,
-                            selectedValue = state.appLanguage,
-                            onSelectionChange = { language ->
-                                onAppLanguageChange(language)
-                            }
-                        )
-                    }
+                    SettingsSingleChoicePreference(
+                        icon = rememberSettingsSemanticIcon(SettingsIconRole.APP_LANGUAGE),
+                        iconTint = AppContentColors.secondaryText(),
+                        title = "${appLanguageTitle}：$selectedAppLanguageLabel",
+                        subtitle = appLanguageSubtitle,
+                        options = appLanguageOptions,
+                        selectedValue = state.appLanguage,
+                        onSelectionChange = { language ->
+                            onAppLanguageChange(language)
+                        }
+                    )
                 }
             }
         }
@@ -1382,7 +1684,7 @@ fun AppearanceSettingsContent(
             //  首页与列表
             item(key = "home_list_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("首页与列表")
+                    AppPreferenceSectionTitle(context.getString(R.string.home_settings_section_list))
                 }
             }
             item(key = "home_list") {
@@ -1392,72 +1694,115 @@ fun AppearanceSettingsContent(
                         val currentDisplayMode = DisplayMode.entries
                             .firstOrNull { it.value == displayMode }
                         SettingsSingleChoicePreference(
-                            title = "展示样式",
-                            subtitle = currentDisplayMode?.description ?: "首页视频排列方式",
+                            title = context.getString(R.string.home_settings_display_style_title),
+                            subtitle = context.getString(when (currentDisplayMode) {
+                                DisplayMode.DoubleGrid -> R.string.home_settings_display_mode_grid_desc
+                                DisplayMode.SingleColumn -> R.string.home_settings_display_mode_single_desc
+                                null -> R.string.home_settings_display_style_summary
+                            }),
                             options = DisplayMode.entries.map { mode ->
-                                AppSegmentOption(mode.value, mode.title)
+                                AppSegmentOption(mode.value, context.getString(when (mode) {
+                                    DisplayMode.DoubleGrid -> R.string.home_settings_display_mode_grid
+                                    DisplayMode.SingleColumn -> R.string.home_settings_display_mode_single
+                                }))
                             },
                             selectedValue = displayMode,
+                            optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Feed(
+                                columns = if (value == DisplayMode.SingleColumn.value) 1 else 2,
+                                horizontalCards = value == DisplayMode.SingleColumn.value,
+                            )) },
                             icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_FEED),
                             iconTint = displayModeTint,
                             onSelectionChange = viewModel::setDisplayMode,
                         )
 
-                        // 网格列数设置 (仅在双列网格模式下显示)
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = isTablet && state.displayMode == 0,
-                            enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
-                            exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut()
-                        ) {
-                            Column {
-                                AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsItemAnchor("appearance.grid_column_count") {
-                                    SettingsSingleChoicePreference(
-                                        icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_format_list_bulleted_24),
-                                        iconTint = com.android.purebilibili.core.theme.iOSBlue,
-                                        title = settingItemTitle("appearance.grid_column_count"),
-                                        subtitle = if (state.gridColumnCount == 0) {
-                                            "自适应（默认）；折叠屏外屏与窄屏独立记忆，可用双指缩放调整"
-                                        } else {
-                                            "宽屏固定 ${state.gridColumnCount} 列；折叠屏外屏与窄屏独立记忆"
-                                        },
-                                        options = (0..6).map { count ->
-                                            AppSegmentOption(
-                                                value = count,
-                                                label = if (count == 0) "自动" else "$count 列",
-                                            )
-                                        },
-                                        selectedValue = state.gridColumnCount,
-                                        onSelectionChange = viewModel::setGridColumnCount,
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        SettingsItemAnchor(com.android.purebilibili.feature.settings.GRID_CUSTOMIZATION_SETTING_ID) {
+                            AppSwitchPreference(
+                                title = com.android.purebilibili.feature.settings.settingItemTitle(com.android.purebilibili.feature.settings.GRID_CUSTOMIZATION_SETTING_ID, context),
+                                subtitle = context.getString(R.string.home_settings_grid_customization_summary),
+                                checked = homeConfiguration.gridColumnCustomizationEnabled,
+                                onCheckedChange = { scope.launch { SettingsManager.setGridColumnCustomizationEnabled(context, it) } },
+                            )
+                        }
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        SettingsItemAnchor("appearance.pinch_to_change_grid_columns_enabled") {
+                            AppSwitchPreference(
+                                title = com.android.purebilibili.feature.settings.settingItemTitle("appearance.pinch_to_change_grid_columns_enabled", context),
+                                subtitle = context.getString(R.string.home_settings_pinch_columns_summary),
+                                checked = pinchToChangeGridColumnsEnabled,
+                                enabled = homeConfiguration.gridColumnCustomizationEnabled,
+                                onCheckedChange = { scope.launch { SettingsManager.setPinchToChangeGridColumnsEnabled(context, it) } },
+                            )
+                        }
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        SettingsItemAnchor(com.android.purebilibili.feature.settings.GRID_SHARE_SETTING_ID) {
+                            AppSwitchPreference(
+                                title = com.android.purebilibili.feature.settings.settingItemTitle(com.android.purebilibili.feature.settings.GRID_SHARE_SETTING_ID, context),
+                                subtitle = context.getString(R.string.home_settings_grid_share_summary),
+                                checked = homeConfiguration.gridColumnsSharedAcrossPages,
+                                enabled = homeConfiguration.gridColumnCustomizationEnabled,
+                                onCheckedChange = { scope.launch { SettingsManager.setGridColumnsSharedAcrossPages(context, it) } },
+                            )
+                        }
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        SettingsItemAnchor(com.android.purebilibili.feature.settings.GRID_COMPACT_SETTING_ID) {
+                            SettingsSingleChoicePreference(
+                                title = com.android.purebilibili.feature.settings.settingItemTitle(com.android.purebilibili.feature.settings.GRID_COMPACT_SETTING_ID, context),
+                                subtitle = context.getString(R.string.home_settings_grid_default_summary),
+                                enabled = homeConfiguration.gridColumnCustomizationEnabled,
+                                options = (0..4).map { count ->
+                                    AppSegmentOption(
+                                        value = count,
+                                        label = if (count == 0) context.getString(R.string.home_settings_grid_columns_auto)
+                                        else context.getString(R.string.home_settings_grid_columns_count, count),
                                     )
-                                }
-                                AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsItemAnchor("appearance.home_feed_card_width_preset") {
-                                    SettingsSingleChoicePreference(
-                                        title = settingItemTitle("appearance.home_feed_card_width_preset"),
-                                        subtitle = if (state.gridColumnCount > 0) {
-                                            "当前固定 ${state.gridColumnCount} 列优先生效，自动列数时使用该宽度"
-                                        } else {
-                                            "自动列数时控制首页推荐卡片的最小宽度"
-                                        },
-                                        options = resolveHomeFeedCardWidthPresetSegmentOptions(),
-                                        selectedValue = state.homeFeedCardWidthPreset,
-                                        onSelectionChange = viewModel::setHomeFeedCardWidthPreset,
+                                },
+                                selectedValue = homeConfiguration.gridColumnCountCompact,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Feed(columns = value)) },
+                                onSelectionChange = { count -> scope.launch { SettingsManager.setGridColumnCountCompact(context, count) } },
+                            )
+                        }
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        SettingsItemAnchor("appearance.grid_column_count") {
+                            SettingsSingleChoicePreference(
+                                title = com.android.purebilibili.feature.settings.settingItemTitle("appearance.grid_column_count", context),
+                                subtitle = context.getString(R.string.home_settings_grid_default_summary),
+                                enabled = homeConfiguration.gridColumnCustomizationEnabled,
+                                options = (0..7).map { count ->
+                                    AppSegmentOption(
+                                        value = count,
+                                        label = if (count == 0) context.getString(R.string.home_settings_grid_columns_auto)
+                                        else context.getString(R.string.home_settings_grid_columns_count, count),
                                     )
-                                }
-                                AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                                SettingsItemAnchor("appearance.pinch_to_change_grid_columns_enabled") {
-                                    AppSwitchPreference(
-                                        title = settingItemTitle("appearance.pinch_to_change_grid_columns_enabled"),
-                                        subtitle = "在视频列表上双指捏合即可调节列数",
-                                        checked = pinchToChangeGridColumnsEnabled,
-                                        onCheckedChange = { enabled ->
-                                            scope.launch {
-                                                SettingsManager.setPinchToChangeGridColumnsEnabled(context, enabled)
-                                            }
-                                        },
-                                    )
-                                }
+                                },
+                                selectedValue = homeConfiguration.gridColumnCount,
+                                optionLeading = { value -> SettingsOptionPreviewThumb(SettingsOptionPreview.Feed(columns = value)) },
+                                onSelectionChange = { count -> scope.launch { SettingsManager.setGridColumnCount(context, count) } },
+                            )
+                        }
+                        if (isTablet && state.displayMode == 0) {
+                            AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                            SettingsItemAnchor("appearance.home_feed_card_width_preset") {
+                                SettingsSingleChoicePreference(
+                                    title = context.getString(R.string.home_settings_card_width_title),
+                                    subtitle = if (homeConfiguration.gridColumnCustomizationEnabled && homeConfiguration.gridColumnCount > 0) {
+                                        context.getString(R.string.home_settings_card_width_current, homeConfiguration.gridColumnCount)
+                                    } else {
+                                        context.getString(R.string.home_settings_card_width_auto)
+                                    },
+                                    options = resolveHomeFeedCardWidthPresetSegmentOptions().map { option ->
+                                        option.copy(label = context.getString(when (option.value) {
+                                            HomeFeedCardWidthPreset.AUTO -> R.string.home_settings_card_width_auto_option
+                                            HomeFeedCardWidthPreset.COMPACT -> R.string.home_settings_card_width_compact
+                                            HomeFeedCardWidthPreset.BALANCED -> R.string.home_settings_card_width_balanced
+                                            HomeFeedCardWidthPreset.WIDE -> R.string.home_settings_card_width_wide
+                                            HomeFeedCardWidthPreset.ULTRA_WIDE -> R.string.home_settings_card_width_ultra_wide
+                                        }))
+                                    },
+                                    selectedValue = state.homeFeedCardWidthPreset,
+                                    onSelectionChange = viewModel::setHomeFeedCardWidthPreset,
+                                )
                             }
                         }
 
@@ -1465,29 +1810,36 @@ fun AppearanceSettingsContent(
                         SettingsItemAnchor("appearance.full_video_card_content_visible") {
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.FULL_VIDEO_CARD_CONTENT),
-                                title = settingItemTitle("appearance.full_video_card_content_visible"),
-                                subtitle = if (fullVideoCardContentVisible) {
-                                    "标题不截断，卡片高度可能不一致"
-                                } else {
-                                    "标题最多两行，其余信息不变"
-                                },
+                                title = context.getString(R.string.home_settings_full_card_title),
+                                subtitle = context.getString(
+                                    if (fullVideoCardContentVisible) R.string.home_settings_full_card_on
+                                    else R.string.home_settings_full_card_off,
+                                ),
                                 checked = fullVideoCardContentVisible,
                                 onCheckedChange = {
                                     scope.launch {
                                         SettingsManager.setFullVideoCardContentVisible(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         SettingsItemAnchor("appearance.home_feed_card_style") {
                             SettingsSingleChoicePreference(
-                                title = settingItemTitle("appearance.home_feed_card_style"),
-                                subtitle = homeFeedCardStyle.subtitle + "（首页、搜索、列表、相关推荐等同步）",
+                                title = context.getString(R.string.home_settings_card_ratio_title),
+                                subtitle = context.getString(when (homeFeedCardStyle) {
+                                    HomeFeedCardStyle.CURRENT -> R.string.home_settings_card_ratio_current
+                                    HomeFeedCardStyle.OFFICIAL -> R.string.home_settings_card_ratio_official
+                                    HomeFeedCardStyle.BILIPAI -> R.string.home_settings_card_ratio_bilipai
+                                }) + context.getString(R.string.home_settings_card_ratio_sync),
                                 options = HomeFeedCardStyle.entries.map {
-                                    AppSegmentOption(it, it.label)
+                                    AppSegmentOption(it, context.getString(when (it) {
+                                        HomeFeedCardStyle.CURRENT -> R.string.appearance_home_card_ratio_current_label
+                                        HomeFeedCardStyle.OFFICIAL -> R.string.appearance_home_card_ratio_official_label
+                                        HomeFeedCardStyle.BILIPAI -> R.string.appearance_home_card_ratio_bilipai_label
+                                    }))
                                 },
                                 selectedValue = homeFeedCardStyle,
                                 onSelectionChange = {
@@ -1504,9 +1856,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_CARD_STATS_COMPACT),
                                 title = settingItemTitle("appearance.compact_video_stats_on_cover"),
                                 subtitle = if (compactVideoStatsOnCover) {
-                                    "播放量和弹幕显示在封面底部"
+                                    context.getString(R.string.appearance_home_compact_stats_on)
                                 } else {
-                                    "默认显示在标题下方"
+                                    context.getString(R.string.appearance_home_compact_stats_off)
                                 },
                                 checked = compactVideoStatsOnCover,
                                 onCheckedChange = {
@@ -1514,7 +1866,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setCompactVideoStatsOnCover(context, it)
                                     }
                                 },
-                                iconTint = iOSTeal
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1522,9 +1874,13 @@ fun AppearanceSettingsContent(
                         SettingsItemAnchor("appearance.home_duration_style") {
                             SettingsSingleChoicePreference(
                                 title = settingItemTitle("appearance.home_duration_style"),
-                                subtitle = "选择视频时长的显示方式",
+                                subtitle = context.getString(R.string.appearance_home_duration_subtitle),
                                 options = HomeDurationStyle.entries.map {
-                                    AppSegmentOption(it, it.label)
+                                    AppSegmentOption(it, context.getString(when (it) {
+                                        HomeDurationStyle.OUTSIDE_COVER -> R.string.appearance_home_duration_outside
+                                        HomeDurationStyle.OVERLAY_TEXT_ONLY -> R.string.appearance_home_duration_overlay
+                                        HomeDurationStyle.HIDDEN -> R.string.appearance_home_duration_hidden
+                                    }))
                                 },
                                 selectedValue = homeDurationStyle,
                                 onSelectionChange = {
@@ -1541,9 +1897,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.TIME_STATUS),
                                 title = settingItemTitle("appearance.home_publish_time_visible"),
                                 subtitle = if (homePublishTimeVisible) {
-                                    "首页视频卡片显示发布时间"
+                                    context.getString(R.string.appearance_home_publish_on)
                                 } else {
-                                    "首页视频卡片不显示发布时间"
+                                    context.getString(R.string.appearance_home_publish_off)
                                 },
                                 checked = homePublishTimeVisible,
                                 onCheckedChange = {
@@ -1551,7 +1907,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomePublishTimeVisible(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1561,9 +1917,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_AVATAR),
                                 title = settingItemTitle("appearance.home_up_avatars_visible"),
                                 subtitle = if (homeUpAvatarsVisible) {
-                                    "首页视频卡片显示 UP 主头像"
+                                    context.getString(R.string.appearance_home_avatars_on)
                                 } else {
-                                    "隐藏头像，为 UP 主名称留出更多空间"
+                                    context.getString(R.string.appearance_home_avatars_off)
                                 },
                                 checked = homeUpAvatarsVisible,
                                 onCheckedChange = {
@@ -1571,7 +1927,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomeUpAvatarsVisible(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1581,9 +1937,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
                                 title = settingItemTitle("appearance.home_up_badges_visible"),
                                 subtitle = if (homeUpBadgesVisible) {
-                                    "首页和相关推荐显示 UP 标识"
+                                    context.getString(R.string.appearance_home_badges_on)
                                 } else {
-                                    "首页和相关推荐隐藏 UP 标识"
+                                    context.getString(R.string.appearance_home_badges_off)
                                 },
                                 checked = homeUpBadgesVisible,
                                 onCheckedChange = {
@@ -1591,19 +1947,21 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomeUpBadgesVisible(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
+                        com.android.purebilibili.feature.settings.RecommendRetentionPreference()
+                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         SettingsItemAnchor("appearance.home_refresh_tip_visible") {
                             AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_REFRESH_TIP),
                                 title = settingItemTitle("appearance.home_refresh_tip_visible"),
                                 subtitle = if (homeRefreshTipVisible) {
-                                    "推荐流刷新后保留旧内容，并在刷新位置显示提示"
+                                    context.getString(R.string.appearance_home_refresh_tip_on)
                                 } else {
-                                    "关闭后刷新直接替换推荐内容，不显示刷新位置提示"
+                                    context.getString(R.string.appearance_home_refresh_tip_off)
                                 },
                                 checked = homeRefreshTipVisible,
                                 onCheckedChange = {
@@ -1611,23 +1969,23 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomeRefreshTipVisible(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         SettingsItemAnchor("appearance.home_refresh_undo_visible") {
                             AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_UP_BADGES),
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_REFRESH_UNDO),
                                 title = settingItemTitle("appearance.home_refresh_undo_visible"),
-                                subtitle = "刷新推荐流后显示撤销按钮，可恢复刷新前的内容",
+                                subtitle = context.getString(R.string.appearance_home_refresh_undo),
                                 checked = homeRefreshUndoVisible,
                                 onCheckedChange = { enabled ->
                                     scope.launch {
                                         SettingsManager.setHomeRefreshUndoVisible(context, enabled)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1637,17 +1995,17 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_ONLINE_COUNT),
                                 title = settingItemTitle("appearance.show_online_count"),
                                 subtitle = if (showOnlineCount) {
-                                    "在视频卡片和视频页显示“xx 人正在看”"
+                                    context.getString(R.string.appearance_home_online_on)
                                 } else {
-                                    "关闭后隐藏卡片和视频页的同时观看人数"
+                                    context.getString(R.string.appearance_home_online_off)
                                 },
                                 checked = showOnlineCount,
                                 onCheckedChange = {
                                     scope.launch {
-                                        SettingsManager.setShowOnlineCount(context, it)
+                                        SettingsManager.setShowCardOnlineCount(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
                     }
@@ -1657,13 +2015,19 @@ fun AppearanceSettingsContent(
             //  首页壁纸与氛围
             item(key = "home_wallpaper_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("首页壁纸")
+                    AppPreferenceSectionTitle(context.getString(R.string.appearance_home_wallpaper_section))
                 }
             }
             item(key = "home_wallpaper") {
                 Box(modifier = Modifier.entrance()) {
                     AppPreferenceGroup {
                         var showHomeWallpaperPicker by remember { mutableStateOf(false) }
+                        var editingWallpaper by remember {
+                            mutableStateOf<com.android.purebilibili.core.store.home.HomeWallpaperSelection?>(null)
+                        }
+                        var editingWallpaperPreviewUri by remember { mutableStateOf("") }
+                        var savingWallpaperTransform by remember { mutableStateOf(false) }
+                        var wallpaperTransformError by remember { mutableStateOf<String?>(null) }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1681,6 +2045,10 @@ fun AppearanceSettingsContent(
                                     com.android.purebilibili.core.ui.wallpaper.WallpaperMedia(
                                         uri = resolvedHomeWallpaperUri,
                                         playbackEnabled = false,
+                                        transformProvider = {
+                                            if (wallpaperPreviewIsTablet)
+                                                homeWallpaperSelection.tabletTransform else homeWallpaperSelection.mobileTransform
+                                        },
                                         imageModel = coil3.request.ImageRequest.Builder(context)
                                             .data(resolvedHomeWallpaperUri)
                                             .crossfade(true)
@@ -1695,7 +2063,7 @@ fun AppearanceSettingsContent(
                                         AppIcon(
                                             rememberSettingsSemanticIcon(SettingsIconRole.HOME_WALLPAPER),
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            tint = AppContentColors.secondaryText(),
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -1706,26 +2074,69 @@ fun AppearanceSettingsContent(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 AppText(
-                                    text = "选择首页壁纸",
+                                    text = context.getString(R.string.appearance_home_wallpaper_choose),
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = AppContentColors.primaryText()
                                 )
                                 AppText(
                                     text = when {
-                                        dedicatedHomeWallpaperUri.isNotBlank() -> "已单独设置首页壁纸"
-                                        homeWallpaperFollowsSplash -> "未单独设置，当前跟随开屏壁纸"
-                                        else -> "从官方壁纸库或相册选择"
+                                        dedicatedHomeWallpaperUri.isNotBlank() -> context.getString(R.string.appearance_home_wallpaper_dedicated)
+                                        homeWallpaperFollowsSplash -> context.getString(R.string.appearance_home_wallpaper_follows_splash)
+                                        else -> context.getString(R.string.appearance_home_wallpaper_source)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AppContentColors.secondaryText()
                                 )
                             }
 
                             AppIcon(
                                 com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_keyboard_arrow_right_24),
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                tint = AppContentColors.secondaryText().copy(alpha = 0.5f),
                                 modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        if (resolvedHomeWallpaperUri.isNotBlank()) {
+                            AppTextButton(
+                                onClick = {
+                                    wallpaperTransformError = null
+                                    editingWallpaperPreviewUri = resolvedHomeWallpaperUri
+                                    editingWallpaper = homeWallpaperSelection
+                                },
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) { AppText(context.getString(R.string.appearance_home_wallpaper_transform)) }
+                        }
+                        editingWallpaper?.let { draft ->
+                            com.android.purebilibili.feature.profile.HomeWallpaperAdjustmentSheet(
+                                uri = editingWallpaperPreviewUri,
+                                initialMobileTransform = draft.mobileTransform,
+                                initialTabletTransform = draft.tabletTransform,
+                                effectMode = homeWallpaperEffectMode,
+                                saving = savingWallpaperTransform,
+                                saveError = wallpaperTransformError,
+                                onDismiss = { editingWallpaper = null },
+                                onSave = { mobile, tablet ->
+                                    if (!savingWallpaperTransform) {
+                                        savingWallpaperTransform = true
+                                        wallpaperTransformError = null
+                                        scope.launch {
+                                            try {
+                                                SettingsManager.setHomeWallpaperSelection(context, draft.copy(
+                                                    mobileTransform = mobile,
+                                                    tabletTransform = tablet,
+                                                ))
+                                                editingWallpaper = null
+                                            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                                throw cancelled
+                                            } catch (error: Exception) {
+                                                wallpaperTransformError = error.message ?: context.getString(R.string.appearance_home_wallpaper_save_error)
+                                            } finally {
+                                                savingWallpaperTransform = false
+                                            }
+                                        }
+                                    }
+                                },
                             )
                         }
 
@@ -1741,10 +2152,10 @@ fun AppearanceSettingsContent(
                             SettingsSingleChoicePreference(
                                 title = settingItemTitle("appearance.home_wallpaper_effect_mode"),
                                 subtitle = when (homeWallpaperEffectMode) {
-                                    HomeWallpaperEffectMode.OFF -> "首页不使用开屏壁纸作为背景"
-                                    HomeWallpaperEffectMode.SOFT_BLUR -> "轻微模糊壁纸，卡片背景半透明"
-                                    HomeWallpaperEffectMode.STRONG_BLUR -> "加深模糊，保留颜色并减少背景干扰"
-                                    HomeWallpaperEffectMode.ORIGINAL -> "显示原图，文字背景略微遮挡"
+                                    HomeWallpaperEffectMode.OFF -> context.getString(R.string.appearance_wallpaper_effect_off_summary)
+                                    HomeWallpaperEffectMode.SOFT_BLUR -> context.getString(R.string.appearance_wallpaper_effect_soft_summary)
+                                    HomeWallpaperEffectMode.STRONG_BLUR -> context.getString(R.string.appearance_wallpaper_effect_strong_summary)
+                                    HomeWallpaperEffectMode.ORIGINAL -> context.getString(R.string.appearance_wallpaper_effect_original_summary)
                                 },
                                 options = homeWallpaperEffectOptions,
                                 selectedValue = homeWallpaperEffectMode,
@@ -1767,8 +2178,14 @@ fun AppearanceSettingsContent(
                                     SettingsSingleChoicePreference(
                                         title = settingItemTitle("appearance.home_wallpaper_effect_scope"),
                                         subtitle = when (homeWallpaperEffectScope) {
-                                            HomeWallpaperEffectScope.HOME_ONLY -> "仅首页使用该壁纸背景效果"
-                                            HomeWallpaperEffectScope.GLOBAL -> "首页和私信聊天使用同一壁纸"
+                                            HomeWallpaperEffectScope.HOME_ONLY -> context.getString(R.string.appearance_wallpaper_scope_home_summary)
+                                            HomeWallpaperEffectScope.GLOBAL -> if (
+                                                homeWallpaperIsStatic
+                                            ) {
+                                                context.getString(R.string.appearance_wallpaper_scope_global_summary)
+                                            } else {
+                                                context.getString(R.string.appearance_wallpaper_motion_summary)
+                                            }
                                         },
                                         options = homeWallpaperEffectScopeOptions,
                                         selectedValue = homeWallpaperEffectScope,
@@ -1782,34 +2199,16 @@ fun AppearanceSettingsContent(
                             }
                         }
 
-                        AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
-                        SettingsItemAnchor("appearance.home_card_frosted_glass_enabled") {
-                            AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
-                                title = settingItemTitle("appearance.home_card_frosted_glass_enabled"),
-                                subtitle = if (homeCardFrostedGlassEnabled) {
-                                    "模糊卡片文字背后的壁纸"
-                                } else {
-                                    "卡片不使用实时模糊"
-                                },
-                                checked = homeCardFrostedGlassEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        SettingsManager.setHomeCardFrostedGlassEnabled(context, it)
-                                    }
-                                },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
-                            )
-                        }
+                        // 「卡片背景模糊」已并入「动画与触感」页的液态玻璃与磨砂分组。
                         AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                         SettingsItemAnchor("appearance.home_card_dynamic_tint_enabled") {
                             AppSwitchPreference(
-                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_INFO_GLASS),
+                                icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_CARD_DYNAMIC_TINT),
                                 title = settingItemTitle("appearance.home_card_dynamic_tint_enabled"),
                                 subtitle = if (homeCardDynamicTintEnabled) {
-                                    "卡片信息区跟随壁纸或封面颜色"
+                                    context.getString(R.string.appearance_wallpaper_card_tint_on)
                                 } else {
-                                    "卡片不跟随壁纸或封面变色"
+                                    context.getString(R.string.appearance_wallpaper_card_tint_off)
                                 },
                                 checked = homeCardDynamicTintEnabled,
                                 onCheckedChange = {
@@ -1817,7 +2216,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomeCardDynamicTintEnabled(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
                     }
@@ -1827,7 +2226,7 @@ fun AppearanceSettingsContent(
             //  内容与推荐流
             item(key = "home_recommendation_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("内容与推荐流")
+                    AppPreferenceSectionTitle(context.getString(R.string.appearance_content_feed_section))
                 }
             }
             item(key = "home_recommendation") {
@@ -1838,9 +2237,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_CAROUSEL),
                                 title = settingItemTitle("appearance.home_hero_carousel_enabled"),
                                 subtitle = if (homeHeroCarouselEnabled) {
-                                    "推荐页顶部显示官方比例的视频封面轮播"
+                                    context.getString(R.string.appearance_feed_carousel_on)
                                 } else {
-                                    "推荐页直接显示普通视频流"
+                                    context.getString(R.string.appearance_feed_carousel_off)
                                 },
                                 checked = homeHeroCarouselEnabled,
                                 onCheckedChange = {
@@ -1848,7 +2247,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setHomeHeroCarouselEnabled(context, it)
                                     }
                                 },
-                                iconTint = iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1860,9 +2259,9 @@ fun AppearanceSettingsContent(
                                         icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HERO_AUTOPLAY),
                                         title = settingItemTitle("appearance.home_hero_carousel_autoplay_enabled"),
                                         subtitle = if (homeHeroCarouselAutoplayEnabled) {
-                                            "轮播视频出现在屏幕上时静音循环播放"
+                                            context.getString(R.string.appearance_feed_autoplay_on)
                                         } else {
-                                            "默认只展示封面，点开后进入视频详情"
+                                            context.getString(R.string.appearance_feed_autoplay_off)
                                         },
                                         checked = homeHeroCarouselAutoplayEnabled,
                                         onCheckedChange = {
@@ -1870,7 +2269,7 @@ fun AppearanceSettingsContent(
                                                 SettingsManager.setHomeHeroCarouselAutoplayEnabled(context, it)
                                             }
                                         },
-                                        iconTint = iOSBlue
+                                        iconTint = AppContentColors.secondaryText()
                                     )
                                 }
                             }
@@ -1881,14 +2280,14 @@ fun AppearanceSettingsContent(
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.PGC_TIMELINE),
                                 title = settingItemTitle("appearance.show_pgc_timeline"),
-                                subtitle = "番剧与影视页显示最近更新时间表",
+                                subtitle = context.getString(R.string.appearance_pgc_timeline),
                                 checked = showPgcTimeline,
                                 onCheckedChange = { value ->
                                     scope.launch {
                                         SettingsManager.setShowPgcTimeline(context, value)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSPurple
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
                     }
@@ -1898,7 +2297,7 @@ fun AppearanceSettingsContent(
             //  浏览交互与手势
             item(key = "home_browsing_title") {
                 Box(modifier = Modifier.entrance()) {
-                    AppPreferenceSectionTitle("浏览交互与手势")
+                    AppPreferenceSectionTitle(context.getString(R.string.appearance_browse_gestures_section))
                 }
             }
             item(key = "home_browsing") {
@@ -1908,12 +2307,12 @@ fun AppearanceSettingsContent(
                             AppSwitchPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.HOME_HEADER_COLLAPSE),
                                 title = settingItemTitle("appearance.is_header_collapse_enabled"),
-                                subtitle = "向下滚动时收起搜索框和标签，点底栏「首页」回顶后重新出现",
+                                subtitle = context.getString(R.string.appearance_home_header_scroll),
                                 checked = state.isHeaderCollapseEnabled,
                                 onCheckedChange = { value ->
                                     viewModel.toggleHeaderCollapse(value)
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSTeal
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -1923,11 +2322,11 @@ fun AppearanceSettingsContent(
                                 title = settingItemTitle("appearance.common_list_header_collapse_mode"),
                                 subtitle = when (commonListHeaderCollapseMode) {
                                     CommonListHeaderCollapseMode.ALWAYS_VISIBLE ->
-                                        "搜索、收藏、历史、稍后再看、我的点赞顶栏保持展开，与首页设置独立"
+                                        context.getString(R.string.appearance_common_header_always)
                                     CommonListHeaderCollapseMode.SHOW_ON_REVERSE_SCROLL ->
-                                        "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，反向上滑时恢复"
+                                        context.getString(R.string.appearance_common_header_reverse)
                                     CommonListHeaderCollapseMode.SHOW_AT_TOP_ONLY ->
-                                        "搜索、收藏、历史、稍后再看、我的点赞向下浏览时折叠顶栏，仅回到顶部时恢复"
+                                        context.getString(R.string.appearance_common_header_top)
                                 },
                                 options = commonListHeaderCollapseOptions,
                                 selectedValue = commonListHeaderCollapseMode,
@@ -1945,9 +2344,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BACK_TO_TOP),
                                 title = settingItemTitle("appearance.back_to_top_button_enabled"),
                                 subtitle = if (hasCustomBackToTopOffset) {
-                                    "已保存按钮位置；长按可拖动"
+                                    context.getString(R.string.appearance_back_to_top_saved)
                                 } else {
-                                    "在长页面显示回顶按钮；长按可拖动"
+                                    context.getString(R.string.appearance_back_to_top_enabled)
                                 },
                                 checked = backToTopButtonEnabled,
                                 onCheckedChange = {
@@ -1955,22 +2354,22 @@ fun AppearanceSettingsContent(
                                         BackToTopSettingsStore.setEnabled(context, it)
                                     }
                                 },
-                                iconTint = iOSBlue,
+                                iconTint = AppContentColors.secondaryText(),
                             )
                         }
                         if (backToTopButtonEnabled && hasCustomBackToTopOffset) {
                             AppPreferenceDivider(modifier = Modifier.padding(start = 16.dp))
                             AppPreference(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.BACK_TO_TOP),
-                                title = "重置回顶按钮位置",
-                                subtitle = "恢复默认右下角位置",
+                                title = context.getString(R.string.appearance_back_to_top_reset_title),
+                                subtitle = context.getString(R.string.appearance_back_to_top_reset_subtitle),
                                 onClick = {
                                     scope.launch {
                                         BackToTopSettingsStore.resetCustomOffset(context)
-                                        android.widget.Toast.makeText(context, "已恢复回顶按钮默认位置", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(context, context.getString(R.string.appearance_back_to_top_reset_toast), android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                iconTint = iOSBlue,
+                                iconTint = AppContentColors.secondaryText(),
                             )
                         }
 
@@ -1980,9 +2379,9 @@ fun AppearanceSettingsContent(
                                 icon = rememberSettingsSemanticIcon(SettingsIconRole.FULLSCREEN_GESTURE),
                                 title = settingItemTitle("appearance.video_card_long_press_action_enabled"),
                                 subtitle = if (videoCardLongPressActionEnabled) {
-                                    "长按卡片显示快捷操作与预览"
+                                    context.getString(R.string.appearance_card_long_press_on)
                                 } else {
-                                    "已关闭长按手势，避免误触（默认关闭）"
+                                    context.getString(R.string.appearance_card_long_press_off)
                                 },
                                 checked = videoCardLongPressActionEnabled,
                                 onCheckedChange = {
@@ -1990,7 +2389,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setVideoCardLongPressActionEnabled(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
 
@@ -2000,9 +2399,9 @@ fun AppearanceSettingsContent(
                                 icon = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_edit_note_24),
                                 title = settingItemTitle("appearance.show_profile_edit_button"),
                                 subtitle = if (showProfileEditButton) {
-                                    "个人主页显示“编辑资料”按钮"
+                                    context.getString(R.string.appearance_profile_edit_on)
                                 } else {
-                                    "个人主页隐藏“编辑资料”按钮"
+                                    context.getString(R.string.appearance_profile_edit_off)
                                 },
                                 checked = showProfileEditButton,
                                 onCheckedChange = {
@@ -2010,7 +2409,7 @@ fun AppearanceSettingsContent(
                                         SettingsManager.setShowProfileEditButton(context, it)
                                     }
                                 },
-                                iconTint = com.android.purebilibili.core.theme.iOSBlue
+                                iconTint = AppContentColors.secondaryText()
                             )
                         }
                     }
@@ -2020,7 +2419,7 @@ fun AppearanceSettingsContent(
         if (contentMode == AppearanceSettingsContentMode.HOME) {
             item(key = "home_options") {
                 Column {
-                    AppPreferenceSectionTitle("推荐与动态")
+                    AppPreferenceSectionTitle(context.getString(R.string.appearance_recommend_dynamic_section))
                     HomeFeedSettingsSection()
                 }
             }
@@ -2032,6 +2431,12 @@ fun AppearanceSettingsContent(
     if (showMd3ColorPickerDialog) {
         ThemeCustomColorPickerDialog(
             initialHex = state.md3CustomColorHex,
+            paletteStyle = state.colorStyle,
+            colorSpec = state.colorSpec,
+            colorContrast = state.colorContrast,
+            seedPaletteStyle = state.seedPaletteStyle,
+            previewConfiguration = palettePreviewConfiguration,
+            themeSeed = selectedCustomThemeColor,
             onDismiss = { showMd3ColorPickerDialog = false },
             onConfirm = { hex ->
                 viewModel.applyMd3CustomColor(hex)
@@ -2043,6 +2448,13 @@ fun AppearanceSettingsContent(
     roleColorTarget?.let { target ->
         ThemeCustomColorPickerDialog(
             initialHex = target.read(themeRoleOverrides),
+            roleTarget = target,
+            paletteStyle = state.colorStyle,
+            colorSpec = state.colorSpec,
+            colorContrast = state.colorContrast,
+            seedPaletteStyle = state.seedPaletteStyle,
+            previewConfiguration = palettePreviewConfiguration,
+            themeSeed = selectedCustomThemeColor,
             onDismiss = { roleColorTarget = null },
             onConfirm = { hex ->
                 scope.launch {
@@ -2057,15 +2469,15 @@ fun AppearanceSettingsContent(
     }
 }
 
-internal enum class ThemeRoleColorTarget(val label: String) {
-    LIGHT_BACKGROUND("浅色背景"),
-    LIGHT_PRIMARY_TEXT("浅色主要文字"),
-    LIGHT_SECONDARY_TEXT("浅色次要文字"),
-    LIGHT_CONTROL("浅色控件"),
-    DARK_BACKGROUND("深色背景"),
-    DARK_PRIMARY_TEXT("深色主要文字"),
-    DARK_SECONDARY_TEXT("深色次要文字"),
-    DARK_CONTROL("深色控件");
+internal enum class ThemeRoleColorTarget(val labelRes: Int) {
+    LIGHT_BACKGROUND(R.string.appearance_theme_light_background),
+    LIGHT_PRIMARY_TEXT(R.string.appearance_theme_light_primary_text),
+    LIGHT_SECONDARY_TEXT(R.string.appearance_theme_light_secondary_text),
+    LIGHT_CONTROL(R.string.appearance_theme_light_control),
+    DARK_BACKGROUND(R.string.appearance_theme_dark_background),
+    DARK_PRIMARY_TEXT(R.string.appearance_theme_dark_primary_text),
+    DARK_SECONDARY_TEXT(R.string.appearance_theme_dark_secondary_text),
+    DARK_CONTROL(R.string.appearance_theme_dark_control);
 
     fun read(overrides: ThemeRoleOverrides): String = when (this) {
         LIGHT_BACKGROUND -> overrides.light.backgroundHex
@@ -2106,23 +2518,81 @@ internal fun resolveThemeRoleColorIconRole(
 }
 
 @Composable
+private fun ThemePaletteContrastSummary(
+    seed: Color,
+    style: com.materialkolor.PaletteStyle,
+    spec: com.materialkolor.dynamiccolor.ColorSpec.SpecVersion,
+    contrast: com.materialkolor.Contrast,
+    seedStyle: SeedPaletteStyle,
+    configuration: ThemePreviewConfiguration,
+    modifier: Modifier = Modifier,
+) {
+    val lightMode = stringResource(R.string.appearance_theme_light_mode)
+    val darkMode = stringResource(R.string.appearance_theme_dark_mode)
+    val clearSummary = stringResource(R.string.appearance_theme_contrast_clear)
+    val issueSummary = stringResource(R.string.appearance_theme_contrast_issues_summary)
+    val summaries = remember(seed, style, spec, contrast, seedStyle, configuration, lightMode, darkMode, clearSummary, issueSummary) {
+        listOf(false, true).map { dark ->
+            val checks = assessThemeContrast(resolveThemePreviewPalette(
+                seed, dark, style, spec, contrast, seedStyle, configuration,
+            ).material)
+            val issues = checks.filterNot { it.passes }
+            val mode = if (dark) darkMode else lightMode
+            if (issues.isEmpty()) "$mode: $clearSummary"
+            else "$mode: $issueSummary"
+        }
+    }
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        AppText(stringResource(R.string.appearance_theme_contrast_readability), style = MaterialTheme.typography.titleSmall)
+        summaries.forEach { AppText(it, style = MaterialTheme.typography.bodySmall,
+            color = AppContentColors.secondaryText()) }
+        AppText(stringResource(R.string.appearance_theme_contrast_summary),
+            style = MaterialTheme.typography.bodySmall, color = AppContentColors.secondaryText())
+    }
+}
+
+@Composable
 private fun ThemeRoleOverrideEditor(
     overrides: ThemeRoleOverrides,
-    onColorClick: (ThemeRoleColorTarget) -> Unit
+    onColorClick: (ThemeRoleColorTarget) -> Unit,
+    configuration: ThemePreviewConfiguration,
+    seed: Color,
+    paletteStyle: com.materialkolor.PaletteStyle,
+    colorSpec: com.materialkolor.dynamiccolor.ColorSpec.SpecVersion,
+    colorContrast: com.materialkolor.Contrast,
+    onRepair: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = Modifier.padding(top = 8.dp)) {
+    val lightScheme = remember(seed, paletteStyle, colorSpec, colorContrast, configuration) {
+        resolveThemePreviewPalette(seed, false, paletteStyle, colorSpec, colorContrast,
+            SeedPaletteStyle.Standard, configuration).material
+    }
+    val darkScheme = remember(seed, paletteStyle, colorSpec, colorContrast, configuration) {
+        resolveThemePreviewPalette(seed, true, paletteStyle, colorSpec, colorContrast,
+            SeedPaletteStyle.Standard, configuration).material
+    }
+    Column(modifier = modifier.padding(top = 8.dp)) {
         ThemeRoleModeEditor(
-            title = "浅色模式",
+            title = stringResource(R.string.appearance_theme_light_mode),
             roles = overrides.light,
             targets = ThemeRoleColorTarget.entries.take(4),
-            onColorClick = onColorClick
+            onColorClick = onColorClick,
+            finalScheme = lightScheme,
+            onRepair = { onRepair(false) },
+            repairAvailable = repairThemeRoleTextContrast(overrides.light, false) != overrides.light
         )
         AppPreferenceDivider()
         ThemeRoleModeEditor(
-            title = "深色模式",
+            title = stringResource(R.string.appearance_theme_dark_mode),
             roles = overrides.dark,
             targets = ThemeRoleColorTarget.entries.takeLast(4),
-            onColorClick = onColorClick
+            onColorClick = onColorClick,
+            finalScheme = darkScheme,
+            onRepair = { onRepair(true) },
+            repairAvailable = repairThemeRoleTextContrast(overrides.dark, true) != overrides.dark
         )
     }
 }
@@ -2132,8 +2602,15 @@ internal fun ThemeRoleModeEditor(
     title: String,
     roles: ThemeModeRoleOverrides,
     targets: List<ThemeRoleColorTarget>,
-    onColorClick: (ThemeRoleColorTarget) -> Unit
+    onColorClick: (ThemeRoleColorTarget) -> Unit,
+    finalScheme: ColorScheme? = null,
+    onRepair: (() -> Unit)? = null,
+    repairAvailable: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val finalChecks = remember(finalScheme) { finalScheme?.let(::assessThemeContrast).orEmpty() }
+    val finalIssues = finalChecks.filterNot { it.passes }
     val warning = remember(roles) { hasThemeRoleContrastWarning(roles) }
     val primaryContrast = remember(roles) {
         themeRoleContrastRatio(roles.primaryTextHex, roles.backgroundHex)
@@ -2147,7 +2624,7 @@ internal fun ThemeRoleModeEditor(
         roles.secondaryTextHex,
         roles.controlAccentHex
     )
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         AppText(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         Row(
             modifier = Modifier
@@ -2173,165 +2650,67 @@ internal fun ThemeRoleModeEditor(
         targets.forEachIndexed { index, target ->
             AppPreference(
                 icon = rememberSettingsSemanticIcon(resolveThemeRoleColorIconRole(target)),
-                title = target.label,
+                title = stringResource(target.labelRes),
                 subtitle = colors[index],
                 value = colors[index],
                 onClick = { onColorClick(target) },
-                iconTint = parseMd3CustomColorHex(colors[index])
+                iconTint = AppContentColors.secondaryText()
             )
         }
         AppText(
-            text = "对比度：主要文字 %.2f:1，次要文字 %.2f:1".format(
+            text = stringResource(R.string.appearance_theme_contrast_ratio,
                 primaryContrast,
                 secondaryContrast
             ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppContentColors.secondaryText(),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 8.dp)
         )
+        if (finalScheme != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .background(finalScheme.surface, AppShapes.container(ContainerLevel.Field))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(stringResource(R.string.appearance_theme_preview_primary), color = finalScheme.onSurface)
+                Text(stringResource(R.string.appearance_theme_preview_secondary), color = finalScheme.onSurfaceVariant)
+                Text(stringResource(R.string.appearance_theme_preview_selected), color = finalScheme.onSecondaryContainer,
+                    modifier = Modifier.background(finalScheme.secondaryContainer,
+                        AppShapes.container(ContainerLevel.Field)).padding(8.dp))
+            }
+            AppText(
+                if (finalIssues.isEmpty()) stringResource(R.string.appearance_theme_contrast_clear)
+                else stringResource(
+                    R.string.appearance_theme_contrast_issues,
+                    finalIssues.size,
+                    finalIssues.take(3).joinToString("; ") {
+                        context.getString(R.string.appearance_theme_contrast_issue_item, it.label, it.ratio, it.required)
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (finalIssues.isEmpty()) AppContentColors.secondaryText() else AppContentColors.error(),
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            AppText(stringResource(R.string.appearance_theme_contrast_explain),
+                style = MaterialTheme.typography.bodySmall, color = AppContentColors.secondaryText())
+        }
+        onRepair?.let { repair ->
+            AppTextButton(onClick = repair, enabled = repairAvailable) { AppText(stringResource(R.string.appearance_theme_contrast_repair)) }
+            AppText(stringResource(R.string.appearance_theme_contrast_repair_summary),
+                style = MaterialTheme.typography.bodySmall, color = AppContentColors.secondaryText())
+        }
         if (warning) {
             AppText(
-                text = "文字与背景过于接近，可能难以阅读；仍可保存。",
-                color = MaterialTheme.colorScheme.error,
+                text = stringResource(R.string.appearance_theme_contrast_warning),
+                color = AppContentColors.error(),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
     }
-}
-
-@Composable
-private fun ThemeCustomColorPickerDialog(
-    initialHex: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    val haptic = rememberHapticFeedback()
-    var pendingHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
-    var lastValidHex by remember(initialHex) { mutableStateOf(normalizeMd3CustomColorHex(initialHex)) }
-    var lastSelectionHapticAtMs by remember { mutableLongStateOf(0L) }
-    val hasValidHex = isValidMd3CustomColorHex(pendingHex)
-    val pendingColor = remember(lastValidHex) { parseMd3CustomColorHex(lastValidHex) }
-    val invalidInput = pendingHex.isNotBlank() && !hasValidHex
-
-    fun updatePendingHex(value: String) {
-        val nextHex = value.uppercase().take(9)
-        pendingHex = nextHex
-        if (isValidMd3CustomColorHex(nextHex)) {
-            lastValidHex = normalizeMd3CustomColorHex(nextHex)
-        }
-    }
-
-    fun emitSelectionHapticIfNeeded() {
-        val nowMs = SystemClock.elapsedRealtime()
-        if (shouldEmitMd3ColorPickerSelectionHaptic(lastSelectionHapticAtMs, nowMs)) {
-            haptic(HapticType.SELECTION)
-            lastSelectionHapticAtMs = nowMs
-        }
-    }
-
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            AppTextButton(
-                enabled = hasValidHex,
-                onClick = {
-                    haptic(HapticType.LIGHT)
-                    onConfirm(lastValidHex)
-                }
-            ) {
-                AppText("保存并应用")
-            }
-        },
-        dismissButton = {
-            AppTextButton(
-                onClick = {
-                    haptic(HapticType.LIGHT)
-                    onDismiss()
-                }
-            ) {
-                AppText("取消")
-            }
-        },
-        title = { AppText("自定义主题颜色") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(AppShapes.container(ContainerLevel.Dialog))
-                        .background(pendingColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AppText(
-                        text = if (hasValidHex) lastValidHex else pendingHex.ifBlank { "#RRGGBB" },
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (pendingColor.luminance() < 0.5f) Color.White else Color.Black,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                AppColorPicker(
-                    color = pendingColor,
-                    modifier = Modifier.fillMaxWidth(),
-                    onColorChanged = { color ->
-                        val nextHex = formatMd3CustomColorHex(color)
-                        if (nextHex != pendingHex) {
-                            updatePendingHex(nextHex)
-                            emitSelectionHapticIfNeeded()
-                        }
-                    },
-                )
-
-                AppTextField(
-                    value = pendingHex,
-                    onValueChange = ::updatePendingHex,
-                    label = "HEX（#RRGGBB）",
-                    singleLine = true,
-                    isError = invalidInput,
-                    supportingText = {
-                        if (invalidInput) {
-                            AppText("请输入 6 位 RGB，例如 #BBCAAE")
-                        } else {
-                            AppText("点击“保存并应用”后会立即保存，下次启动仍生效")
-                        }
-                    }
-                )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(ThemeColors.size, key = { it }) { index ->
-                        val color = ThemeColors[index]
-                        val hex = formatMd3CustomColorHex(color)
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .border(
-                                    width = if (normalizeMd3CustomColorHex(pendingHex) == hex) 2.dp else 1.dp,
-                                    color = if (normalizeMd3CustomColorHex(pendingHex) == hex) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    shape = CircleShape
-                                )
-                                .clickable {
-                                    updatePendingHex(hex)
-                                    haptic(HapticType.SELECTION)
-                                }
-                        )
-                    }
-                }
-            }
-        }
-    )
 }
 
 internal data class Md3ColorPickerSliderLayout(
@@ -2422,94 +2801,27 @@ internal fun restartApp(context: android.content.Context) {
 }
 
 /**
- * Material 3 native preview of the generated theme roles.
- *
- * The picker value is only a seed. This preview deliberately consumes the active
- * [MaterialTheme.colorScheme], so its container, control and text colors match the roles that
- * the rest of the app receives after MaterialKolor tone mapping.
- */
-@Composable
-private fun Md3ThemeColorPreview(
-    colorHex: String,
-    modifier: Modifier = Modifier,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    ElevatedCard(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 24.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = colorScheme.surfaceContainerLow,
-            contentColor = colorScheme.onSurface,
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = MaterialTheme.shapes.large,
-                color = colorScheme.primaryContainer,
-                contentColor = colorScheme.onPrimaryContainer,
-                tonalElevation = 2.dp,
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = com.android.purebilibili.feature.settings.rememberMaterialSymbol(com.android.purebilibili.R.drawable.ms_play_arrow_fill_24),
-                        contentDescription = null,
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = colorHex,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = colorScheme.onSurface,
-                )
-                Text(
-                    text = "Material 3 原生配色预览",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-
-/**
  *  动态取色预览组件
  * 显示从壁纸提取的 Material You 颜色
  */
 
 
 @Composable
-fun DynamicColorPreview() {
+fun DynamicColorPreview(title: String? = null) {
     val colorScheme = MaterialTheme.colorScheme
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         AppText(
-            text = "当前取色预览",
+            text = title ?: stringResource(R.string.appearance_dynamic_color_preview),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppContentColors.secondaryText(),
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2517,25 +2829,25 @@ fun DynamicColorPreview() {
             // Primary
             ColorPreviewItem(
                 color = colorScheme.primary,
-                label = "主色",
+                label = stringResource(R.string.appearance_dynamic_color_primary),
                 modifier = Modifier.weight(1f)
             )
             // Secondary
             ColorPreviewItem(
                 color = colorScheme.secondary,
-                label = "辅色",
+                label = stringResource(R.string.appearance_dynamic_color_secondary),
                 modifier = Modifier.weight(1f)
             )
             // Tertiary
             ColorPreviewItem(
                 color = colorScheme.tertiary,
-                label = "第三色",
+                label = stringResource(R.string.appearance_dynamic_color_tertiary),
                 modifier = Modifier.weight(1f)
             )
             // Primary Container
             ColorPreviewItem(
                 color = colorScheme.primaryContainer,
-                label = "容器",
+                label = stringResource(R.string.appearance_dynamic_color_container),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -2562,7 +2874,7 @@ fun ColorPreviewItem(
         AppText(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = AppContentColors.secondaryText()
         )
     }
 }
@@ -2574,14 +2886,18 @@ private fun <T> ThemePresetChoiceSetting(
     selectedValue: T,
     options: List<AppSegmentOption<T>>,
     onSelectionChange: (T) -> Unit,
-    iconTint: Color
+    iconTint: Color,
+    subtitle: String? = null,
+    optionLeading: (@Composable (T) -> Unit)? = null,
 ) {
     SettingsSingleChoicePreference(
         title = title,
+        subtitle = subtitle,
         options = options,
         selectedValue = selectedValue,
         icon = icon,
         iconTint = iconTint,
+        optionLeading = optionLeading,
         onSelectionChange = onSelectionChange,
     )
 }
@@ -2613,24 +2929,41 @@ private fun resolveAppDpiOverrideSegmentOptions(): List<AppSegmentOption<Int>> {
 }
 
 private fun resolveDpiOverrideSubtitle(
+    context: android.content.Context,
     systemDensityDpi: Int,
     systemSmallestWidthDp: Int,
-    currentOverridePercent: Int
+    currentOverridePercent: Int,
 ): String {
     val modeLabel = if (currentOverridePercent > 0) {
-        "当前 ${currentOverridePercent}%"
+        context.getString(R.string.appearance_display_scale_current, currentOverridePercent)
     } else {
-        "当前跟随系统"
+        context.getString(R.string.appearance_display_scale_follow_system)
     }
-    return "系统 ${systemDensityDpi}dpi / 最小宽度 ${systemSmallestWidthDp}dp，$modeLabel"
+    return context.getString(
+        R.string.appearance_display_metrics_system,
+        systemDensityDpi,
+        systemSmallestWidthDp,
+        modeLabel,
+    )
 }
 
 private fun resolveDisplayMetricsSummary(
-    snapshot: DisplayMetricsSnapshot
+    context: android.content.Context,
+    snapshot: DisplayMetricsSnapshot,
 ): String {
-    val dpiSuffix = snapshot.dpiOverridePercent?.let { "，覆盖 ${it}%" } ?: ""
-    val narrowSuffix = if (snapshot.isNarrowWidth) "，已进入小屏紧凑适配" else ""
-    return "应用生效后约 ${snapshot.effectiveDensityDpi}dpi / ${snapshot.effectiveSmallestWidthDp}dp$dpiSuffix$narrowSuffix"
+    val dpiSuffix = snapshot.dpiOverridePercent?.let {
+        context.getString(R.string.appearance_display_metrics_override, it)
+    }.orEmpty()
+    val narrowSuffix = if (snapshot.isNarrowWidth) {
+        context.getString(R.string.appearance_display_metrics_narrow)
+    } else ""
+    return context.getString(
+        R.string.appearance_display_metrics_applied,
+        snapshot.effectiveDensityDpi,
+        snapshot.effectiveSmallestWidthDp,
+        dpiSuffix,
+        narrowSuffix,
+    )
 }
 
 internal fun resolveDisplayedAppDpiPercent(

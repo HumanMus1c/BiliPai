@@ -19,6 +19,10 @@ import kotlinx.coroutines.launch
 class InteractiveHighlight(
     val animationScope: CoroutineScope,
     val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
+    /** A dock can use its existing press spring for drag, tap and pager feedback. */
+    val pressProgressProvider: (() -> Float)? = null,
+    /** Optional motion light, combined with the pointer light without replacing its lifetime. */
+    val motionProgressProvider: (() -> Float)? = null,
 ) {
 
     private val pressProgressAnimationSpec = interactiveHighlightPressSpec()
@@ -38,6 +42,7 @@ class InteractiveHighlight(
     private var positionJob: Job? = null
 
     fun setPressed(pressed: Boolean) {
+        if (pressProgressProvider != null) return
         pressJob?.cancel()
         pressJob = animationScope.launch {
             pressProgressAnimation.animateTo(
@@ -47,6 +52,9 @@ class InteractiveHighlight(
         }
     }
 
+    /** Read in draw so non-pointer selection light shares the capsule's current geometry. */
+    var drawPositionProvider: ((Size) -> Offset?)? = null
+
     private val highlight = com.android.purebilibili.core.ui.components.AppPressHighlight()
 
     val modifier: Modifier = Modifier.drawWithContent {
@@ -55,7 +63,14 @@ class InteractiveHighlight(
             addRoundRect(RoundRect(0f, 0f, size.width, size.height, CornerRadius(size.minDimension / 2f)))
         }
         clipPath(pill) {
-            highlight.draw(this, pressProgressAnimation.value, position(size, positionAnimation.value))
+            highlight.draw(
+                this,
+                maxOf(
+                    pressProgressProvider?.invoke() ?: pressProgressAnimation.value,
+                    motionProgressProvider?.invoke() ?: 0f,
+                ),
+                drawPositionProvider?.invoke(size) ?: position(size, positionAnimation.value),
+            )
         }
     }
 

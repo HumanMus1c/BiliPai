@@ -1,6 +1,7 @@
 package com.android.purebilibili.data.repository
 
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,22 @@ object FavoriteRepository {
         }
     }
 
+    suspend fun getFolderInfo(mediaId: Long): Result<FavoriteInfo> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.getFavFolderInfo(mediaId)
+            val info = response.data
+            if (response.code == 0 && info != null && info.id == mediaId) {
+                Result.success(info)
+            } else {
+                Result.failure(favoriteApiFailure("获取收藏夹信息失败", response.code, response.message))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun editFolder(
         mediaId: Long,
         title: String,
@@ -146,6 +163,38 @@ object FavoriteRepository {
         }
     }
 
+    suspend fun setFolderSubscription(
+        mediaId: Long,
+        subscribe: Boolean,
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val operation = if (subscribe) "订阅收藏夹失败" else "取消订阅收藏夹失败"
+        try {
+            if (mediaId <= 0L) {
+                return@withContext Result.failure(Exception("收藏夹 ID 无效"))
+            }
+            val csrf = TokenManager.csrfCache.orEmpty()
+            if (TokenManager.sessDataCache.isNullOrBlank() || csrf.isBlank()) {
+                return@withContext Result.failure(Exception("请先登录"))
+            }
+            val response = if (subscribe) {
+                api.favoriteFolder(mediaId = mediaId, csrf = csrf)
+            } else {
+                api.unfavoriteFolder(mediaId = mediaId, csrf = csrf)
+            }
+            if (response.code == 0) {
+                Result.success(subscribe)
+            } else {
+                Result.failure(favoriteApiFailure(operation, response.code, response.message))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: HttpException) {
+            Result.failure(favoriteHttpFailure(operation, e))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getCollectedFavFolders(
         mid: Long,
         pn: Int = 1,
@@ -156,12 +205,15 @@ object FavoriteRepository {
             try {
                 val response = api.getCollectedFavFolders(mid = mid, pn = pn, ps = ps, platform = platform)
                 if (response.code == 0) {
+                    val data = response.data ?: return@withContext Result.failure(
+                        FavoriteRequestException(message = "获取收藏合集失败: 响应缺少数据")
+                    )
                     Result.success(
                         CollectedFavFoldersPage(
-                            folders = response.data?.list
+                            folders = data.list
                                 ?.map { it.copy(source = FavFolderSource.SUBSCRIBED) }
                                 ?: emptyList(),
-                            totalCount = response.data?.count ?: 0
+                            totalCount = data.count
                         )
                     )
                 } else {
@@ -296,6 +348,31 @@ object FavoriteRepository {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Result.failure(e)
             }
+        }
+    }
+
+    suspend fun sortResources(
+        mediaId: Long,
+        ownerMid: Long,
+        sort: String,
+        identity: com.android.purebilibili.core.store.AccountSessionIdentity,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            require(mediaId > 0L && ownerMid > 0L && identity.mid == ownerMid) { "只能排序自己的收藏夹" }
+            check(TokenManager.accountIdentity.value == identity) { "账号已切换，请重新打开排序" }
+            val session = com.android.purebilibili.core.network.AccountCookieSession.main()
+            check(TokenManager.accountIdentity.value == identity && session.seed["DedeUserID"] == ownerMid.toString()) { "账号已切换，请重新打开排序" }
+            val csrf = session.seed["bili_jct"].orEmpty()
+            check(csrf.isNotBlank()) { "请先登录" }
+            require(sort.isNotBlank() && sort.length <= 60000) { "排序操作过多，请分批保存" }
+            val response = api.sortFavResources(mediaId, sort, csrf, session)
+            check(TokenManager.accountIdentity.value == identity) { "账号已切换，排序结果未应用到当前页面" }
+            if (response.code == 0) Result.success(Unit)
+            else Result.failure(favoriteApiFailure("保存收藏顺序失败", response.code, response.message))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

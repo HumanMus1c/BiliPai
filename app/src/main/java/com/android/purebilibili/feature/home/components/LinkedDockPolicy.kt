@@ -2,6 +2,12 @@ package com.android.purebilibili.feature.home.components
 
 import kotlin.math.roundToInt
 
+/** Shared alpha handoff for the overlapping glass navigation and compact button. */
+internal fun resolveLinkedDockGlassHandoffProgress(mergeProgress: Float): Float {
+    val progress = (mergeProgress / 0.34f).coerceIn(0f, 1f)
+    return progress * progress * progress
+}
+
 enum class LinkedDockPhase { Expanded, Playback, Compact, Search }
 
 /** Search owns the first tap on the compact artwork target. */
@@ -14,22 +20,54 @@ internal fun shouldExpandPlaybackFromSearch(
 internal fun accumulateDockScroll(previous: Float, delta: Float): Float =
     if (previous * delta < 0f) delta else previous + delta
 
+/** Retained playback owns the dock until its exit animation has released the slot. */
+internal fun shouldUseScrollCompactNavigation(
+    enabled: Boolean,
+    hasAudio: Boolean,
+    retainingAudio: Boolean,
+    searchMergeEnabled: Boolean = false,
+): Boolean = enabled && !hasAudio && !retainingAudio && !searchMergeEnabled
+
+/** Positive offset browses down; a full opposite-direction threshold expands again. */
+internal fun resolveScrollCompactIntent(accumulatedPx: Float, thresholdPx: Float): Boolean? = when {
+    accumulatedPx >= thresholdPx -> true
+    accumulatedPx <= -thresholdPx -> false
+    else -> null
+}
+
+/** 下滑合体由功能开关决定，上滑仍可恢复；搜索输入态由调用方保持。 */
+internal fun resolveLinkedDockScrollPhase(
+    accumulatedPx: Float,
+    thresholdPx: Float,
+    hasAudio: Boolean,
+    searchEnabled: Boolean,
+    mergeOnScrollDownEnabled: Boolean,
+): LinkedDockPhase? = when {
+    accumulatedPx <= -thresholdPx -> LinkedDockPhase.Expanded
+    accumulatedPx >= thresholdPx && mergeOnScrollDownEnabled && (hasAudio || searchEnabled) ->
+        resolveLinkedDockRestingPhase(true, hasAudio, searchEnabled)
+    else -> null
+}
+
 internal fun resolveLinkedDockRestingPhase(
     collapseRequested: Boolean,
     hasAudio: Boolean,
+    searchMergeEnabled: Boolean = false,
 ): LinkedDockPhase = when {
     !collapseRequested -> LinkedDockPhase.Expanded
     hasAudio -> LinkedDockPhase.Playback
-    // 没有播放条时保持完整导航，不再收成播放条联动的小球。
+    // 搜索合体拥有独立于播放条的紧凑态，不触发键盘或占用输入焦点。
+    searchMergeEnabled -> LinkedDockPhase.Compact
     else -> LinkedDockPhase.Expanded
 }
 
 fun resolveLinkedDockPhaseOnAudioChange(
     currentPhase: LinkedDockPhase,
     hasAudio: Boolean,
+    searchMergeEnabled: Boolean = false,
 ): LinkedDockPhase = when {
-    !hasAudio && (currentPhase == LinkedDockPhase.Playback || currentPhase == LinkedDockPhase.Compact) ->
-        LinkedDockPhase.Expanded
+    !hasAudio && currentPhase == LinkedDockPhase.Playback -> LinkedDockPhase.Expanded
+    !hasAudio && currentPhase == LinkedDockPhase.Compact && !searchMergeEnabled -> LinkedDockPhase.Expanded
     hasAudio && currentPhase == LinkedDockPhase.Compact -> LinkedDockPhase.Playback
     else -> currentPhase
 }
@@ -39,14 +77,15 @@ fun resolveLinkedDockInitialPhase(
     collapseRequested: Boolean,
     hasAudio: Boolean,
     savedPhase: LinkedDockPhase? = null,
+    searchMergeEnabled: Boolean = false,
 ): LinkedDockPhase {
     if (savedPhase != null) {
-        return resolveLinkedDockPhaseOnAudioChange(savedPhase, hasAudio)
+        return resolveLinkedDockPhaseOnAudioChange(savedPhase, hasAudio, searchMergeEnabled)
     }
     return if (currentItem == BottomNavItem.HOME) {
         LinkedDockPhase.Expanded
     } else {
-        resolveLinkedDockRestingPhase(collapseRequested, hasAudio)
+        resolveLinkedDockRestingPhase(collapseRequested, hasAudio, searchMergeEnabled)
     }
 }
 
@@ -58,7 +97,8 @@ fun shouldEnableLinkedDockBackHandler(
 fun resolveLinkedDockPhaseOnSearchDismiss(
     hasAudio: Boolean,
     previousPhase: LinkedDockPhase = if (hasAudio) LinkedDockPhase.Playback else LinkedDockPhase.Expanded,
-): LinkedDockPhase = resolveLinkedDockPhaseOnAudioChange(previousPhase, hasAudio)
+    searchMergeEnabled: Boolean = false,
+): LinkedDockPhase = resolveLinkedDockPhaseOnAudioChange(previousPhase, hasAudio, searchMergeEnabled)
 
 /** 离开搜索展开态（收起/退回其它相位）时清空底栏搜索词，避免下次展开残留。 */
 internal fun shouldResetLinkedDockSearchQuery(

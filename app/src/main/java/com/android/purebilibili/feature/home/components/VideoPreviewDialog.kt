@@ -1,5 +1,10 @@
 package com.android.purebilibili.feature.home.components
 
+import com.android.purebilibili.core.player.withAppVideoDecoderDiagnostics
+import com.android.purebilibili.core.player.withAppVideoDecoderPreference
+
+import com.android.purebilibili.core.ui.AppContentColors
+
 import coil3.request.crossfade
 import com.android.purebilibili.core.ui.components.AppHorizontalDivider
 import com.android.purebilibili.core.ui.AdaptiveLoadingIndicator
@@ -30,7 +35,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.android.purebilibili.core.theme.iOSBlue
 import com.android.purebilibili.core.ui.rememberAppClearIcon
 import com.android.purebilibili.core.ui.rememberAppPhotoIcon
 import com.android.purebilibili.core.ui.rememberAppPlayIcon
@@ -91,7 +95,7 @@ fun VideoPreviewDialog(
     backgroundBlurEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    val haptic = rememberHapticFeedback()
+    val haptic = rememberHapticFeedback(com.android.purebilibili.core.ui.AppHapticScene.VIDEO_ACTIONS)
     val context = LocalContext.current
     val clearIcon = rememberAppClearIcon()
     val photoIcon = rememberAppPhotoIcon()
@@ -114,23 +118,35 @@ fun VideoPreviewDialog(
         allowBackgroundBlur && hazeState != null -> Modifier.unifiedBlur(hazeState = hazeState)
         else -> Modifier
     }
-    
+
     // Playback State
-    var isPlaying by remember { androidx.compose.runtime.mutableStateOf(false) }
-    var videoUrl by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    var isLoading by remember { androidx.compose.runtime.mutableStateOf(false) }
-    
+    var isPlaying by remember(video.bvid, video.cid) { androidx.compose.runtime.mutableStateOf(false) }
+    var videoUrl by remember(video.bvid, video.cid) { androidx.compose.runtime.mutableStateOf<String?>(null) }
+    var isLoading by remember(video.bvid, video.cid) { androidx.compose.runtime.mutableStateOf(false) }
+    val currentGetPreviewUrl by androidx.compose.runtime.rememberUpdatedState(onGetPreviewUrl)
+    val previewWorkActive = com.android.purebilibili.core.ui.rememberVisualWorkActive()
+
     // Fetch URL when isPlaying becomes true
-    androidx.compose.runtime.LaunchedEffect(isPlaying) {
-        if (isPlaying && videoUrl == null) {
-            isLoading = true
-            videoUrl = onGetPreviewUrl(video.bvid, video.cid)
+    androidx.compose.runtime.LaunchedEffect(video.bvid, video.cid, isPlaying, previewWorkActive) {
+        if (!isPlaying || !previewWorkActive) {
             isLoading = false
-            if (videoUrl == null) {
-                // Failed to get URL, fallback to full screen navigation or toast?
-                // For now, just reset isPlaying or show error
-                android.widget.Toast.makeText(context, "无法获取预览地址", android.widget.Toast.LENGTH_SHORT).show()
-                isPlaying = false 
+        } else if (videoUrl == null) {
+            isLoading = true
+            try {
+                videoUrl = kotlinx.coroutines.withTimeoutOrNull(12_000L) {
+                    currentGetPreviewUrl(video.bvid, video.cid)
+                }
+                if (videoUrl.isNullOrBlank()) {
+                    isLoading = false
+                    isPlaying = false
+                    android.widget.Toast.makeText(context, "暂时无法预览，可点击立即播放", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                isLoading = false
+                isPlaying = false
+                android.widget.Toast.makeText(context, "预览加载失败，点击封面可重试", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -146,8 +162,8 @@ fun VideoPreviewDialog(
         modifier = modifier
             .clickable(
                 enabled = !isNotInterestedDissolving,
-                interactionSource = null, 
-                indication = null, 
+                interactionSource = null,
+                indication = null,
                 onClick = { onDismiss() } // Always dismiss on background click
             ),
         contentAlignment = Alignment.Center
@@ -207,9 +223,17 @@ fun VideoPreviewDialog(
 
                                 // Video Player (Visible when playing)
                                 if (isPlaying) {
-                                    if (videoUrl != null) {
-                                        // Using a simpler composite:
-                                        DisposableVideoPlayer(url = videoUrl!!)
+                                    videoUrl?.let { url ->
+                                        DisposableVideoPlayer(
+                                            url = url,
+                                            onLoadingChanged = { isLoading = it },
+                                            onPlaybackError = {
+                                                videoUrl = null
+                                                isLoading = false
+                                                isPlaying = false
+                                                android.widget.Toast.makeText(context, "预览播放失败，点击封面可重试", android.widget.Toast.LENGTH_SHORT).show()
+                                            },
+                                        )
                                     }
 
                                     // Loading Indicator
@@ -223,7 +247,7 @@ fun VideoPreviewDialog(
                                     // Play Icon Overlay (Hint that it's clickable)
                                     AppIcon(
                                         imageVector = playIcon,
-                                        contentDescription = null,
+                                        contentDescription = "播放视频预览",
                                         tint = MediaContrastPalette.Foreground.copy(alpha = 0.8f),
                                         modifier = Modifier
                                             .size(AppChromeSizeTokens.MinimumTouchTarget)
@@ -246,7 +270,7 @@ fun VideoPreviewDialog(
                                 AppText(
                                     text = "${video.owner.name} · ${FormatUtils.formatStat(video.stat.view.toLong())}播放",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AppContentColors.secondaryText()
                                 )
                             }
 
@@ -342,39 +366,76 @@ fun VideoPreviewDialog(
 
 @Composable
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-fun DisposableVideoPlayer(url: String) {
+// Shared media behavior only: MD3, Miuix and glass keep their existing layout/style.
+fun DisposableVideoPlayer(
+    url: String,
+    modifier: Modifier = Modifier,
+    onLoadingChanged: (Boolean) -> Unit = {},
+    onPlaybackError: () -> Unit = {},
+    onFirstFrame: () -> Unit = {},
+) {
     val context = LocalContext.current
-    
-    // Create Player
-    val player = androidx.compose.runtime.remember {
-        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-            repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
+    val visualWorkActive = com.android.purebilibili.core.ui.rememberVisualWorkActive()
+    val currentOnLoadingChanged by androidx.compose.runtime.rememberUpdatedState(onLoadingChanged)
+    val currentOnPlaybackError by androidx.compose.runtime.rememberUpdatedState(onPlaybackError)
+    val currentOnFirstFrame by androidx.compose.runtime.rememberUpdatedState(onFirstFrame)
+    val player = remember(context, url) {
+        val upstream = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
+            com.android.purebilibili.core.network.NetworkModule.playbackOkHttpClient
+        ).setDefaultRequestProperties(
+            mapOf("Referer" to "https://www.bilibili.com/", "User-Agent" to "Mozilla/5.0")
+        )
+        ExoPlayer.Builder(context)
+            .setRenderersFactory(
+                androidx.media3.exoplayer.DefaultRenderersFactory(context).withAppVideoDecoderPreference(context)
+            )
+            .setMediaSourceFactory(androidx.media3.exoplayer.source.DefaultMediaSourceFactory(upstream))
+            .build().withAppVideoDecoderDiagnostics(context).apply {
+                repeatMode = Player.REPEAT_MODE_ONE
+                volume = 0f
+            }
+    }
+
+    androidx.compose.runtime.DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                currentOnLoadingChanged(playbackState == Player.STATE_BUFFERING)
+            }
+
+            override fun onRenderedFirstFrame() {
+                currentOnFirstFrame()
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                currentOnLoadingChanged(false)
+                currentOnPlaybackError()
+            }
         }
-    }
-
-    // Set Media Item
-    androidx.compose.runtime.LaunchedEffect(url) {
-        player.setMediaItem(androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse(url)))
-        player.prepare()
-    }
-
-    // Cleanup
-    androidx.compose.runtime.DisposableEffect(Unit) {
+        player.addListener(listener)
         onDispose {
+            player.removeListener(listener)
             player.release()
         }
     }
-
+    androidx.compose.runtime.LaunchedEffect(player, url) {
+        currentOnLoadingChanged(true)
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+    }
+    androidx.compose.runtime.LaunchedEffect(player, visualWorkActive) {
+        player.playWhenReady = visualWorkActive
+    }
     AndroidView(
         factory = { ctx ->
-            androidx.media3.ui.PlayerView(ctx).apply {
-                this.player = player
+            PlayerView(ctx).apply {
                 useController = false
                 resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
             }
         },
-        modifier = Modifier.fillMaxSize()
+        update = { it.player = player },
+        onRelease = { it.player = null },
+        modifier = modifier.fillMaxSize(),
     )
 }
 
@@ -403,12 +464,12 @@ private fun PreviewMenuItem(
                 text = text,
                 fontSize = MaterialTheme.typography.titleMedium.fontSize,
                 fontWeight = FontWeight.Normal,
-                color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                color = if (isDestructive) AppContentColors.error() else AppContentColors.primaryText()
             )
             AppIcon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                tint = if (isDestructive) AppContentColors.error() else AppContentColors.accent(),
                 modifier = Modifier.size(AppSpacingTokens.ExtraLarge - AppSpacingTokens.Micro)
             )
         }

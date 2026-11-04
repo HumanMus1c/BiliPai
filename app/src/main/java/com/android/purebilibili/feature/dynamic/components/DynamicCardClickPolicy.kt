@@ -4,6 +4,7 @@ import com.android.purebilibili.core.store.SettingsManager.DynamicDetailImageLay
 import com.android.purebilibili.core.util.BilibiliUrlParser
 import com.android.purebilibili.core.util.BilibiliNavigationTarget
 import com.android.purebilibili.core.util.BilibiliNavigationTargetParser
+import com.android.purebilibili.core.util.hasCommentLocation
 import com.android.purebilibili.data.model.response.ArchiveMajor
 import com.android.purebilibili.data.model.response.ArticleMajor
 import com.android.purebilibili.data.model.response.DrawItem
@@ -46,6 +47,7 @@ internal sealed interface DynamicOpusLinkCardAction {
     data class OpenLive(val roomId: Long) : DynamicOpusLinkCardAction
     data class OpenUser(val mid: Long) : DynamicOpusLinkCardAction
     data class OpenBangumi(val seasonId: Long, val epId: Long) : DynamicOpusLinkCardAction
+    data class OpenMatch(val contestId: Long) : DynamicOpusLinkCardAction
     data class OpenExternalUrl(val url: String) : DynamicOpusLinkCardAction
     data object None : DynamicOpusLinkCardAction
 }
@@ -320,7 +322,9 @@ internal fun shouldShowDynamicDetailImageLayoutToggle(
 internal fun resolveDynamicOpusLinkCardAction(card: OpusLinkCard): DynamicOpusLinkCardAction {
     val url = card.jumpUrl.trim()
     if (url.isBlank()) return DynamicOpusLinkCardAction.None
-    return when (val target = BilibiliNavigationTargetParser.parse(url)) {
+    val target = BilibiliNavigationTargetParser.parse(url)
+    if (target?.hasCommentLocation == true) return DynamicOpusLinkCardAction.OpenExternalUrl(url)
+    return when (target) {
         is BilibiliNavigationTarget.Video -> DynamicOpusLinkCardAction.OpenVideo(target.videoId)
         is BilibiliNavigationTarget.Dynamic -> DynamicOpusLinkCardAction.OpenDynamicDetail(target.dynamicId)
         is BilibiliNavigationTarget.Article -> DynamicOpusLinkCardAction.OpenArticle(
@@ -337,6 +341,9 @@ internal fun resolveDynamicOpusLinkCardAction(card: OpusLinkCard): DynamicOpusLi
             seasonId = 0L,
             epId = target.epId
         )
+        is BilibiliNavigationTarget.Match -> DynamicOpusLinkCardAction.OpenMatch(target.contestId)
+        is BilibiliNavigationTarget.ArticleCollection,
+        is BilibiliNavigationTarget.CommentDetail,
         is BilibiliNavigationTarget.Music,
         is BilibiliNavigationTarget.Search,
         is BilibiliNavigationTarget.PopularFeed,
@@ -349,7 +356,8 @@ internal fun resolveDynamicOpusLinkCardAction(card: OpusLinkCard): DynamicOpusLi
  * 对于合集/系列/番剧等非独立 UP 主发布的动态，避免将虚拟 ID / 赛季 ID 误当作个人 UID 打开个人空间导致“获取用户信息失败”报错。
  */
 internal fun resolveDynamicAuthorClickMid(item: DynamicItem): Long? {
-    val target = item.orig ?: item
+    // Resolve the author of this rendered header, not the forwarded content's author.
+    val target = item
     val type = target.type.trim()
     val major = target.modules.module_dynamic?.major
 

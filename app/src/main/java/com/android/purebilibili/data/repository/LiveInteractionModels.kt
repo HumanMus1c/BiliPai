@@ -6,7 +6,8 @@ data class LivePagedResult<T>(
     val items: List<T>,
     val hasMore: Boolean,
     val nextPage: Int,
-    val totalCount: Int = 0
+    // 未返回总数时保留未知，避免将缺失数据展示为无人开播。
+    val totalCount: Int? = null
 )
 
 data class LiveDanmakuSendRequest(
@@ -92,7 +93,9 @@ data class LiveEmoticonItem(
     val description: String = "",
     // 独立大表情使用此 ID；普通表情发送 emoji 文本。
     val emoticonUnique: String = "",
-    val dmType: Int = 1
+    val dmType: Int = 1,
+    val width: Int = 80,
+    val height: Int = 80,
 ) {
     val displayText: String get() = emoji.ifBlank { description.ifBlank { "表情" } }
 }
@@ -108,7 +111,9 @@ fun EmoticonPkg.toLiveEmoticonPackage(): LiveEmoticonPackage = LiveEmoticonPacka
             url = emotion.url,
             description = emotion.des,
             emoticonUnique = emotion.emoticon_unique,
-            dmType = if (pkg_type == 3) 0 else 1
+            dmType = if (pkg_type == 3) 0 else 1,
+            width = emotion.width?.takeIf { it > 0 } ?: 80,
+            height = emotion.height?.takeIf { it > 0 } ?: 80
         )
     }
 )

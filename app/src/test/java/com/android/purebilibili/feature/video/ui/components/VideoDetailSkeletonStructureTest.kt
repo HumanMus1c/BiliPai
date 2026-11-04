@@ -8,14 +8,16 @@ import kotlin.test.assertTrue
 class VideoDetailSkeletonStructureTest {
 
     @Test
-    fun detailSkeletonUsesSynchronizedPulseInsteadOfSweepShimmer() {
+    fun detailSkeletonSharesSweepStateWithoutCompositionFrameReads() {
         val source = loadSource(
             "app/src/main/java/com/android/purebilibili/feature/video/ui/components/SkeletonComponents.kt"
         )
 
         assertTrue(source.contains("rememberVideoSkeletonPulse()"))
-        assertTrue(source.contains("RepeatMode.Reverse"))
-        assertTrue(source.contains("VIDEO_SKELETON_PULSE_DURATION_MILLIS"))
+        assertTrue(source.contains("State<Float>?>"))
+        assertTrue(source.contains("rememberSkeletonSweepState()"))
+        assertTrue(source.contains(".skeletonBackground(rememberVideoSkeletonBlockColor())"))
+        assertFalse(source.contains("val pulse by"))
         assertFalse(source.contains("com.valentinilk.shimmer.shimmer"))
         assertFalse(source.contains("modifier.shimmer()"))
     }
@@ -30,7 +32,7 @@ class VideoDetailSkeletonStructureTest {
         assertTrue(source.contains("VideoDetailUpInfoSkeleton()"))
         assertTrue(source.contains("VideoDetailActionButtonsSkeleton()"))
         assertTrue(source.contains("HorizontalVideoCardFrame("))
-        assertTrue(source.contains("HORIZONTAL_VIDEO_CARD_COVER_ASPECT_RATIO"))
+        assertTrue(source.contains("videoCardCoverAspectRatio()"))
         assertTrue(source.contains("coverAspectRatio = cardLayout.coverAspectRatio"))
         assertTrue(source.contains("cardLayout.outerPaddingDp.dp"))
         assertTrue(source.contains("RoundedCornerShape(12.dp)"))

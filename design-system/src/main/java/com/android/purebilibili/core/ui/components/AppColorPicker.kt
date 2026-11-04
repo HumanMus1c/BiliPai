@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +42,8 @@ fun AppColorPicker(
             lastEmittedArgb = color.toArgb()
         }
     }
-    val miuix = LocalAppUiStyle.current == AppUiStyle.MIUIX
+    val liquid = useAppLiquidValueControls()
+    val miuix = LocalAppUiStyle.current == AppUiStyle.MIUIX && !liquid
     if (miuix && alphaEnabled) {
         ColorPicker(color = color, onColorChanged = onColorChanged, modifier = modifier)
         return
@@ -72,14 +72,14 @@ fun AppColorPicker(
             )
         } else {
             Text("色相")
-            Slider(value = hsv[0], onValueChange = { update(0, it) }, valueRange = 0f..360f)
+            AppSlider(value = hsv[0], onValueChange = { update(0, it) }, valueRange = 0f..360f)
             Text("饱和度")
-            Slider(value = hsv[1], onValueChange = { update(1, it) })
+            AppSlider(value = hsv[1], onValueChange = { update(1, it) })
             Text("亮度")
-            Slider(value = hsv[2], onValueChange = { update(2, it) })
+            AppSlider(value = hsv[2], onValueChange = { update(2, it) })
             if (alphaEnabled) {
                 Text("透明度")
-                Slider(value = color.alpha, onValueChange = { onColorChanged(color.copy(alpha = it)) })
+                AppSlider(value = color.alpha, onValueChange = { onColorChanged(color.copy(alpha = it)) })
             }
         }
     }

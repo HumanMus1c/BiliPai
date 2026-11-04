@@ -1,16 +1,21 @@
 // 文件路径: feature/video/ui/components/CollectionSheet.kt
 package com.android.purebilibili.feature.video.ui.components
 
+import com.android.purebilibili.core.util.rememberHapticFeedback
+import com.android.purebilibili.core.util.HapticType
+
+import com.android.purebilibili.core.ui.AppContentColors
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,14 +35,10 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.VerticalAlignBottom
-import androidx.compose.material.icons.outlined.VerticalAlignTop
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +60,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import com.android.purebilibili.core.ui.AppModalBottomSheet
 import com.android.purebilibili.core.ui.AppShapes
 import com.android.purebilibili.core.ui.ContainerLevel
 import com.android.purebilibili.core.store.SettingsManager
@@ -95,13 +95,16 @@ fun CollectionSheet(
     ugcSeason: UgcSeason,
     currentBvid: String,
     currentCid: Long = 0L,
+    currentVideoInfo: com.android.purebilibili.data.model.response.ViewInfo? = null,
     onDismiss: () -> Unit,
-    onEpisodeClick: (UgcEpisode) -> Unit
+    onEpisodeClick: (UgcEpisode) -> Unit,
+    inlinePanel: Boolean = false,
 ) {
+    val selectionHaptic = rememberHapticFeedback(com.android.purebilibili.core.ui.AppHapticScene.MENUS)
+    val sheetMaxHeight = episodeSheetMaxHeight()
     val context = LocalContext.current
     val clearIcon = rememberAppClearIcon()
     val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
     val collectionSubscriptionId = remember(ugcSeason) { resolveCollectionSubscriptionId(ugcSeason) }
 
     val sections = remember(ugcSeason.sections) { ugcSeason.sections }
@@ -144,12 +147,10 @@ fun CollectionSheet(
         currentCid = currentCid
     )
 
-    // 打开或切换分区时自动滚动到当前集
-    LaunchedEffect(selectedSectionIndex, currentIndex) {
-        if (currentIndex > 0) {
-            kotlinx.coroutines.delay(100)
-            listState.scrollToItem(currentIndex)
-        }
+    // 首帧直接定位当前集，面板位移不叠加列表滚动；手动定位按钮仍使用滚动动画。
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = currentIndex.coerceAtLeast(0))
+    LaunchedEffect(selectedSectionIndex, currentIndex, sortMode) {
+        listState.scrollToItem(currentIndex.coerceAtLeast(0))
     }
 
     fun scrollToEpisode(index: Int) {
@@ -171,21 +172,18 @@ fun CollectionSheet(
         }
     }
 
-    AppModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        windowInsets = WindowInsets(0.dp)  //  沉浸式
-    ) {
+    EpisodeSelectionSheet(onDismiss = onDismiss, inlinePanel = inlinePanel) { requestDismiss ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
+                .then(if (inlinePanel) Modifier.fillMaxSize() else Modifier.heightIn(max = sheetMaxHeight))
         ) {
             // ── 工具栏（PiliPlus：标题 + 收藏 + 跳转/定位 + 排序 + 关闭）──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -193,7 +191,7 @@ fun CollectionSheet(
                     text = "合集",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = AppContentColors.primaryText()
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 CollectionSubscriptionButton(
@@ -206,31 +204,14 @@ fun CollectionSheet(
                     ),
                     fontSize = MaterialTheme.typography.labelMedium.fontSize
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                AppIconButton(onClick = { scrollToEpisode(0) }) {
-                    Icon(
-                        Icons.Outlined.VerticalAlignTop,
-                        contentDescription = "跳至顶部",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                AppIconButton(onClick = { scrollToEpisode(sortedEpisodes.lastIndex) }) {
-                    Icon(
-                        Icons.Outlined.VerticalAlignBottom,
-                        contentDescription = "跳至底部",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                AppIconButton(onClick = { scrollToEpisode(currentIndex) }) {
-                    Icon(
-                        Icons.Outlined.MyLocation,
-                        contentDescription = "定位当前播放",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                EpisodeListNavigationActions(
+                    onTopClick = { scrollToEpisode(0) },
+                    onBottomClick = { scrollToEpisode(sortedEpisodes.lastIndex) },
+                    onCurrentClick = { scrollToEpisode(currentIndex) },
+                    hasItems = sortedEpisodes.isNotEmpty(),
+                    hasCurrent = currentIndex >= 0,
+                )
                 AppIconButton(
                     onClick = {
                         com.android.purebilibili.core.util.ShareUtils.shareCollection(
@@ -244,7 +225,7 @@ fun CollectionSheet(
                     Icon(
                         Icons.Outlined.Share,
                         contentDescription = "分享合集",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = AppContentColors.secondaryText(),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -257,15 +238,15 @@ fun CollectionSheet(
                     Icon(
                         sortIcon,
                         contentDescription = "排序：${sortMode.label}",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = AppContentColors.secondaryText(),
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                AppIconButton(onClick = onDismiss) {
+                AppIconButton(onClick = requestDismiss) {
                     AppIcon(
                         clearIcon,
                         contentDescription = "关闭",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = AppContentColors.secondaryText()
                     )
                 }
             }
@@ -276,6 +257,7 @@ fun CollectionSheet(
             val collectionIntro = ugcSeason.displayIntro
             if (collectionIntro.isNotBlank()) {
                 var introExpanded by remember(ugcSeason.id) { mutableStateOf(false) }
+                var introCanExpand by remember(ugcSeason.id, collectionIntro) { mutableStateOf(false) }
                 val totalPlays = sections.sumOf { section ->
                     section.episodes.sumOf { it.arc?.stat?.view?.toLong() ?: 0L }
                 }
@@ -283,7 +265,7 @@ fun CollectionSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateContentSize()
-                        .clickable { introExpanded = !introExpanded }
+                        .clickable(enabled = introCanExpand || introExpanded) { introExpanded = !introExpanded }
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -292,39 +274,50 @@ fun CollectionSheet(
                         Row {
                             AppText(
                                 text = "简介",
+                                tapToCopyEnabled = false,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = AppContentColors.primaryText(),
                                 modifier = Modifier.alignByBaseline()
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             AppText(
                                 text = collectionIntro,
+                                tapToCopyEnabled = false,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = if (introExpanded) Int.MAX_VALUE else 2,
+                                color = AppContentColors.secondaryText(),
+                                maxLines = if (introExpanded) Int.MAX_VALUE else 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.alignByBaseline()
+                                onTextLayout = { result ->
+                                    if (!introExpanded) introCanExpand = result.hasVisualOverflow
+                                },
+                                modifier = Modifier.weight(1f).alignByBaseline()
                             )
                         }
                         // 次行：N 集 · 总播放
                         AppText(
                             text = "${ugcSeason.ep_count} 集 · 总播放 ${FormatUtils.formatStat(totalPlays)}",
+                            tapToCopyEnabled = false,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = AppContentColors.primaryText()
                         )
                     }
-                    AppIcon(
-                        imageVector = if (introExpanded) {
-                            Icons.Outlined.KeyboardArrowUp
-                        } else {
-                            Icons.Outlined.KeyboardArrowDown
-                        },
-                        contentDescription = if (introExpanded) "收起简介" else "展开简介",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    if (introCanExpand || introExpanded) AppIconButton(
+                        onClick = { introExpanded = !introExpanded },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        AppIcon(
+                            imageVector = if (introExpanded) {
+                                Icons.Outlined.KeyboardArrowUp
+                            } else {
+                                Icons.Outlined.KeyboardArrowDown
+                            },
+                            contentDescription = if (introExpanded) "收起简介" else "展开简介",
+                            tint = AppContentColors.secondaryText(),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
@@ -332,9 +325,13 @@ fun CollectionSheet(
             // 液态玻璃开启时由 AppThemeAdaptiveTabRow 委托底栏同款玻璃分段控件
             // （胶囊指示器/拖拽选档/按压折射），关闭时回落主题原生样式
             if (sections.size > 1) {
+                val glassTabsEnabled = com.android.purebilibili.core.ui.LocalAppThemeConfig.current.liquidGlassEnabled
                 AppThemeAdaptiveTabRow(
+                    // Glass indicator fills the measured slot; native geometry keeps its defaults.
+                    liquidGlassAdaptIndicatorToLabel = !glassTabsEnabled,
                     role = com.android.purebilibili.core.ui.components.AppTabRowRole.SECONDARY,
-                    centerContent = false,
+                    // 玻璃分组栏内容放得下时居中，超宽时沿用可滚动轨道；原生保持左对齐。
+                    centerContent = glassTabsEnabled,
                     options = sections.mapIndexed { index, section ->
                         AppSegmentOption(index, section.title.ifBlank { "第${index + 1}季" })
                     },
@@ -345,7 +342,8 @@ fun CollectionSheet(
                     tapPressRefractionEnabled = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                        // 仅玻璃 dock 下移，原生分区栏保留原有间距。
+                        .padding(start = 12.dp, end = 12.dp, top = if (glassTabsEnabled) 12.dp else 6.dp, bottom = 6.dp),
                 )
             }
 
@@ -354,9 +352,8 @@ fun CollectionSheet(
                 state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .heightIn(max = 460.dp),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                    .weight(1f, fill = false),
+                contentPadding = PaddingValues(top = 7.dp, bottom = 16.dp)
             ) {
                 itemsIndexed(
                     sortedEpisodes,
@@ -369,14 +366,19 @@ fun CollectionSheet(
                     )
                     CollectionEpisodeRow(
                         episode = episode,
+                        knownDetail = currentVideoInfo,
                         isCurrentEpisode = isCurrentEpisode,
                         onClick = {
                             if (!isCurrentEpisode) {
+                                selectionHaptic(HapticType.LIGHT)
                                 onEpisodeClick(episode)
                             }
                         },
                         onPartClick = { part ->
                             // 分 P 直达：沿用当前集元信息，仅替换目标 cid
+                            if (episode.bvid != currentBvid || part.cid != currentCid) {
+                                selectionHaptic(HapticType.LIGHT)
+                            }
                             onEpisodeClick(episode.copy(cid = part.cid))
                         }
                     )
@@ -392,11 +394,12 @@ fun CollectionSheet(
  * 单集多分 P 时在条目下方展示分 P chips。
  */
 @Composable
-private fun CollectionEpisodeRow(
+internal fun CollectionEpisodeRow(
     episode: UgcEpisode,
     isCurrentEpisode: Boolean,
     onClick: () -> Unit,
-    onPartClick: (Page) -> Unit
+    onPartClick: (Page) -> Unit,
+    knownDetail: com.android.purebilibili.data.model.response.ViewInfo? = null,
 ) {
     val arc = episode.arc
     val publishTimeText = remember(episode.arc?.pubdate, episode.arc?.ctime) {
@@ -406,21 +409,29 @@ private fun CollectionEpisodeRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val coverWidth = minOf(160.dp, maxWidth * 0.40f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(112.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Box(
                 modifier = Modifier
-                    .width(132.dp)
-                    .aspectRatio(16f / 9f)
+                    .width(coverWidth)
+                    .height(100.dp)
                     .clip(AppShapes.container(ContainerLevel.Chip))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 arc?.pic?.takeIf { it.isNotBlank() }?.let { pic ->
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(FormatUtils.resolveVideoCoverUrl(pic, useLowQuality = true))
+                            .data(FormatUtils.resolveVideoCoverUrl(pic, useLowQuality = false))
                             .crossfade(true)
                             .build(),
                         contentDescription = episode.title,
@@ -428,6 +439,11 @@ private fun CollectionEpisodeRow(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+                CollectionAccessBadge(
+                    episode = episode,
+                    knownDetail = knownDetail,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                )
                 VideoCardCoverDurationText(
                     text = FormatUtils.formatDuration(arc?.duration ?: 0),
                     modifier = Modifier
@@ -435,52 +451,50 @@ private fun CollectionEpisodeRow(
                         .padding(4.dp),
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).height(100.dp)) {
                 AppText(
                     text = episode.title,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isCurrentEpisode) FontWeight.Bold else FontWeight.Normal,
                     color = if (isCurrentEpisode) {
-                        MaterialTheme.colorScheme.primary
+                        AppContentColors.accent()
                     } else {
-                        MaterialTheme.colorScheme.onSurface
+                        AppContentColors.primaryText()
                     },
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
                 if (publishTimeText.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     AppText(
                         text = publishTimeText,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppContentColors.secondaryText(),
                         maxLines = 1,
                         overflow = TextOverflow.Clip
                     )
                 }
                 val stat = arc?.stat
-                if (stat != null && (stat.view > 0 || stat.danmaku > 0)) {
+                if (stat != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     // 复用全局统计原子（图标/字号/间距与其他卡片一致）
                     HorizontalVideoStatRow(
                         playText = FormatUtils.formatStat(stat.view.toLong()),
-                        danmakuText = if (stat.danmaku > 0) {
-                            FormatUtils.formatStat(stat.danmaku.toLong())
-                        } else {
-                            ""
-                        }
+                        danmakuText = FormatUtils.formatStat(stat.danmaku.toLong())
                     )
                 }
             }
         }
+        }
 
         // 分 P chips：单集多 P 时展示
         if (episode.pages.size > 1) {
-            Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                    .height(45.dp)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -488,7 +502,7 @@ private fun CollectionEpisodeRow(
                     AppText(
                         text = "${pageIndex + 1}.${page.part}",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = AppContentColors.secondaryText(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier

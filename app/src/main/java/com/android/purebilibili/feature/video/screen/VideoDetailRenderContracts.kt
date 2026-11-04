@@ -19,6 +19,8 @@ internal data class VideoDetailPlaybackActions(
     val setAudioMode: (Boolean) -> Unit,
     val setSleepTimer: (Int?) -> Unit,
     val switchPage: (Int) -> Unit,
+    val jumpToLastPlayedPart: () -> Unit = {},
+    val dismissPartResumeNotice: () -> Unit = {},
     val openDownloadDialog: () -> Unit,
     val showDanmakuSendDialog: () -> Unit,
     val skipSponsorSegment: () -> Unit,
@@ -63,12 +65,16 @@ internal data class VideoDetailPlaybackActions(
     val likedDanmakuIds: kotlinx.coroutines.flow.StateFlow<Set<Long>> =
         kotlinx.coroutines.flow.MutableStateFlow(emptySet()),
     val reportDanmaku: (dmid: Long, reason: Int) -> Unit = { _, _ -> },
-    val recallDanmaku: (Long) -> Unit = {}
+    val recallDanmaku: (Long) -> Unit = {},
+    val menuActions: com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions =
+        com.android.purebilibili.feature.video.ui.overlay.PiliPlayerMenuActions(),
+    val retryPlayback: () -> Unit = reloadVideo
 )
 
 @Immutable
 internal data class VideoDetailEngagementActions(
     val toggleFollow: () -> Unit,
+    val followOwner: () -> Unit,
     val toggleFavorite: () -> Unit,
     val onFavoriteAction: (isLongPress: Boolean) -> Unit,
     val toggleLike: () -> Unit,

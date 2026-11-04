@@ -47,6 +47,7 @@ dependencies {
     api(project(":design-tokens"))
     api(platform(libs.androidx.compose.bom))
     api("androidx.compose.ui:ui")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     api("androidx.compose.foundation:foundation")
     api("androidx.compose.animation:animation")
     api("androidx.compose.material:material-icons-extended")
@@ -66,5 +67,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
 }

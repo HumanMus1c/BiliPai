@@ -1,5 +1,11 @@
 package com.android.purebilibili.feature.download
 
+import com.android.purebilibili.core.network.buildAppDns
+import com.android.purebilibili.core.store.SettingsManager
+import com.android.purebilibili.feature.plugin.PlaybackCdnPreference
+import com.android.purebilibili.feature.plugin.rewriteBilivideoHost
+import kotlinx.coroutines.flow.first
+import android.util.AtomicFile
 import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
@@ -58,6 +64,7 @@ object DownloadManager {
     
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
     private val client = OkHttpClient.Builder()
+        .dns(buildAppDns())
         .protocols(com.android.purebilibili.core.network.NetworkModule.resolveSharedNetworkProtocols())
         .followRedirects(true)
         .build()
@@ -378,7 +385,8 @@ object DownloadManager {
         
         // 1. 下载视频流 (如果不是仅音频模式)
         if (!task.isAudioOnly) {
-            val videoResult = downloadFileWithUrlRefresh(task, isVideoStream = true, file = videoFile) { progress ->
+            val videoResult = downloadFileWithUrlRefresh(task, isVideoStream = true, file = videoFile) { downloadedBytes, totalBytes ->
+                val progress = downloadedBytes.toFloat() / totalBytes.toFloat()
                 // 如果不仅音频，总进度 = (video + audio) / 2
                 updateTaskInMemory(task.id) {
                     it.copy(videoProgress = progress, progress = (progress + it.audioProgress) / 2)
@@ -386,7 +394,8 @@ object DownloadManager {
                             buildDownloadAssetProgressState(
                                 kind = DownloadAssetKind.VIDEO,
                                 file = videoFile,
-                                progress = progress
+                                downloadedBytes = downloadedBytes,
+                                totalBytes = totalBytes
                             )
                         )
                 }
@@ -411,7 +420,8 @@ object DownloadManager {
         }
         
         // 2. 下载音频流
-        val audioResult = downloadFileWithUrlRefresh(task, isVideoStream = false, file = audioFile) { progress ->
+        val audioResult = downloadFileWithUrlRefresh(task, isVideoStream = false, file = audioFile) { downloadedBytes, totalBytes ->
+            val progress = downloadedBytes.toFloat() / totalBytes.toFloat()
             updateTaskInMemory(task.id) {
                 val totalProgress = if (task.isAudioOnly) progress else (it.videoProgress + progress) / 2
                 it.copy(audioProgress = progress, progress = totalProgress)
@@ -419,7 +429,8 @@ object DownloadManager {
                         buildDownloadAssetProgressState(
                             kind = DownloadAssetKind.AUDIO,
                             file = audioFile,
-                            progress = progress
+                            downloadedBytes = downloadedBytes,
+                            totalBytes = totalBytes
                         )
                     )
             }
@@ -499,9 +510,10 @@ object DownloadManager {
         url: String, 
         file: File, 
         taskId: String,
-        onProgress: (Float) -> Unit
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit
     ): HttpDownloadAssetResult = withContext(Dispatchers.IO) {
         ensureTaskCanRun(taskId)
+        val progressGate = DownloadProgressUpdateGate()
         assetDownloader.download(
             request = HttpDownloadAssetRequest(
                 url = url,
@@ -511,17 +523,38 @@ object DownloadManager {
             ensureActive = { ensureTaskCanRun(taskId) },
             onProgress = { downloadedBytes, totalBytes ->
                 if (totalBytes > 0L) {
-                    onProgress(downloadedBytes.toFloat() / totalBytes.toFloat())
+                    progressGate.emit(downloadedBytes, totalBytes, onProgress)
                 }
             }
         )
+    }
+
+    /**
+     * 应用设置里的「播放 CDN 偏好」。
+     *
+     * 这个设置原先只作用于播放器，下载链路完全没读：用户选了 ali / cos 之类线路，
+     * 下载仍然落在 mcdn（PCDN）上，屏蔽 mcdn 就直接失败。这里按设置把 host 改写过去；
+     * PCDN 域名同样参与改写（upgcxcode 路径与签名在 host 之间通用）。
+     */
+    private suspend fun applyCdnPreference(url: String): String {
+        if (url.isBlank()) return url
+        val ctx = appContext ?: return url
+        return try {
+            val stored = SettingsManager.getPlaybackCdnPreference(ctx).first()
+            val host = PlaybackCdnPreference.fromStorageValue(stored).host ?: return url
+            rewriteBilivideoHost(url, host) ?: url
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            url
+        }
     }
 
     private suspend fun downloadFileWithUrlRefresh(
         task: DownloadTask,
         isVideoStream: Boolean,
         file: File,
-        onProgress: (Float) -> Unit
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit
     ): HttpDownloadAssetResult {
         var activeTask = task
         var initialUrl = if (isVideoStream) activeTask.videoUrl else activeTask.audioUrl
@@ -532,6 +565,8 @@ object DownloadManager {
         if (initialUrl.isBlank()) {
             throw IllegalStateException(if (isVideoStream) "视频地址为空" else "音频地址为空")
         }
+        // 优先使用设置里选的线路（未选具体线路时保持原地址）
+        initialUrl = applyCdnPreference(initialUrl)
 
         try {
             return downloadFile(initialUrl, file, task.id, onProgress)
@@ -539,7 +574,8 @@ object DownloadManager {
             if (!shouldRefreshDownloadUrlAfterFailure(error)) throw error
 
             val refreshedTask = refreshTaskDownloadUrls(activeTask)
-            val refreshedUrl = if (isVideoStream) refreshedTask.videoUrl else refreshedTask.audioUrl
+            var refreshedUrl = if (isVideoStream) refreshedTask.videoUrl else refreshedTask.audioUrl
+            if (refreshedUrl.isNotBlank()) refreshedUrl = applyCdnPreference(refreshedUrl)
             if (refreshedUrl.isBlank() || refreshedUrl == initialUrl) {
                 throw error
             }
@@ -780,26 +816,25 @@ object DownloadManager {
     private fun buildDownloadAssetProgressState(
         kind: DownloadAssetKind,
         file: File,
-        progress: Float
+        downloadedBytes: Long,
+        totalBytes: Long
     ): DownloadAssetState {
         val partFile = File(file.parentFile, "${file.name}.part")
-        val downloadedBytes = partFile.takeIf(File::exists)?.length() ?: file.takeIf(File::exists)?.length() ?: 0L
-        val totalBytes = if (progress > 0f) {
-            (downloadedBytes / progress).toLong()
-        } else {
-            0L
-        }
         return DownloadAssetState(
             kind = kind,
             status = DownloadAssetStatus.DOWNLOADING,
             totalBytes = totalBytes.coerceAtLeast(downloadedBytes),
-            downloadedBytes = downloadedBytes,
+            downloadedBytes = downloadedBytes.coerceAtLeast(0L),
             filePath = file.absolutePath,
             tempPath = partFile.absolutePath
         )
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private fun shouldRefreshDownloadUrlAfterFailure(error: Throwable): Boolean {
+        if (error is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException &&
+            error.responseCode in setOf(401, 403, 416)
+        ) return true
         val message = error.message?.lowercase().orEmpty()
         return message.contains("http 401") ||
             message.contains("http 403") ||
@@ -893,8 +928,10 @@ object DownloadManager {
     private fun loadTasks() {
         try {
             val file = tasksFile ?: return
-            if (file.exists()) {
-                val content = file.readText()
+            val atomicFile = AtomicFile(file)
+            // 旧备份也交给原子读取恢复，避免主文件缺失时丢掉可恢复的任务。
+            if (file.exists() || File(file.path + ".bak").exists()) {
+                val content = atomicFile.openRead().bufferedReader().use { it.readText() }
                 val list = json.decodeFromString<List<DownloadTask>>(content)
                 _tasks.value = list
                     .map(::normalizeRestoredDownloadTask)
@@ -915,11 +952,14 @@ object DownloadManager {
                 val content = json.encodeToString(snapshot.values.toList())
                 val parent = file.parentFile ?: return@withLock
                 if (!parent.exists()) parent.mkdirs()
-                val tempFile = File(parent, "${file.name}.tmp")
-                tempFile.writeText(content)
-                if (!tempFile.renameTo(file)) {
-                    file.writeText(content)
-                    tempFile.delete()
+                val atomicFile = AtomicFile(file)
+                val output = atomicFile.startWrite()
+                try {
+                    output.write(content.toByteArray(Charsets.UTF_8))
+                    atomicFile.finishWrite(output)
+                } catch (failure: Throwable) {
+                    atomicFile.failWrite(output)
+                    throw failure
                 }
                 lastPersistedTasks = snapshot
             } catch (e: Exception) {

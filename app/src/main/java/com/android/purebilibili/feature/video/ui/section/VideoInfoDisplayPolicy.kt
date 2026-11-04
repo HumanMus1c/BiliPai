@@ -68,6 +68,17 @@ internal fun shouldUseCompactUpInfoLayout(widthDp: Int): Boolean {
     return widthDp in 1 until UP_INFO_COMPACT_WIDTH_THRESHOLD_DP
 }
 
+/** 详情页统计数量在前；未知值隐藏，真实的零值保留。 */
+internal fun resolveVideoDetailOwnerStatsLabels(
+    followerCount: Int?,
+    videoCount: Int?
+): List<String> {
+    return listOfNotNull(
+        followerCount?.takeIf { it >= 0 }?.let { "${FormatUtils.formatStat(it.toLong())}粉丝" },
+        videoCount?.takeIf { it >= 0 }?.let { "${FormatUtils.formatStat(it.toLong())}视频" }
+    )
+}
+
 internal fun resolveVideoDetailOnlineCountText(
     showOnlineCount: Boolean,
     onlineCount: String
@@ -130,7 +141,15 @@ internal fun resolvePublishTimeRowText(
             locale = locale,
             timeZone = timeZone
         )
-        "发布时间 $relativeText  ·  $preciseText"
+        // 相对值是日期形态（如 10-09 / 2026-10-09）时与精确时间重复，
+        // 仅保留精确时间；真正的相对描述（3小时前/昨天 等）才双段拼接。
+        val relativeIsDateForm = Regex("^\\d{4}-\\d{1,2}-\\d{1,2}$").containsMatchIn(relativeText) ||
+            Regex("^\\d{1,2}-\\d{1,2}$").containsMatchIn(relativeText)
+        if (relativeIsDateForm) {
+            "发布时间 $preciseText"
+        } else {
+            "发布时间 $relativeText  ·  $preciseText"
+        }
     } else {
         // PiliPlus 直接展示格式化时间，不加“发布于”前缀
         relativeText

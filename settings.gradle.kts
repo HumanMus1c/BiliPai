@@ -86,5 +86,6 @@ include(":brand-motion")
 include(":dolby-ffmpeg-decoder")
 include(":danmaku-engine")
 include(":miuix-navigation")
+include(":ci-lint")
 
  

@@ -27,20 +27,29 @@ data class SharedPlaybackRequest(
 
 class PlaybackLoadException(val info: ViewInfo, cause: Throwable) : Exception(cause.message, cause)
 
-data class LoadedPlayback(val info: ViewInfo, val streams: PlayUrlData)
+data class LoadedPlayback(val info: ViewInfo, val streams: PlayUrlData, val serverPositionMs: Long? = null)
 
 object SharedPlaybackRepository {
-    suspend fun load(request: SharedPlaybackRequest): Result<LoadedPlayback> = withContext(Dispatchers.IO) {
+    suspend fun load(
+        request: SharedPlaybackRequest,
+        allowTokenRefresh: Boolean = true,
+        usePlaybackAccount: Boolean = true
+    ): Result<LoadedPlayback> = withContext(Dispatchers.IO) {
         try {
             val info = SharedContentRepository.detail(request.bvid, request.aid, request.cid).getOrThrow()
             val streams = try {
-                loadStreams(info.bvid, info.cid, request.quality, request.audioLanguage)
+                loadStreams(info.bvid, info.cid, request.quality, request.audioLanguage, allowTokenRefresh, usePlaybackAccount)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 throw PlaybackLoadException(info, error)
             }
-            Result.success(LoadedPlayback(info, streams))
+            val history = com.android.purebilibili.data.repository.HistoryRepository
+                .getPlaybackHistory(info.bvid, info.cid)
+                .onFailure { com.android.purebilibili.core.network.CoreDataLog.w("SharedPlayback", "播放历史读取失败: ${it.message}") }
+                .getOrNull()
+            Result.success(LoadedPlayback(info, streams,
+                history?.resumePositionMs(info.cid)))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -48,8 +57,11 @@ object SharedPlaybackRepository {
         }
     }
 
-    private suspend fun loadStreams(bvid: String, cid: Long, quality: Int, audioLanguage: String?): PlayUrlData {
-        val account = NetworkModule.playbackAccount()
+    private suspend fun loadStreams(
+        bvid: String, cid: Long, quality: Int, audioLanguage: String?,
+        allowTokenRefresh: Boolean, usePlaybackAccount: Boolean
+    ): PlayUrlData {
+        val account = if (usePlaybackAccount) NetworkModule.playbackAccount() else null
         var accessToken = account?.accessToken ?: TokenManager.accessTokenCache.orEmpty()
         if (accessToken.isNotBlank()) {
             val platform = account?.accessTokenPlatform ?: TokenManager.accessTokenPlatformCache
@@ -57,7 +69,7 @@ object SharedPlaybackRepository {
             try {
                 var response = appRequest(accessToken)
                 val context = NetworkModule.appContext
-                if (response.code == -101 && account == null && context != null && TokenRefreshHelper.refresh(context)) {
+                if (response.code == -101 && allowTokenRefresh && account == null && context != null && TokenRefreshHelper.refresh(context)) {
                     accessToken = TokenManager.accessTokenCache.orEmpty()
                     response = appRequest(accessToken)
                 }
@@ -70,7 +82,8 @@ object SharedPlaybackRepository {
             }
         }
         val keys = WbiKeyManager.getWbiKeys().getOrThrow()
-        val response = NetworkModule.playbackApi().getPlayUrl(WbiUtils.sign(
+        val api = if (usePlaybackAccount) NetworkModule.playbackApi() else NetworkModule.api
+        val response = api.getPlayUrl(WbiUtils.sign(
             buildPlayUrlWbiBaseParams(bvid, cid, quality) + (audioLanguage?.let { mapOf("cur_language" to it, "lang" to it) } ?: emptyMap()), keys.first, keys.second,
         ))
         if (response.code != 0) throw ContentRequestException(response.code, response.message)

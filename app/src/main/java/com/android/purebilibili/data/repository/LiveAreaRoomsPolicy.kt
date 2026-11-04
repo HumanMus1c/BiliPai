@@ -45,8 +45,13 @@ internal fun hasMoreLiveAreaRooms(
 ): Boolean {
     if (loadedCount <= 0) return false
     if (hasMoreFlag != null) return hasMoreFlag == 1
-    if (totalCount > 0) return page.toLong() * pageSize < totalCount
-    return loadedCount >= pageSize
+    // 有服务端总数时用实际返回大小兜底（服务器可能只回 20 条而请求是 30），
+    // 不能按请求前的 30 提前判定到底。
+    val effectiveSize = minOf(pageSize.coerceAtLeast(1), loadedCount)
+    if (totalCount > 0) return page.toLong() * effectiveSize < totalCount
+    // 既无 hasMore 也无 total：无法证明还有下一页。此时保留原语义——只有「满页」才
+    // 继续探测，避免服务器省略元数据时的无限翻页（短页即视为到底）。
+    return loadedCount >= pageSize.coerceAtLeast(1)
 }
 
 internal fun resolveLiveAreaRoomsErrorMessage(

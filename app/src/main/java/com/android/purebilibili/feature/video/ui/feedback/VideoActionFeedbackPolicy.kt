@@ -1,6 +1,7 @@
 package com.android.purebilibili.feature.video.ui.feedback
 
 import androidx.compose.ui.graphics.Color
+import com.android.purebilibili.core.theme.AppUiStyle
 
 enum class VideoFeedbackAnchor {
     BottomCenter,
@@ -30,12 +31,12 @@ data class VideoDetailActionActiveColors(
 fun resolveVideoDetailActionActiveColors(
     primary: Color,
     secondary: Color,
-    tertiary: Color
+    uiStyle: AppUiStyle = AppUiStyle.MATERIAL3,
 ): VideoDetailActionActiveColors {
     return VideoDetailActionActiveColors(
         primaryAction = primary,
-        watchLater = tertiary,
-        downloadInProgress = secondary,
+        watchLater = primary,
+        downloadInProgress = if (uiStyle == AppUiStyle.MIUIX) primary else secondary,
         downloaded = primary
     )
 }
@@ -51,6 +52,20 @@ fun resolveVideoActionCountTint(
     activeColor: Color,
     inactiveColor: Color
 ): Color = if (isActive) activeColor else inactiveColor
+
+internal fun canSubmitVideoFollowAction(
+    statusKnown: Boolean,
+    isFollowing: Boolean,
+    isSubmitting: Boolean,
+): Boolean = statusKnown && !isFollowing && !isSubmitting
+
+internal fun canSubmitVideoTripleAction(
+    statusKnown: Boolean,
+    isLiked: Boolean,
+    isCoined: Boolean,
+    isFavorited: Boolean,
+    isSubmitting: Boolean,
+): Boolean = statusKnown && !isSubmitting && !(isLiked && isCoined && isFavorited)
 
 fun resolveVideoFeedbackPlacement(
     isFullscreen: Boolean,

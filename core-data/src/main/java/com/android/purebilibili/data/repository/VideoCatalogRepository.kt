@@ -4,6 +4,9 @@ import com.android.purebilibili.core.network.WbiKeyManager
 import com.android.purebilibili.core.network.WbiUtils
 import com.android.purebilibili.core.network.BuvidManager
 import com.android.purebilibili.core.network.NetworkModule
+import com.android.purebilibili.core.network.getSpaceAggregate
+import com.android.purebilibili.data.model.response.SpaceLiveRoom
+import com.android.purebilibili.core.store.TokenManager
 import com.android.purebilibili.data.model.response.CreatorCardStats
 import com.android.purebilibili.data.model.response.PopularSeriesPeriod
 import com.android.purebilibili.data.model.response.PopularSeriesOneData
@@ -21,6 +24,12 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object VideoCatalogRepository {
     private val api = NetworkModule.api
+    private data class RelatedKey(val accountScope: String, val bvid: String)
+    private val relatedCache = OnDemandRequestCache<RelatedKey, Result<List<RelatedVideo>>>(
+        maxEntries = 32,
+        maxAgeMs = 45_000L,
+        canCache = { it.isSuccess }
+    )
 
     /** 分区 latest 接口出现空数据或错误时，允许用排行榜兜底的一级分区集合。 */
     private val UGC_MAIN_REGION_TIDS = setOf(
@@ -235,22 +244,67 @@ object VideoCatalogRepository {
     suspend fun getRelatedVideos(bvid: String): List<RelatedVideo> =
         getRelatedVideosResult(bvid).getOrDefault(emptyList())
 
+    suspend fun getCachedRelatedVideosResult(bvid: String): Result<List<RelatedVideo>>? {
+        TokenManager.awaitRestore()
+        val accountScope = recommendationAccountScope()
+        val result = relatedCache.peek(RelatedKey(accountScope, bvid))
+        return if (accountScope == recommendationAccountScope()) result else null
+    }
+
     suspend fun getRelatedVideosResult(bvid: String): Result<List<RelatedVideo>> = withContext(Dispatchers.IO) {
-        try {
-            val response = api.getRelatedVideos(bvid)
-            if (response.code != 0 || response.data == null) {
-                Result.failure(IllegalStateException("相关推荐加载失败 (${response.code})"))
-            } else {
-                Result.success(requireNotNull(response.data))
+        TokenManager.awaitRestore()
+        val accountScope = recommendationAccountScope()
+        val result = relatedCache.getOrLoad(RelatedKey(accountScope, bvid)) {
+            dataRequest {
+                val response = api.getRelatedVideos(bvid)
+                if (response.code != 0 || response.data == null) {
+                    error("相关推荐加载失败 (${response.code})")
+                }
+                check(accountScope == recommendationAccountScope()) { "账号已切换，请重新加载" }
+                requireNotNull(response.data)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(e)
         }
+        if (accountScope == recommendationAccountScope()) result
+        else Result.failure(IllegalStateException("账号已切换，请重新加载"))
+    }
+
+    fun invalidateRelatedVideos(bvid: String) {
+        relatedCache.invalidate(RelatedKey(recommendationAccountScope(), bvid))
+    }
+
+    fun clearRelatedVideosCache() {
+        relatedCache.clearCompleted()
     }
 
     private val creatorCardStatsCache = ConcurrentHashMap<Long, CreatorCardStats>()
+
+    private val creatorLiveRoomCache = OnDemandRequestCache<Long, Result<SpaceLiveRoom?>>(
+        maxEntries = 32,
+        maxAgeMs = 30_000L,
+        canCache = { it.isSuccess },
+    )
+
+    /** 直播状态短时缓存并合并同一 UP 的并发请求，失败不写入缓存。 */
+    suspend fun getCreatorLiveRoom(mid: Long): Result<SpaceLiveRoom?> = withContext(Dispatchers.IO) {
+        if (mid <= 0L) return@withContext Result.failure(IllegalArgumentException("Invalid mid"))
+        creatorLiveRoomCache.getOrLoad(mid) {
+            try {
+                val response = NetworkModule.spaceApi.getSpaceAggregate(mid)
+                val data = response.data
+                if (response.code == 0 && data != null) {
+                    Result.success(data.live)
+                } else {
+                    Result.failure(Exception(response.message.ifBlank { "UP主直播状态加载失败(${response.code})" }))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    fun getCachedCreatorCardStats(mid: Long): CreatorCardStats? = creatorCardStatsCache[mid]
 
     suspend fun getCreatorCardStats(mid: Long): Result<CreatorCardStats> = withContext(Dispatchers.IO) {
         if (mid <= 0L) return@withContext Result.failure(IllegalArgumentException("Invalid mid"))

@@ -1,5 +1,9 @@
 package com.android.purebilibili.feature.list
 
+import com.android.purebilibili.core.ui.components.VideoStatusBadges
+import com.android.purebilibili.core.ui.components.wallpaperAwareMediaCardBackground
+import com.android.purebilibili.core.ui.AppContentColors
+
 import com.android.purebilibili.feature.personal.PersonalMediaCardFrame
 import com.android.purebilibili.feature.personal.rememberPersonalCardVideoTransition
 import coil3.request.crossfade
@@ -13,10 +17,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -33,7 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInRoot
+import com.android.purebilibili.core.ui.transition.videoCardSourceBoundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -61,7 +63,7 @@ import com.android.purebilibili.core.ui.components.AppText
 import com.android.purebilibili.core.ui.feedContentTypography
 import com.android.purebilibili.core.ui.skeleton.ContentSkeletonBlock
 import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonBlockColor
-import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulse
+import com.android.purebilibili.core.ui.skeleton.rememberContentSkeletonPulseState
 import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSourceRoute
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoCardSourceChromeSnapshot
@@ -78,7 +80,6 @@ import com.android.purebilibili.data.model.response.HistoryBusiness
 import com.android.purebilibili.data.model.response.HistoryItem
 import com.android.purebilibili.feature.home.components.cards.resolveVideoCardCoverOverlayTextShadow
 import com.android.purebilibili.feature.home.components.cards.HorizontalVideoCardFrame
-import com.android.purebilibili.feature.personal.PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO
 import com.android.purebilibili.feature.personal.PersonalCardSelectMask
 
 internal fun resolveHistoryKindLabel(business: HistoryBusiness): String = when (business) {
@@ -99,13 +100,15 @@ internal fun canAddHistoryToWatchLater(item: HistoryItem): Boolean =
 @Composable
 internal fun HistoryPersonalCardSkeleton(
     modifier: Modifier = Modifier,
-    blockColor: Color? = null,
+    blockColor: (() -> Color)? = null,
+    stacked: Boolean = false,
 ) {
-    val pulse = if (blockColor == null) rememberContentSkeletonPulse() else 0f
-    val color = blockColor ?: rememberContentSkeletonBlockColor(pulse)
+    val color = blockColor ?: rememberContentSkeletonBlockColor(rememberContentSkeletonPulseState())
     val blockShape = AppShapes.container(ContainerLevel.Card)
 
     HorizontalVideoCardFrame(
+        stacked = stacked,
+        fillInfoHeight = !stacked,
         modifier = modifier
             .fillMaxWidth(),
         coverContent = {
@@ -129,28 +132,21 @@ internal fun HistoryPersonalCardSkeleton(
                     .fillMaxWidth(0.68f)
                     .height(16.dp),
             )
-            Spacer(modifier = Modifier.weight(1f))
+        },
+        supportingContent = {
             ContentSkeletonBlock(
                 color = color,
-                modifier = Modifier
-                    .fillMaxWidth(0.48f)
-                    .height(12.dp),
+                modifier = Modifier.fillMaxWidth(0.68f).height(12.dp),
             )
-            Spacer(modifier = Modifier.height(4.dp))
             ContentSkeletonBlock(
                 color = color,
-                modifier = Modifier
-                    .fillMaxWidth(0.34f)
-                    .height(12.dp),
+                modifier = Modifier.fillMaxWidth(0.48f).height(12.dp),
             )
         },
         trailingContent = {
             ContentSkeletonBlock(
                 color = color,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 8.dp)
-                    .size(24.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 2.dp, bottom = 2.dp).size(17.dp),
             )
         },
     )
@@ -174,9 +170,11 @@ internal fun HistoryPersonalCard(
     val video = item.videoItem
     val context = LocalContext.current
     val coverShape = AppShapes.mediaCover()
+    val containerTarget = if (batchMode) null else resolveHistoryCardContainerTarget(item)
+    val usesVideoTransition = !batchMode && containerTarget == null && item.business != HistoryBusiness.ARTICLE
     val transition = rememberPersonalCardVideoTransition(
         bvid = video.bvid,
-        transitionEnabled = transitionEnabled,
+        transitionEnabled = transitionEnabled && usesVideoTransition,
         clipShape = coverShape,
     )
     val progressState = remember(item.progress, video.duration, video.view_at) {
@@ -195,8 +193,8 @@ internal fun HistoryPersonalCard(
             .diskCacheKey(stationaryCoverUrl)
             .build()
     }
-    val triggerClick = {
-        if (!batchMode) {
+    val legacyTriggerClick = {
+        if (transitionEnabled && usesVideoTransition) {
             transition.recordPosition(
                 bvid = video.bvid,
                 stacked = stacked,
@@ -230,21 +228,27 @@ internal fun HistoryPersonalCard(
         onClick()
     }
 
+    val contentContainer = containerTarget?.let {
+        com.android.purebilibili.core.ui.rememberNativeCardContainerTransition(
+            target = it,
+            onClick = legacyTriggerClick,
+            enabled = transitionEnabled,
+        )
+    }
+    val triggerClick = contentContainer?.onClick ?: legacyTriggerClick
+
     val coverOverlayTextStyle = remember {
         TextStyle(shadow = resolveVideoCardCoverOverlayTextShadow())
     }
-    val contentTypography = feedContentTypography(FeedTitleHierarchy.Standard)
+    val contentTypography = com.android.purebilibili.feature.home.components.cards.horizontalVideoCardTypography()
     val owner = video.owner.name.takeIf { it.isNotBlank() }
         ?: if (item.business == HistoryBusiness.PGC) "番剧" else "未知作者"
     val viewedAt = FormatUtils.formatHistoryViewTime(video.view_at)
-    val titleMaxLines = if (item.page > 1) 1 else 2
+    val titleMaxLines = com.android.purebilibili.core.ui.videoCardTitleMaxLines()
 
-    val actionContent: @Composable () -> Unit = {
-        if (!batchMode) {
+    val actionContent: (@Composable () -> Unit)? = if (batchMode) null else {
+        {
             Box(
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .width(48.dp),
                 contentAlignment = Alignment.BottomCenter,
             ) {
                 AppWindowActionMenu(
@@ -269,20 +273,27 @@ internal fun HistoryPersonalCard(
                             AppWindowAction(
                                 label = "删除记录",
                                 icon = Icons.Outlined.DeleteOutline,
-                                iconTint = MaterialTheme.colorScheme.error,
+                                iconTint = AppContentColors.error(),
                                 onClick = onDelete,
                             ),
                         ),
                     ),
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(29.dp),
+                    // 菜单源使用紧凑锚点；可见字形由外层
+                    // 严格叠放在锚点右下角，绕开 IconButton 内容居中/裁切的内部布局。
+                    anchorModifier = Modifier.fillMaxSize(),
                 ) {
-                    AppIcon(
-                        Icons.Outlined.MoreVert,
-                        contentDescription = "历史记录操作",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
+                    Spacer(Modifier)
                 }
+                AppIcon(
+                    Icons.Outlined.MoreVert,
+                    contentDescription = "历史记录操作",
+                    tint = AppContentColors.secondaryText(),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 2.dp, bottom = 2.dp)
+                        .size(17.dp),
+                )
             }
         }
     }
@@ -291,15 +302,15 @@ internal fun HistoryPersonalCard(
             stacked = true,
             selected = selected,
             modifier = modifier
-                .then(transition.shellModifier)
-                .onGloballyPositioned { transition.bounds.cardBounds = it.boundsInRoot() },
+                .then(contentContainer?.modifier ?: transition.shellModifier)
+                .onGloballyPositioned { transition.bounds.cardBounds = it.videoCardSourceBoundsInRoot() },
             nativeSnapshotModifier = transition.nativeCardSnapshot.modifier,
             coverOverlayModifier = transition.nativeCardSnapshot.coverOverlayModifier,
             coverModifier = Modifier.onGloballyPositioned {
-                transition.bounds.coverBounds = it.boundsInRoot()
+                transition.bounds.coverBounds = it.videoCardSourceBoundsInRoot()
             },
             headlineContent = {
-                AppText(text = video.title, style = contentTypography.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                AppText(text = video.title, style = contentTypography.title, maxLines = titleMaxLines, overflow = com.android.purebilibili.core.ui.videoCardTitleOverflow())
             },
             supportingContent = {
                 AppText(text = owner, style = contentTypography.author, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -310,6 +321,10 @@ internal fun HistoryPersonalCard(
                     contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             },
             coverOverlayContent = {
+                VideoStatusBadges(
+                    labels = video.statusLabels,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(AppSpacingTokens.ExtraSmall),
+                )
                 AppText(
                     text = resolveHistoryProgressLabel(item.progress, video.duration),
                     color = MediaContrastPalette.Foreground,
@@ -322,7 +337,7 @@ internal fun HistoryPersonalCard(
                 }
                 PersonalCardSelectMask(selected = selected)
             },
-            trailingContent = { actionContent() },
+            trailingContent = actionContent?.let { action -> { action() } },
             onClick = triggerClick,
             onLongClick = onLongClick,
         )
@@ -330,20 +345,21 @@ internal fun HistoryPersonalCard(
     }
 
     HorizontalVideoCardFrame(
+        fillInfoHeight = true,
         modifier = modifier
             .fillMaxWidth()
-            .then(transition.shellModifier)
+            .then(contentContainer?.modifier ?: transition.shellModifier)
             .clip(coverShape)
             .then(transition.nativeCardSnapshot.modifier)
-            .background(AppSurfaceTokens.cardContainer())
+            .wallpaperAwareMediaCardBackground(AppSurfaceTokens.cardContainer(), coverShape)
             .combinedClickable(
                 onClick = triggerClick,
                 onLongClick = onLongClick,
             )
-            .onGloballyPositioned { transition.bounds.cardBounds = it.boundsInRoot() },
-        coverAspectRatio = PERSONAL_LIST_HORIZONTAL_COVER_ASPECT_RATIO,
+            .onGloballyPositioned { transition.bounds.cardBounds = it.videoCardSourceBoundsInRoot() },
+        coverAspectRatio = com.android.purebilibili.core.ui.videoCardCoverAspectRatio(),
         coverModifier = Modifier.onGloballyPositioned {
-            transition.bounds.coverBounds = it.boundsInRoot()
+            transition.bounds.coverBounds = it.videoCardSourceBoundsInRoot()
         },
         coverOverlayModifier = transition.nativeCardSnapshot.coverOverlayModifier,
         coverContent = {
@@ -355,6 +371,10 @@ internal fun HistoryPersonalCard(
             )
         },
         coverOverlayContent = {
+            VideoStatusBadges(
+                labels = video.statusLabels,
+                modifier = Modifier.align(Alignment.TopEnd).padding(AppSpacingTokens.ExtraSmall),
+            )
             AppText(
                 text = resolveHistoryProgressLabel(progressState.progressSec, video.duration),
                 color = MediaContrastPalette.Foreground,
@@ -380,15 +400,18 @@ internal fun HistoryPersonalCard(
         infoContent = {
             AppText(
                 text = video.title,
+                modifier = Modifier.fillMaxWidth(),
                 style = contentTypography.title,
                 maxLines = titleMaxLines,
-                overflow = TextOverflow.Ellipsis,
+                overflow = com.android.purebilibili.core.ui.videoCardTitleOverflow(),
                 tapToCopyEnabled = false,
             )
+        },
+        supportingContent = {
             AppText(
                 text = owner,
                 style = contentTypography.author,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = AppContentColors.secondaryText(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 tapToCopyEnabled = false,
@@ -397,14 +420,13 @@ internal fun HistoryPersonalCard(
                 AppText(
                     text = viewedAt,
                     style = contentTypography.author,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppContentColors.secondaryText(),
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     tapToCopyEnabled = false,
                 )
             }
         },
-        trailingContent = {
-            Box(modifier = Modifier.align(Alignment.BottomEnd)) { actionContent() }
-        },
+        trailingContent = actionContent?.let { action -> { action() } },
     )
 }

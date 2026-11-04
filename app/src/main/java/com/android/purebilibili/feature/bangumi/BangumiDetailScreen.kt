@@ -1,5 +1,7 @@
 // 文件路径: feature/bangumi/BangumiDetailScreen.kt
 package com.android.purebilibili.feature.bangumi
+
+import com.android.purebilibili.core.ui.AppContentColors
 import com.android.purebilibili.core.ui.resolveFilledButtonContainerColor
 import com.android.purebilibili.core.ui.resolveFilledButtonContentColor
 import com.android.purebilibili.core.ui.components.AppIcon
@@ -30,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.android.purebilibili.core.theme.resolveAdaptivePrimaryAccentColors
-import com.android.purebilibili.core.theme.iOSYellow
 import com.android.purebilibili.core.ui.AppAlertDialog
 import com.android.purebilibili.core.ui.ImmersiveAppScaffold as AppScaffold
 import com.android.purebilibili.core.ui.AppTopBar
@@ -54,6 +56,7 @@ import com.android.purebilibili.core.util.FormatUtils
 import com.android.purebilibili.data.model.response.BangumiDetail
 import com.android.purebilibili.data.model.response.BangumiEpisode
 import com.android.purebilibili.core.util.LocalWindowSizeClass
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
 import com.android.purebilibili.core.util.responsiveContentWidth
 // [重构] 使用提取的可复用组件
@@ -80,16 +83,26 @@ fun BangumiDetailScreen(
     onSeasonClick: (Long) -> Unit = {},        //  点击切换季度
     onReviewsClick: (Long, String) -> Unit = { _, _ -> },
     onUserClick: (Long) -> Unit = {},
-    viewModel: BangumiViewModel = viewModel()
+    viewModel: BangumiViewModel = viewModel(),
+    modifier: Modifier = Modifier,
+    contentTransitionReady: Boolean = true,
 ) {
-    val detailState by viewModel.detailState.collectAsStateWithLifecycle()
-    
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Keep the entering container stable while bounds animate. Never replace loaded content on return.
+    val detailState = if (contentTransitionReady) uiState.detailState else BangumiDetailState.Loading
+    val contentRevealAlpha = com.android.purebilibili.core.ui.transition.rememberSharedCardDetailRevealAlpha(
+        entryKey = seasonId,
+        contentTransitionReady = contentTransitionReady,
+        contentLoaded = detailState !is BangumiDetailState.Loading,
+    )
+
     // 加载详情
     LaunchedEffect(seasonId, epId, mediaId) {
         viewModel.loadSeasonDetail(seasonId = seasonId, epId = epId, mediaId = mediaId)
     }
-    
+
     AppScaffold(
+        modifier = modifier,
         blurContentReady = detailState !is BangumiDetailState.Loading,
         topBar = {
             val isCourse = (detailState as? BangumiDetailState.Success)?.detail?.let {
@@ -109,76 +122,81 @@ fun BangumiDetailScreen(
             )
         }
     ) { paddingValues ->
-        when (val state = detailState) {
-            is BangumiDetailState.Loading -> {
-                PosterDetailSkeleton(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                )
-            }
-            is BangumiDetailState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        AppText(
-                            text = state.message,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        AppButton(
-                            onClick = {
-                                viewModel.loadSeasonDetail(
-                                    seasonId = seasonId,
-                                    epId = epId,
-                                    mediaId = mediaId
-                                )
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer {
+            alpha = if (detailState is BangumiDetailState.Loading) 1f else contentRevealAlpha.value
+        }) {
+            when (val state = detailState) {
+                is BangumiDetailState.Loading -> {
+                    PosterDetailSkeleton(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                    )
+                }
+                is BangumiDetailState.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            AppText(
+                                text = state.message,
+                                color = AppContentColors.error()
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            AppButton(
+                                onClick = {
+                                    viewModel.loadSeasonDetail(
+                                        seasonId = seasonId,
+                                        epId = epId,
+                                        mediaId = mediaId
+                                    )
+                                }
+                            ) {
+                                AppText("重试")
                             }
-                        ) {
-                            AppText("重试")
                         }
                     }
                 }
-            }
-            is BangumiDetailState.Success -> {
-                val actionSeasonId = resolveBangumiActionSeasonId(
-                    routeSeasonId = seasonId,
-                    detailSeasonId = state.detail.seasonId
-                )
-                if (LocalWindowSizeClass.current.shouldUseSplitLayout) {
-                    TabletBangumiDetailContent(
-                        detail = state.detail,
-                        paddingValues = paddingValues,
-                        onEpisodeClick = { episode -> onEpisodeClick(actionSeasonId, episode) },
-                        onSeasonClick = onSeasonClick,
-                        onFollowStatusSelect = { status ->
-                            viewModel.updateFollowStatus(actionSeasonId, status)
-                        },
-                        onReviewsClick = onReviewsClick,
-                        onUserClick = onUserClick
+                is BangumiDetailState.Success -> {
+                    val actionSeasonId = resolveBangumiActionSeasonId(
+                        routeSeasonId = seasonId,
+                        detailSeasonId = state.detail.seasonId
                     )
-                } else {
-                    MobileBangumiDetailContent(
-                        detail = state.detail,
-                        paddingValues = paddingValues,
-                        onEpisodeClick = { episode -> onEpisodeClick(actionSeasonId, episode) },
-                        onSeasonClick = onSeasonClick,
-                        onFollowStatusSelect = { status ->
-                            viewModel.updateFollowStatus(actionSeasonId, status)
-                        },
-                        onReviewsClick = onReviewsClick,
-                        onUserClick = onUserClick
-                    )
+                    if (LocalWindowSizeClass.current.shouldUseSplitLayout) {
+                        TabletBangumiDetailContent(
+                            detail = state.detail,
+                            paddingValues = paddingValues,
+                            onEpisodeClick = { episode -> onEpisodeClick(actionSeasonId, episode) },
+                            onSeasonClick = onSeasonClick,
+                            onFollowStatusSelect = { status ->
+                                viewModel.updateFollowStatus(actionSeasonId, status)
+                            },
+                            onReviewsClick = onReviewsClick,
+                            onUserClick = onUserClick
+                        )
+                    } else {
+                        MobileBangumiDetailContent(
+                            detail = state.detail,
+                            paddingValues = paddingValues,
+                            onEpisodeClick = { episode -> onEpisodeClick(actionSeasonId, episode) },
+                            onSeasonClick = onSeasonClick,
+                            onFollowStatusSelect = { status ->
+                                viewModel.updateFollowStatus(actionSeasonId, status)
+                            },
+                            onReviewsClick = onReviewsClick,
+                            onUserClick = onUserClick
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TabletBangumiDetailContent(
     detail: BangumiDetail,
@@ -197,7 +215,7 @@ private fun TabletBangumiDetailContent(
         FormatUtils.fixImageUrl(detail.cover)
     }
     var showFollowStatusDialog by remember { mutableStateOf(false) }
-    
+
     // 选集相关状态
     var showJumpDialog by remember { mutableStateOf(false) }
     var jumpInputText by remember { mutableStateOf("") }
@@ -221,7 +239,7 @@ private fun TabletBangumiDetailContent(
             orderedEpisodes.subList(start, minOf(start + episodesPerPage, orderedEpisodes.size))
         }
     }
-    
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -256,20 +274,20 @@ private fun TabletBangumiDetailContent(
                                 .clip(AppShapes.container(ContainerLevel.Card)),
                             contentScale = ContentScale.Crop
                         )
-                        
+
                         Spacer(modifier = Modifier.width(16.dp))
-                        
+
                         // Title & Stats
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             AppText(
                                 text = detail.title,
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = AppContentColors.primaryText(),
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            
+
                             // Rating
                             detail.rating?.let { rating ->
                                 if (rating.score > 0) {
@@ -277,38 +295,38 @@ private fun TabletBangumiDetailContent(
                                         AppIcon(
                                             Icons.Outlined.Star,
                                             contentDescription = null,
-                                            tint = iOSYellow, // Assuming this is available
+                                            tint = AppContentColors.rating(), // Assuming this is available
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         AppText(
                                             text = String.format("%.1f", rating.score),
-                                            color = iOSYellow,
+                                            color = AppContentColors.rating(),
                                             fontWeight = FontWeight.Bold
                                         )
                                         AppText(
                                             text = " (${rating.count}人评分)",
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = AppContentColors.secondaryText(),
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }
                                 }
                             }
-                            
+
                             // Stats
                             detail.stat?.let { stat ->
                                 val isCourse = detail.seasonType == 10
                                 val followVerb = if (isCourse) "收藏" else "追番"
                                 AppText(
                                     text = "${FormatUtils.formatStat(stat.views)}播放 · ${FormatUtils.formatStat(stat.favorites)}$followVerb",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = AppContentColors.secondaryText(),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
                     }
                 }
-                
+
                 // UP 主信息（课堂/课程或合作视频）
                 detail.upInfo?.let { up ->
                     item {
@@ -347,7 +365,7 @@ private fun TabletBangumiDetailContent(
                                     AppText(
                                         text = subText,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = AppContentColors.secondaryText(),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -364,15 +382,20 @@ private fun TabletBangumiDetailContent(
                         val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
                         detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
                     }
-                    Row(
+                    val actionButtonMinWidth = (120f * LocalDensity.current.fontScale.coerceAtLeast(1f)).dp
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (targetEpisode != null) {
                             AppButton(
                                 onClick = { onEpisodeClick(targetEpisode) },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                                modifier = Modifier.weight(1f).height(48.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .widthIn(min = actionButtonMinWidth)
+                                    .heightIn(min = 48.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
                                     contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
@@ -407,11 +430,14 @@ private fun TabletBangumiDetailContent(
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFollowing || targetEpisode != null) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
-                                contentColor = if (isFollowing || targetEpisode != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
+                                containerColor = if (isFollowing || targetEpisode != null) MaterialTheme.colorScheme.surfaceVariant else AppContentColors.accent(),
+                                contentColor = if (isFollowing || targetEpisode != null) AppContentColors.secondaryText() else AppContentColors.onAccent()
                             ),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = actionButtonMinWidth)
+                                .heightIn(min = 48.dp),
                         ) {
                             AppIcon(
                                 if (isFollowing) Icons.Outlined.Check else Icons.Outlined.Add,
@@ -419,19 +445,27 @@ private fun TabletBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            AppText(if (isCourse) {
-                                if (isFollowing) "已收藏" else "收藏"
-                            } else {
-                                resolveBangumiFollowStatusLabel(detail.userStatus)
-                            })
+                            AppText(
+                                text = if (isCourse) {
+                                    if (isFollowing) "已收藏" else "收藏"
+                                } else {
+                                    resolveBangumiFollowStatusLabel(detail.userStatus)
+                                },
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         if (canReviewBangumi(detail.mediaId, detail.rights)) {
                             AppOutlinedButton(
                                 onClick = { onReviewsClick(detail.mediaId, detail.title) },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                                modifier = Modifier.weight(1f).height(48.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .widthIn(min = actionButtonMinWidth)
+                                    .heightIn(min = 48.dp),
                             ) {
-                                AppText("点评")
+                                AppText("点评", maxLines = 1, softWrap = false)
                             }
                         }
                     }
@@ -440,7 +474,7 @@ private fun TabletBangumiDetailContent(
                 item {
                     BangumiDetailMetaSection(detail = detail)
                 }
-                
+
                 // Introduction
                 if (detail.evaluate.isNotEmpty()) {
                     item {
@@ -453,7 +487,7 @@ private fun TabletBangumiDetailContent(
                             Spacer(modifier = Modifier.height(8.dp))
                             AppText(
                                 text = detail.evaluate,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = AppContentColors.secondaryText(),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -502,7 +536,7 @@ private fun TabletBangumiDetailContent(
                 }
             }
         }
-        
+
         // RIGHT PANE: Episodes & Seasons (60%)
         Column(
             modifier = Modifier
@@ -552,7 +586,7 @@ private fun TabletBangumiDetailContent(
                                      val selected = page == selectedEpisodePage
                                      AppSurface(
                                          onClick = { selectedEpisodePage = page },
-                                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                         color = if (selected) AppContentColors.accent() else MaterialTheme.colorScheme.surfaceVariant,
                                          shape = AppShapes.container(ContainerLevel.Card)
                                      ) {
                                          AppText(
@@ -564,19 +598,21 @@ private fun TabletBangumiDetailContent(
                                              ),
                                              modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                              style = MaterialTheme.typography.bodySmall,
-                                             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                             color = if (selected) AppContentColors.onAccent() else AppContentColors.secondaryText()
                                          )
                                      }
                                  }
                              }
                          }
                      }
-                     
+
                      items(displayedEpisodes, key = { it.id }) { episode ->
                          EpisodeChip(
-                                episode = episode,
-                                progressFraction = rememberBangumiEpisodeProgressLookup()(episode),
-                                onClick = { onEpisodeClick(episode) }
+                             seasonId = detail.seasonId,
+                             episode = episode,
+                             alignGridTitles = true,
+                             progressFraction = rememberBangumiEpisodeProgressLookup()(episode),
+                             onClick = { onEpisodeClick(episode) }
                          )
                      }
                  }
@@ -595,13 +631,15 @@ private fun TabletBangumiDetailContent(
 
                          items(section.episodes.orEmpty(), key = { it.id }) { episode ->
                              EpisodeChip(
+                                 seasonId = detail.seasonId,
                                  episode = episode,
+                                 alignGridTitles = true,
                                  progressFraction = rememberBangumiEpisodeProgressLookup()(episode),
                                  onClick = { onEpisodeClick(episode) }
                              )
                          }
                      }
-                 
+
                  // Related Seasons
                  if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                      item(span = { GridItemSpan(maxLineSpan) }) {
@@ -612,13 +650,13 @@ private fun TabletBangumiDetailContent(
                             fontWeight = FontWeight.Bold
                         )
                      }
-                     
+
                      items(detail.seasons.orEmpty(), key = { it.seasonId }) { season ->
                          val isCurrentSeason = season.seasonId == detail.seasonId
                          AppSurface(
                             onClick = { if (!isCurrentSeason) onSeasonClick(season.seasonId) },
                             shape = AppShapes.container(ContainerLevel.Chip),
-                            color = if (isCurrentSeason) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            color = if (isCurrentSeason) AppContentColors.accent() else MaterialTheme.colorScheme.surface,
                             modifier = Modifier.height(48.dp) // Fixed height for consistency
                          ) {
                              Box(contentAlignment = Alignment.Center) {
@@ -626,7 +664,7 @@ private fun TabletBangumiDetailContent(
                                     text = season.seasonTitle.ifEmpty { season.title },
                                     modifier = Modifier.padding(horizontal = 12.dp),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isCurrentSeason) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    color = if (isCurrentSeason) AppContentColors.onAccent() else AppContentColors.primaryText(),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -637,7 +675,7 @@ private fun TabletBangumiDetailContent(
             }
         }
     }
-    
+
     // Dialogs (Shared logic)
     if (showJumpDialog && !detail.episodes.isNullOrEmpty()) {
          AppAlertDialog(
@@ -647,7 +685,7 @@ private fun TabletBangumiDetailContent(
                 Column {
                     AppOutlinedTextField(
                         value = jumpInputText,
-                        onValueChange = { 
+                        onValueChange = {
                             jumpInputText = it.filter { char -> char.isDigit() }
                             jumpErrorMessage = null
                         },
@@ -659,7 +697,7 @@ private fun TabletBangumiDetailContent(
                     if (jumpErrorMessage != null) {
                         AppText(
                             text = jumpErrorMessage!!,
-                            color = MaterialTheme.colorScheme.error,
+                            color = AppContentColors.error(),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -701,6 +739,7 @@ private fun TabletBangumiDetailContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MobileBangumiDetailContent(
     detail: BangumiDetail,
@@ -719,10 +758,10 @@ private fun MobileBangumiDetailContent(
         FormatUtils.fixImageUrl(detail.cover)
     }
     var showFollowStatusDialog by remember { mutableStateOf(false) }
-    
+
     //  [修复] 移除 LaunchedEffect，避免重置用户的点击状态
     // 状态同步现在通过 remember 的 key 来实现
-    
+
     //  选集相关状态（必须在函数顶层定义）
     var showEpisodeSheet by remember { mutableStateOf(false) }
     var showJumpDialog by remember { mutableStateOf(false) }
@@ -735,9 +774,12 @@ private fun MobileBangumiDetailContent(
     val orderedEpisodes = remember(detail.episodes, episodesDescending) {
         orderBangumiEpisodes(detail.episodes.orEmpty(), episodesDescending)
     }
-    
+
+    val detailListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val heroHeight = 320.dp
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = detailListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
@@ -746,30 +788,37 @@ private fun MobileBangumiDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(320.dp)  //  [修复] 增大高度防止文字被裁切
+                        .height(heroHeight)
                 ) {
-                    // 封面背景（模糊）
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = null,
+                    BangumiDetailHeroBackdrop(
+                        listState = detailListState,
+                        height = heroHeight,
+                        topInset = paddingValues.calculateTopPadding(),
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    
-                    // 渐变遮罩
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.3f),
-                                        Color.Black.copy(alpha = 0.8f)
+                    ) {
+                        // 封面背景（模糊）
+                        AsyncImage(
+                            model = coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        // 渐变遮罩
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Black.copy(alpha = 0.3f),
+                                            Color.Black.copy(alpha = 0.8f)
+                                        )
                                     )
                                 )
-                            )
-                    )
-                    
+                        )
+                    }
+
                     // 信息区域
                     Row(
                         modifier = Modifier
@@ -788,9 +837,9 @@ private fun MobileBangumiDetailContent(
                                 .clip(AppShapes.container(ContainerLevel.Chip)),
                             contentScale = ContentScale.Crop
                         )
-                        
+
                         Spacer(modifier = Modifier.width(16.dp))
-                        
+
                         // 标题和信息
                         Column(
                             modifier = Modifier.weight(1f)
@@ -802,9 +851,9 @@ private fun MobileBangumiDetailContent(
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 2
                             )
-                            
+
                             Spacer(modifier = Modifier.height(8.dp))
-                            
+
                             // 评分
                             detail.rating?.let { rating ->
                                 if (rating.score > 0) {
@@ -812,13 +861,13 @@ private fun MobileBangumiDetailContent(
                                         AppIcon(
                                             Icons.Outlined.Star,
                                             contentDescription = null,
-                                            tint = iOSYellow,
+                                            tint = AppContentColors.rating(),
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         AppText(
                                             text = String.format("%.1f", rating.score),
-                                            color = iOSYellow,
+                                            color = AppContentColors.rating(),
                                             fontWeight = FontWeight.Bold
                                         )
                                         AppText(
@@ -829,9 +878,9 @@ private fun MobileBangumiDetailContent(
                                     }
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.height(4.dp))
-                            
+
                             // 更新状态
                             detail.newEp?.desc?.let { desc ->
                                 AppText(
@@ -840,9 +889,9 @@ private fun MobileBangumiDetailContent(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
-                            
+
                             Spacer(modifier = Modifier.height(4.dp))
-                            
+
                             // 播放量
                             detail.stat?.let { stat ->
                                 val isCourse = detail.seasonType == 10
@@ -897,7 +946,7 @@ private fun MobileBangumiDetailContent(
                                 AppText(
                                     text = subText,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = AppContentColors.secondaryText(),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -906,7 +955,7 @@ private fun MobileBangumiDetailContent(
                     }
                 }
             }
-            
+
             // 操作按钮
             item {
                 val isCourse = detail.seasonType == 10
@@ -914,17 +963,22 @@ private fun MobileBangumiDetailContent(
                     val lastEpId = detail.userStatus?.progress?.lastEpId ?: 0L
                     detail.episodes?.firstOrNull { it.id == lastEpId } ?: detail.episodes?.firstOrNull()
                 }
-                Row(
+                val actionButtonMinWidth = (120f * LocalDensity.current.fontScale.coerceAtLeast(1f)).dp
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (targetEpisode != null) {
                         AppButton(
                             onClick = { onEpisodeClick(targetEpisode) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = actionButtonMinWidth)
+                                .heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
                                 contentColor = resolveFilledButtonContentColor(MaterialTheme.colorScheme)
@@ -957,14 +1011,17 @@ private fun MobileBangumiDetailContent(
                                 showFollowStatusDialog = true
                             },
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary
+                                contentColor = AppContentColors.accent()
                             ),
                             border = androidx.compose.foundation.BorderStroke(
-                                1.dp, 
-                                MaterialTheme.colorScheme.primary
+                                1.dp,
+                                AppContentColors.accent()
                             ),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = actionButtonMinWidth)
+                                .heightIn(min = 48.dp)
                         ) {
                             AppIcon(
                                 Icons.Outlined.Check,
@@ -972,7 +1029,12 @@ private fun MobileBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            AppText(if (isCourse) "已收藏" else resolveBangumiFollowStatusLabel(detail.userStatus))
+                            AppText(
+                                text = if (isCourse) "已收藏" else resolveBangumiFollowStatusLabel(detail.userStatus),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     } else {
                         //  未追番/未收藏：使用填充的主色按钮
@@ -982,10 +1044,13 @@ private fun MobileBangumiDetailContent(
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (targetEpisode != null) MaterialTheme.colorScheme.surfaceVariant else resolveFilledButtonContainerColor(MaterialTheme.colorScheme),
-                                contentColor = if (targetEpisode != null) MaterialTheme.colorScheme.onSurfaceVariant else resolveFilledButtonContentColor(MaterialTheme.colorScheme)
+                                contentColor = if (targetEpisode != null) AppContentColors.secondaryText() else resolveFilledButtonContentColor(MaterialTheme.colorScheme)
                             ),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = actionButtonMinWidth)
+                                .heightIn(min = 48.dp)
                         ) {
                             AppIcon(
                                 Icons.Outlined.Add,
@@ -993,16 +1058,24 @@ private fun MobileBangumiDetailContent(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            AppText(if (isCourse) "收藏" else "追番")
+                            AppText(
+                                text = if (isCourse) "收藏" else "追番",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                     if (canReviewBangumi(detail.mediaId, detail.rights)) {
                         AppOutlinedButton(
                             onClick = { onReviewsClick(detail.mediaId, detail.title) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f).height(48.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = actionButtonMinWidth)
+                                .heightIn(min = 48.dp),
                         ) {
-                            AppText("点评")
+                            AppText("点评", maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -1014,7 +1087,7 @@ private fun MobileBangumiDetailContent(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
-            
+
             // 简介（折叠：默认 3 行省略，点击展开/收起）
             if (detail.evaluate.isNotEmpty()) {
                 item {
@@ -1035,7 +1108,7 @@ private fun MobileBangumiDetailContent(
                         Spacer(modifier = Modifier.height(8.dp))
                         AppText(
                             text = detail.evaluate,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = AppContentColors.secondaryText(),
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = if (isEvaluateExpanded) Int.MAX_VALUE else 3,
                             overflow = TextOverflow.Ellipsis,
@@ -1094,7 +1167,7 @@ private fun MobileBangumiDetailContent(
                     )
                 }
             }
-            
+
             // 剧集列表
             if (!detail.episodes.isNullOrEmpty()) {
                 item {
@@ -1111,7 +1184,7 @@ private fun MobileBangumiDetailContent(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             AppTextButton(onClick = {
                                 episodesDescending = !episodesDescending
@@ -1131,19 +1204,19 @@ private fun MobileBangumiDetailContent(
                                     text = "跳转",
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AppContentColors.secondaryText()
                                 )
                             }
                         }
                     }
                 }
-                
+
                 //  分页选择器（超过50集时显示）
                 if (detail.episodes.orEmpty().size > 50) {
                     item {
                         val episodesPerPage = 50
                         val totalPages = (detail.episodes.orEmpty().size + episodesPerPage - 1) / episodesPerPage
-                        
+
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1151,10 +1224,10 @@ private fun MobileBangumiDetailContent(
                         ) {
                             items(totalPages, key = { it }) { page ->
                                 val isCurrentPage = page == selectedPreviewPage
-                                
+
                                 AppSurface(
                                     onClick = { selectedPreviewPage = page },
-                                    color = if (isCurrentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    color = if (isCurrentPage) AppContentColors.accent() else MaterialTheme.colorScheme.surfaceVariant,
                                     shape = AppShapes.container(ContainerLevel.Card)
                                 ) {
                                     AppText(
@@ -1166,14 +1239,14 @@ private fun MobileBangumiDetailContent(
                                         ),
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (isCurrentPage) AppContentColors.onAccent() else AppContentColors.secondaryText()
                                     )
                                 }
                             }
                         }
                     }
                 }
-                
+
                 //  剧集预览（只显示前6个，点击展开完整列表）
                 item {
                     val previewEpisodes = if (detail.episodes.orEmpty().size > 50) {
@@ -1187,13 +1260,14 @@ private fun MobileBangumiDetailContent(
                     } else {
                         orderedEpisodes.take(6)
                     }
-                    
+
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(previewEpisodes, key = { it.id }) { episode ->
                             EpisodeChip(
+                                seasonId = detail.seasonId,
                                 episode = episode,
                                 progressFraction = rememberBangumiEpisodeProgressLookup()(episode),
                                 onClick = { onEpisodeClick(episode) }
@@ -1220,12 +1294,12 @@ private fun MobileBangumiDetailContent(
                                             AppIcon(
                                                 Icons.Outlined.MoreHoriz,
                                                 contentDescription = "更多",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                tint = AppContentColors.secondaryText()
                                             )
                                             AppText(
                                                 text = "全部${detail.episodes.orEmpty().size}集",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = AppContentColors.secondaryText()
                                             )
                                         }
                                     }
@@ -1241,6 +1315,7 @@ private fun MobileBangumiDetailContent(
                 .forEachIndexed { index, section ->
                     item {
                         BangumiSectionPreview(
+                            seasonId = detail.seasonId,
                             title = resolveBangumiSectionTitle(section, index),
                             episodes = section.episodes.orEmpty(),
                             onEpisodeClick = onEpisodeClick,
@@ -1248,7 +1323,7 @@ private fun MobileBangumiDetailContent(
                         )
                     }
                 }
-            
+
             // 相关季度
             if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                 item {
@@ -1259,7 +1334,7 @@ private fun MobileBangumiDetailContent(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                
+
                 item {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -1275,7 +1350,7 @@ private fun MobileBangumiDetailContent(
                                 },
                                 shape = AppShapes.container(ContainerLevel.Chip),
                                 color = if (isCurrentSeason) {
-                                    MaterialTheme.colorScheme.primary
+                                    AppContentColors.accent()
                                 } else {
                                     MaterialTheme.colorScheme.surfaceVariant
                                 }
@@ -1285,9 +1360,9 @@ private fun MobileBangumiDetailContent(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isCurrentSeason) {
-                                        MaterialTheme.colorScheme.onPrimary
+                                        AppContentColors.onAccent()
                                     } else {
-                                        MaterialTheme.colorScheme.onSurface
+                                        AppContentColors.primaryText()
                                     }
                                 )
                             }
@@ -1296,7 +1371,7 @@ private fun MobileBangumiDetailContent(
                 }
             }
         }
-        
+
         //  快速跳转对话框（在 LazyColumn 外部）
         if (showJumpDialog && !detail.episodes.isNullOrEmpty()) {
             com.android.purebilibili.core.ui.AppAlertDialog(
@@ -1306,7 +1381,7 @@ private fun MobileBangumiDetailContent(
                     Column {
                         AppOutlinedTextField(
                             value = jumpInputText,
-                            onValueChange = { 
+                            onValueChange = {
                                 jumpInputText = it.filter { char -> char.isDigit() }
                                 jumpErrorMessage = null
                             },
@@ -1318,7 +1393,7 @@ private fun MobileBangumiDetailContent(
                         if (jumpErrorMessage != null) {
                             AppText(
                                 text = jumpErrorMessage!!,
-                                color = MaterialTheme.colorScheme.error,
+                                color = AppContentColors.error(),
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
@@ -1350,7 +1425,7 @@ private fun MobileBangumiDetailContent(
                 }
             )
         }
-        
+
         //  官方风格：底部弹出选集面板（在 LazyColumn 外部）
         if (showEpisodeSheet && !detail.episodes.isNullOrEmpty()) {
             EpisodeSelectionSheet(
@@ -1378,6 +1453,7 @@ private fun MobileBangumiDetailContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BangumiDetailMetaSection(
     detail: BangumiDetail,
@@ -1392,11 +1468,12 @@ private fun BangumiDetailMetaSection(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (metaChips.isNotEmpty()) {
-            LazyRow(
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 0.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(metaChips, key = { it }) { chip ->
+                metaChips.forEach { chip ->
                     AppStatusBadge(
                         label = chip,
                         emphasized = false,
@@ -1405,11 +1482,12 @@ private fun BangumiDetailMetaSection(
             }
         }
         if (restrictionLabels.isNotEmpty()) {
-            LazyRow(
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 0.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(restrictionLabels, key = { it }) { label ->
+                restrictionLabels.forEach { label ->
                     AppStatusBadge(
                         label = label,
                         emphasized = true,
@@ -1462,19 +1540,20 @@ private fun BangumiCreditRow(
         AppText(
             text = label,
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
+            color = AppContentColors.accent(),
             fontWeight = FontWeight.Medium
         )
         AppText(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = AppContentColors.secondaryText()
         )
     }
 }
 
 @Composable
 private fun BangumiSectionPreview(
+    seasonId: Long,
     title: String,
     episodes: List<BangumiEpisode>,
     onEpisodeClick: (BangumiEpisode) -> Unit,
@@ -1494,6 +1573,7 @@ private fun BangumiSectionPreview(
         ) {
             items(episodes.take(20), key = { it.id }) { episode ->
                 EpisodeChip(
+                    seasonId = seasonId,
                     episode = episode,
                     progressFraction = rememberBangumiEpisodeProgressLookup()(episode),
                     onClick = { onEpisodeClick(episode) }
@@ -1552,15 +1632,29 @@ private fun BangumiFollowStatusDialog(
 
 @Composable
 private fun EpisodeChip(
+    seasonId: Long,
     episode: BangumiEpisode,
     progressFraction: Float? = null,
+    alignGridTitles: Boolean = false,
     onClick: () -> Unit
 ) {
+    val transition = rememberBangumiEpisodeCardTransition(seasonId, episode, onClick)
+    val titleMaxLines = if (alignGridTitles) {
+        com.android.purebilibili.core.ui.videoCardTitleMaxLines(1)
+    } else Int.MAX_VALUE
+    val titleOverflow = if (alignGridTitles) {
+        com.android.purebilibili.core.ui.videoCardTitleOverflow()
+    } else TextOverflow.Clip
     //  带封面图的设计，集数和标题在同一行
     Column(
         modifier = Modifier
             .width(120.dp)
-            .clickable(onClick = onClick)
+            .then(transition.modifier)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = if (transition.enabled) null else androidx.compose.foundation.LocalIndication.current,
+                onClick = transition.onClick,
+            )
     ) {
         // 缩略图
         AppSurface(
@@ -1577,24 +1671,15 @@ private fun EpisodeChip(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                
+
                 // 角标（如：会员）
                 if (episode.badge.isNotEmpty()) {
-                    val badgeColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
-                    AppSurface(
+                    com.android.purebilibili.feature.bangumi.ui.list.BangumiBadge(
+                        text = episode.badge,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(4.dp),
-                        color = badgeColors.backgroundColor,
-                        shape = AppShapes.container(ContainerLevel.Tag)
-                    ) {
-                        AppText(
-                            text = episode.badge,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                            color = badgeColors.contentColor,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+                    )
                 }
 
                 // 单集观看进度条
@@ -1610,15 +1695,15 @@ private fun EpisodeChip(
                             modifier = Modifier
                                 .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
                                 .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AppContentColors.accent())
                         )
                     }
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(6.dp))
-        
+
         //  集数和标题在同一行：数字在左，标题在右
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1629,16 +1714,18 @@ private fun EpisodeChip(
                 text = episode.title.ifEmpty { episode.id.toString() },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = AppContentColors.primaryText(),
+                maxLines = titleMaxLines,
+                overflow = titleOverflow,
             )
-            
+
             // 标题
             if (episode.longTitle.isNotEmpty()) {
                 Spacer(modifier = Modifier.width(6.dp))
                 AppText(
                     text = episode.longTitle,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = AppContentColors.secondaryText(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -1653,7 +1740,7 @@ private fun EpisodeChip(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EpisodeSelectionSheet(
+internal fun EpisodeSelectionSheet(
     detail: BangumiDetail,
     onDismiss: () -> Unit,
     onEpisodeClick: (BangumiEpisode) -> Unit,
@@ -1666,7 +1753,7 @@ private fun EpisodeSelectionSheet(
     val episodes = remember(sourceEpisodes, episodesDescending) {
         orderBangumiEpisodes(sourceEpisodes, episodesDescending)
     }
-    
+
     com.android.purebilibili.core.ui.AppModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -1704,12 +1791,12 @@ private fun EpisodeSelectionSheet(
                         AppIcon(
                             Icons.Outlined.Close,
                             contentDescription = "关闭",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = AppContentColors.secondaryText()
                         )
                     }
                 }
             }
-            
+
             //  季度标签（如果有多个季度）
             if (!detail.seasons.isNullOrEmpty() && detail.seasons.orEmpty().size > 1) {
                 LazyRow(
@@ -1719,7 +1806,7 @@ private fun EpisodeSelectionSheet(
                 ) {
                     items(detail.seasons.orEmpty(), key = { it.seasonId }) { season ->
                         val isCurrentSeason = season.seasonId == detail.seasonId
-                        
+
                         AppSurface(
                             onClick = {
                                 if (!isCurrentSeason) {
@@ -1729,7 +1816,7 @@ private fun EpisodeSelectionSheet(
                             },
                             shape = AppShapes.container(ContainerLevel.Card),
                             color = if (isCurrentSeason) {
-                                MaterialTheme.colorScheme.primary
+                                AppContentColors.accent()
                             } else {
                                 Color.Transparent
                             }
@@ -1740,35 +1827,35 @@ private fun EpisodeSelectionSheet(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isCurrentSeason) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isCurrentSeason) {
-                                    MaterialTheme.colorScheme.onPrimary
+                                    AppContentColors.onAccent()
                                 } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                    AppContentColors.secondaryText()
                                 }
                             )
                         }
                     }
                 }
             }
-            
+
             //  更新信息
             detail.newEp?.desc?.let { desc ->
                 AppText(
                     text = desc,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = AppContentColors.secondaryText()
                 )
             }
-            
+
             AppHorizontalDivider(
                 modifier = Modifier.padding(vertical = 8.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             )
-            
+
             //  分页选择器（超过50集时显示）
             val episodesPerPage = 50
             val totalPages = resolveBangumiEpisodePageCount(episodes.size, episodesPerPage)
-            
+
             if (totalPages > 1) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
@@ -1777,10 +1864,10 @@ private fun EpisodeSelectionSheet(
                 ) {
                     items(totalPages, key = { it }) { page ->
                         val isCurrentPage = page == selectedPage
-                        
+
                         AppSurface(
                             onClick = { selectedPage = page },
-                            color = if (isCurrentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            color = if (isCurrentPage) AppContentColors.accent() else MaterialTheme.colorScheme.surfaceVariant,
                             shape = AppShapes.container(ContainerLevel.Card)
                         ) {
                             AppText(
@@ -1792,13 +1879,13 @@ private fun EpisodeSelectionSheet(
                                 ),
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isCurrentPage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isCurrentPage) AppContentColors.onAccent() else AppContentColors.secondaryText()
                             )
                         }
                     }
                 }
             }
-            
+
             //  剧集列表（两列网格布局）
             val displayEpisodes = if (totalPages > 1) {
                 val pageStart = selectedPage * episodesPerPage
@@ -1807,7 +1894,7 @@ private fun EpisodeSelectionSheet(
             } else {
                 episodes
             }
-            
+
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -1874,33 +1961,24 @@ private fun EpisodeListItem(
                         modifier = Modifier
                             .fillMaxWidth(progressFraction.coerceIn(0f, 1f))
                             .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(AppContentColors.accent())
                     )
                 }
             }
 
             // VIP 角标
             if (episode.badge.isNotEmpty()) {
-                val badgeColors = resolveAdaptivePrimaryAccentColors(MaterialTheme.colorScheme)
-                AppSurface(
+                com.android.purebilibili.feature.bangumi.ui.list.BangumiBadge(
+                    text = episode.badge,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(2.dp),
-                    color = badgeColors.backgroundColor,
-                    shape = AppShapes.container(ContainerLevel.Tag)
-                ) {
-                    AppText(
-                        text = episode.badge,
-                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
-                        color = badgeColors.contentColor,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+                )
             }
         }
-        
+
         Spacer(modifier = Modifier.width(10.dp))
-        
+
         // 剧集信息
         Column(
             modifier = Modifier.weight(1f)
@@ -1911,7 +1989,7 @@ private fun EpisodeListItem(
                     text = "第${episode.title}话",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = AppContentColors.primaryText(),
                     maxLines = 1,
                     modifier = Modifier.weight(1f, fill = false)
                 )
@@ -1920,21 +1998,20 @@ private fun EpisodeListItem(
                     AppText(
                         text = FormatUtils.formatDuration((episode.duration / 1000L).toInt()),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = AppContentColors.secondaryText()
                     )
                 }
             }
 
-            // 标题
-            if (episode.longTitle.isNotEmpty()) {
-                AppText(
-                    text = episode.longTitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            // 标题区预留一行，使同排剧集在大字号下仍然等高。
+            AppText(
+                text = episode.longTitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = AppContentColors.secondaryText(),
+                minLines = 1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
