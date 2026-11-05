@@ -36,6 +36,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      # Robolectric 的 android-all jar 不在 Gradle 依赖缓存里，是测试运行时自行下载的。
+      # 缓存本地 Maven 仓库，避免每个全新 runner 重复下载并被 Central 限流（429）。
+      - name: Cache Robolectric android runtime
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository/org/robolectric
+            ~/.robolectric
+          key: robolectric-${{ runner.os }}-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: |
+            robolectric-${{ runner.os }}-
       - name: Run performance contracts and degradation behavior
         env:
           GITHUB_TOKEN: ${{ github.token }}

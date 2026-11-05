@@ -278,6 +278,12 @@ android {
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
+            // Robolectric 在测试运行时自行下载 android-all jar；Maven Central 主域
+            // 对共享的 GitHub runner IP 会返回 429（Too Many Requests），改用镜像源。
+            it.systemProperty(
+                "robolectric.dependency.repo.url",
+                "https://maven.aliyun.com/repository/central",
+            )
         }
         // 🔥 允许 Android 类在单元测试中返回默认值而非抛出异常
         unitTests.isReturnDefaultValues = true
