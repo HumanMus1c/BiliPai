@@ -132,6 +132,7 @@ import com.android.purebilibili.core.ui.transition.LocalVideoCardSharedElementSo
 import com.android.purebilibili.core.ui.transition.LocalMiuixVideoCardTransitionState
 import kotlinx.coroutines.launch
 import com.android.purebilibili.core.ui.transition.recordNativeVideoCardLayer
+import com.android.purebilibili.core.ui.transition.videoCardSourceAnchor
 import com.android.purebilibili.core.ui.transition.LocalClickToPlayEnabled
 import com.android.purebilibili.core.ui.transition.LocalVideoSharedTransitionSpeedSettings
 import com.android.purebilibili.core.ui.transition.VideoSharedTransitionMotionSpec
@@ -145,7 +146,6 @@ import com.android.purebilibili.core.store.SettingsManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.purebilibili.core.ui.transition.resolveVideoCardSharedBoundsResizeMode
 import com.android.purebilibili.core.ui.transition.shouldEnableVideoCoverSharedTransition
-import com.android.purebilibili.core.ui.transition.videoCardShellSharedBoundsOrEmpty
 import com.android.purebilibili.core.ui.transition.videoCoverSharedElementKey
 import com.android.purebilibili.core.ui.transition.videoSharedElementBoundsTransformSpec
 import com.android.purebilibili.feature.home.resolveHomeCardEnterAnimationEnabledAtMount
@@ -1008,6 +1008,7 @@ internal fun ElegantVideoCard(
     //  [性能优化] 存储 LayoutCoordinates 引用而非 Rect，boundsInRoot() 仅在交互时惰性计算，
     //  避免滚动期间每帧 4 次坐标树遍历开销。
     val cardCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
+    val nativeCardCoordsRef = remember { object { var value: LayoutCoordinates? = null } }
     val sharedSourceInstanceId = rememberSaveable(video.bvid) {
         CardPositionManager.newVideoCardSourceInstanceId()
     }
@@ -1052,13 +1053,13 @@ internal fun ElegantVideoCard(
     val sourceInteraction = remember(video.bvid, video.cid, effectiveSharedElementSourceRoute) {
         VideoCardSourceInteraction()
     }
-    val sourceInteractionAllowed by rememberUpdatedState(
+    val sourcePreparationAllowed by rememberUpdatedState(
         onDemandSource && LocalPageImageLoadingAllowed.current && cardVisibleInWindow &&
             com.android.purebilibili.core.ui.rememberVisualWorkActive() &&
             LocalHomeCardScrolling.current?.value != true
     )
     val prepareCardTransition = sourceEnabled && (
-        !onDemandSource || (sourceInteractionAllowed && sourceInteraction.preparing) ||
+        !onDemandSource || (sourcePreparationAllowed && sourceInteraction.preparing) ||
             isVideoCardSharedReturnTarget(
                 bvid = video.bvid,
                 sourceRoute = effectiveSharedElementSourceRoute,
@@ -1122,6 +1123,11 @@ internal fun ElegantVideoCard(
                 // survives Loading and does not wait for destination ViewInfo.
                 sourceLayout = VideoCardSourceLayout.STACKED,
                 sourceChromeSnapshot = VideoCardSourceChromeSnapshot(
+                    nativeInfoBounds = nativeCardCoordsRef.value?.takeIf { it.isAttached }?.let { card ->
+                        infoLayoutCoordinates.value?.takeIf { it.isAttached }?.let { info ->
+                            card.localBoundingBoxOf(info, clipBounds = false)
+                        }
+                    },
                     infoContainerColor = if (useCardEffectSurface && resolvedWallpaperTintEnabled) {
                         val infoY = infoLayoutCoordinates.value
                             ?.takeIf { it.isAttached }?.positionInRoot()?.y
@@ -1218,7 +1224,7 @@ internal fun ElegantVideoCard(
     })
     val requestCardClick by rememberUpdatedState {
         if (onDemandSource) {
-            if (sourceInteractionAllowed && !CardPositionManager.isVideoNavigationDebounceActive()) {
+            if (!CardPositionManager.isVideoNavigationDebounceActive()) {
                 sourceInteraction.requestClick()
             }
         } else {
@@ -1229,7 +1235,7 @@ internal fun ElegantVideoCard(
         VideoCardPreparedClickEffect(
             interaction = sourceInteraction,
             capture = captureState,
-            allowed = onDemandSource && sourceInteractionAllowed,
+            allowed = onDemandSource && sourcePreparationAllowed,
             onClick = { triggerCardClick() },
         )
     }
@@ -1254,6 +1260,7 @@ internal fun ElegantVideoCard(
         propagateMinConstraints = true,
         modifier = modifier
             .fillMaxWidth()
+            .videoCardSourceAnchor(video.bvid, adaptiveHoverShape)
             .then(cardVisibility.observerModifier)
             .adaptiveCardHoverEffect(shape = adaptiveHoverShape)
             // 进场动画：挂载门控已含滚动/返回/切分类；与过渡并存时仅淡入不改几何
@@ -1373,7 +1380,8 @@ internal fun ElegantVideoCard(
                     enabled = effectiveTransitionEnabled,
                     landingFeedbackEnabled = true,
                     onRecorded = captureState?.let { { it.onCardRecorded() } },
-                ),
+                )
+                .onPlaced { nativeCardCoordsRef.value = it },
         ) {
             val cardShellBaseColor = if (useCardEffectSurface) {
                 Color.Transparent
@@ -1395,15 +1403,7 @@ internal fun ElegantVideoCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .videoCardShellSharedBoundsOrEmpty(
-                        enabled = useCardShellSharedBounds,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        bvid = video.bvid,
-                        sourceRoute = effectiveSharedElementSourceRoute,
-                        motionSpec = homeSharedTransitionMotionSpec,
-                        clipShape = cardShellShape
-                    )
+
                     .clip(cardShellShape)
             ) {
         //  [性能优化] 封面圆角形状缓存（避免重组时重复创建）
@@ -1474,7 +1474,7 @@ internal fun ElegantVideoCard(
                     val hasLongPressMenu = isLongPressEnabled && (onDismiss != null || onWatchLater != null || onUnfavorite != null)
                     detectTapGestures(
                         onPress = {
-                            if (onDemandSource && sourceInteractionAllowed) sourceInteraction.press()
+                            if (onDemandSource && sourcePreparationAllowed) sourceInteraction.press()
                             try {
                                 tryAwaitRelease()
                             } finally {
@@ -1865,9 +1865,6 @@ internal fun ElegantVideoCard(
                 )
                 .then(hazeModifier)
                 .then(wallpaperBackdropModifier)
-                .onPlaced { coordinates ->
-                    infoLayoutCoordinates.value = coordinates
-                }
                 .drawWithCache {
                     val cachedSpec = resolveVideoCardAmbientDrawSpec(
                         wallpaperPalette = wallpaperPalette,
@@ -1992,7 +1989,9 @@ internal fun ElegantVideoCard(
         }
 
         Box(
-            modifier = infoContainerModifier.videoCardShellReturnChromeAlpha(
+            modifier = infoContainerModifier.onPlaced {
+                infoLayoutCoordinates.value = it
+            }.videoCardShellReturnChromeAlpha(
                 enabled = useCardShellSharedBounds,
                 bvid = video.bvid,
                 sourceRoute = effectiveSharedElementSourceRoute,
@@ -2036,7 +2035,7 @@ internal fun ElegantVideoCard(
                     val hasLongPressMenu = isLongPressEnabled && (onDismiss != null || onWatchLater != null || onUnfavorite != null)
                     detectTapGestures(
                         onPress = {
-                            if (onDemandSource && sourceInteractionAllowed) sourceInteraction.press()
+                            if (onDemandSource && sourcePreparationAllowed) sourceInteraction.press()
                             try {
                                 tryAwaitRelease()
                             } finally {
